@@ -15,15 +15,20 @@ import { CountUp } from "./count-up";
  * Pass `onClick` to make it a filter tile (the mockup's "Tap to filter" cards):
  * it renders a <button aria-pressed>, shows the hint line, and rims itself when
  * `active`. `alert` turns the figure and rim rose — use it only for something
- * that needs a decision (a sync conflict, an overdue claim), and pair it with
- * `pulse` only when that decision is today's.
+ * that needs a decision (a sync conflict, an overdue claim). `pulse` only ever
+ * fires on an alert, and only a few times: one alarm that arrives, then rests
+ * (the rose text keeps saying why).
+ *
+ * `tone` defaults to the dashboard's own accent; pass a sub-brand only when the
+ * figure belongs to that brand, and ok / pending / problem for status.
  *
  * `value` is pre-formatted text; the numeric part counts up on mount. Pass
  * "—" for a value that was never recorded (absence is not zero, HRIS § 12.5).
  */
-export type KpiTone = "haven" | "nectar" | "skyblue" | "charcoal" | "ok" | "pending" | "problem";
+export type KpiTone = "tone" | "haven" | "nectar" | "skyblue" | "charcoal" | "ok" | "pending" | "problem";
 
 const CHIP: Record<KpiTone, string> = {
+  tone: "from-tone-chip-a to-tone-chip-b shadow-black/15",
   haven: "from-haven-400 to-haven-700 shadow-haven-700/20",
   nectar: "from-nectar-400 to-nectar-700 shadow-nectar-700/20",
   skyblue: "from-skyblue-400 to-skyblue-700 shadow-skyblue-700/20",
@@ -56,7 +61,7 @@ export function KpiCard({
   value,
   sub,
   icon: Icon,
-  tone = "haven",
+  tone = "tone",
   onClick,
   active = false,
   hint,
@@ -82,9 +87,9 @@ export function KpiCard({
         alert ? "border-rose-200 dark:border-rose-500/30" : "border-border dark:border-zinc-800",
         interactive &&
           "cursor-pointer hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
-        interactive && active && !alert && "border-haven-400 bg-haven-50/80 ring-1 ring-haven-300 dark:border-haven-600 dark:bg-haven-950/40 dark:ring-haven-800",
+        interactive && active && !alert && "border-tone-strong bg-tone-soft ring-1 ring-tone-line dark:bg-tone-soft",
         interactive && active && alert && "border-rose-400 bg-rose-50/80 ring-1 ring-rose-200 dark:border-rose-500/50 dark:bg-rose-950/30 dark:ring-rose-500/20",
-        pulse && (alert ? "pulse-rose" : "pulse-haven"),
+        pulse && alert && "pulse-rose",
         className,
       )}
     >
@@ -92,7 +97,8 @@ export function KpiCard({
         <span
           className={cn(
             "flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow",
-            size === "sm" ? "hidden size-8 sm:flex" : "size-9",
+            // Phones run KPIs two-up, so the chip gives its width to the figure.
+            size === "sm" ? "hidden size-8 sm:flex" : "hidden size-9 sm:flex",
             CHIP[effectiveTone],
           )}
           aria-hidden
@@ -112,7 +118,7 @@ export function KpiCard({
         <span
           className={cn(
             "mt-0.5 truncate leading-tight font-bold tabular-nums",
-            size === "sm" ? "text-xl" : "text-[28px]",
+            size === "sm" ? "text-xl" : "text-2xl sm:text-[28px]",
             alert ? "text-rose-700 dark:text-rose-300" : "text-foreground",
           )}
         >
@@ -121,18 +127,18 @@ export function KpiCard({
         {interactive ? (
           <span
             className={cn(
-              "truncate text-[10.5px]",
+              "truncate text-xs",
               active
                 ? alert
                   ? "font-medium text-rose-700 dark:text-rose-300"
-                  : "font-medium text-haven-700 dark:text-haven-300"
+                  : "font-medium text-tone-ink"
                 : "text-subtle-foreground",
             )}
           >
             {active ? "Showing only these · tap to clear" : (hint ?? "Tap to filter")}
           </span>
         ) : sub ? (
-          <span className="truncate text-[11px] text-subtle-foreground">{sub}</span>
+          <span className="truncate text-xs text-subtle-foreground">{sub}</span>
         ) : null}
       </span>
     </Tag>
@@ -149,6 +155,9 @@ export function KpiGrid({
   className?: string;
   children: React.ReactNode;
 }) {
-  const xl = { 3: "lg:grid-cols-3", 4: "lg:grid-cols-4", 5: "lg:grid-cols-3 xl:grid-cols-5", 6: "lg:grid-cols-3 xl:grid-cols-6" }[cols];
-  return <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2", xl, className)}>{children}</div>;
+  // Four-up waits for xl: at lg the open rail leaves ~190px a tile, which cuts
+  // labels ("NEEDS YOU TOD…"). Two-up until there's room for the full label.
+  const xl = { 3: "lg:grid-cols-3", 4: "xl:grid-cols-4", 5: "lg:grid-cols-3 xl:grid-cols-5", 6: "lg:grid-cols-3 xl:grid-cols-6" }[cols];
+  // Two-up from the smallest phone: four figures in one glance, not a scroll.
+  return <div className={cn("grid grid-cols-2 gap-3", xl, className)}>{children}</div>;
 }

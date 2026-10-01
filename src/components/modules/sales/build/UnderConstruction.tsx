@@ -31,10 +31,9 @@ export function UnderConstruction() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Sales"
         title={
           <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <Building2 className="size-5 text-haven-700 dark:text-haven-300" aria-hidden />
+            <Building2 className="size-5 text-tone-ink" aria-hidden />
             Under construction
             <Pill tone="neutral" className="font-sans tracking-normal tabular-nums">
               {BUILD_HOMES.length} homes
@@ -65,13 +64,13 @@ export function UnderConstruction() {
                 <Card
                   className={cn(
                     "px-4 py-3.5",
-                    near ? "border-haven-300 dark:border-haven-700" : undefined,
+                    near ? "border-tone-line" : undefined,
                   )}
                 >
                   <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                    <span className="font-mono text-[12px] font-semibold tabular-nums">{h.jobNo}</span>
+                    <span className="font-mono text-xs font-semibold tabular-nums">{h.jobNo}</span>
                     <span className="text-[13px]">{h.addr}</span>
-                    {near ? <Pill tone="haven">Nearing handover</Pill> : null}
+                    {near ? <Pill tone="tone">Nearing handover</Pill> : null}
                     <span className="ml-auto text-xs text-muted-foreground">{h.builder}</span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-3.5 gap-y-0.5 text-xs text-muted-foreground">
@@ -88,7 +87,7 @@ export function UnderConstruction() {
                   </div>
                   <RateBar
                     value={h.pct / 100}
-                    tone={near ? "haven" : "skyblue"}
+                    tone={near ? "tone" : "neutral"}
                     delay={Math.min(i * 0.06, 0.3)}
                     label={`${h.pct}% built`}
                     className="mt-2.5"
@@ -104,13 +103,13 @@ export function UnderConstruction() {
                         </span>
                       ))}
                     </div>
-                    <span className="text-[11px] text-subtle-foreground">
+                    <span className="text-xs text-subtle-foreground">
                       {h.photos} site photos · from the {h.builder} portal, {h.shot}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="ml-auto text-haven-700 dark:text-haven-300"
+                      className="ml-auto text-tone-ink"
                       onClick={() => {
                         setPhotosOf(h);
                         setPhotosOpen(true);
@@ -155,7 +154,7 @@ export function UnderConstruction() {
                   className="flex aspect-[4/3] flex-col items-center justify-center gap-1.5 rounded-lg border border-hairline bg-muted text-subtle-foreground"
                 >
                   <Home className="size-5" aria-hidden />
-                  <span className="text-[10.5px] tabular-nums">
+                  <span className="text-xs tabular-nums">
                     Photo {p + 1} of {photosOf.photos}
                   </span>
                 </li>

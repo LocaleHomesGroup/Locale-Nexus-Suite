@@ -5,7 +5,7 @@ import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const FIELD =
-  "w-full min-w-0 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground shadow-xs outline-none placeholder:text-subtle-foreground focus-visible:border-haven-400 focus-visible:ring-3 focus-visible:ring-haven-300/40 disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-rose-400 aria-invalid:ring-rose-200/50 dark:bg-white/[0.03] dark:focus-visible:ring-haven-700/40";
+  "w-full min-w-0 rounded-lg border border-input bg-card px-2.5 text-sm text-foreground shadow-xs outline-none placeholder:text-subtle-foreground focus-visible:border-tone-strong focus-visible:ring-3 focus-visible:ring-tone-line/45 disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-rose-400 aria-invalid:ring-rose-200/50 dark:bg-white/[0.03]";
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, type = "text", ...props }, ref) {
@@ -42,7 +42,7 @@ export function Field({
     <div className={cn("space-y-1.5", className)}>
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
-      {hint ? <p className="text-[11px] text-subtle-foreground">{hint}</p> : null}
+      {hint ? <p className="text-xs text-subtle-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -84,14 +84,14 @@ export function SearchInput({
         className={cn(
           FIELD,
           "[&::-webkit-search-cancel-button]:hidden",
-          size === "lg" ? "h-11 rounded-xl pr-24 pl-10 text-[14px] shadow-sm" : "h-8 pr-20 pl-8 text-xs",
+          size === "lg" ? "h-11 rounded-xl pr-24 pl-10 text-sm shadow-sm" : "h-8 pr-20 pl-8 text-xs",
         )}
         {...rest}
       />
       {has ? (
         <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-1">
           {count != null ? (
-            <span className="rounded-full bg-muted px-1.5 py-px font-mono text-[10px] text-muted-foreground tabular-nums">
+            <span className="rounded-full bg-muted px-1.5 py-px font-mono text-xs text-muted-foreground tabular-nums">
               {count}
             </span>
           ) : null}
@@ -133,7 +133,7 @@ export function Switch({
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none disabled:opacity-50",
-        checked ? "bg-haven-500 dark:bg-haven-400" : "bg-zinc-300 dark:bg-zinc-700",
+        checked ? "bg-tone-strong" : "bg-zinc-300 dark:bg-zinc-700",
         className,
       )}
     >
@@ -155,7 +155,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, Omit<React.InputHTMLA
         ref={ref}
         type="checkbox"
         className={cn(
-          "size-4 shrink-0 cursor-pointer rounded border-input accent-haven-600 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none dark:accent-haven-400",
+          "size-4 shrink-0 cursor-pointer rounded border-input accent-tone-strong focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
           className,
         )}
         {...props}

@@ -63,7 +63,6 @@ export function Pipeline() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Sales"
         title="Deal pipeline"
         description="One clean view of every deal by stage. Won deals flow straight into Operations."
         actions={
@@ -87,7 +86,7 @@ export function Pipeline() {
                 >
                   <header className="mb-2 flex items-baseline gap-1.5 px-0.5">
                     <h2 className="text-xs font-semibold">{stage}</h2>
-                    <span className="ml-auto text-[11px] text-subtle-foreground tabular-nums">{inStage.length}</span>
+                    <span className="ml-auto text-xs text-subtle-foreground tabular-nums">{inStage.length}</span>
                   </header>
                   <ul className="flex flex-col gap-2">
                     {inStage.map((d) => (
@@ -101,7 +100,7 @@ export function Pipeline() {
                     ))}
                   </ul>
                   {inStage.length === 0 ? (
-                    <p className="mt-2 rounded-lg border border-dashed border-border px-3 py-4 text-center text-[11px] text-subtle-foreground">
+                    <p className="mt-2 rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-subtle-foreground">
                       No deals in this stage
                     </p>
                   ) : null}
@@ -158,15 +157,15 @@ function DealCard({ deal, won, onOpen }: { deal: PipelineDeal; won: boolean; onO
       onClick={onOpen}
       className={cn(
         "w-full rounded-lg border bg-card px-3 py-2.5 text-left shadow-xs transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:translate-y-0",
-        won ? "border-haven-300 dark:border-haven-700" : "border-border hover:border-haven-300 dark:hover:border-haven-800",
+        won ? "border-tone-line" : "border-border hover:border-tone-line",
       )}
     >
       <span className="block text-xs font-semibold">{deal.client}</span>
-      <span className="mt-0.5 mb-1.5 block text-[11px] text-muted-foreground tabular-nums">
+      <span className="mt-0.5 mb-1.5 block text-xs text-muted-foreground tabular-nums">
         {deal.suburb} · {deal.value}
       </span>
       <span className="flex items-center">
-        <span className="text-[10.5px] text-subtle-foreground">{deal.days} in stage</span>
+        <span className="text-xs text-subtle-foreground">{deal.days} in stage</span>
         <span className="ml-auto" title={deal.rep}>
           <Avatar name={deal.rep} tone="haven" size="xs" />
           <span className="sr-only">Owner {deal.rep}</span>
@@ -186,19 +185,19 @@ function DealDetail({ deal, job }: { deal: PipelineDeal; job?: Job }) {
             <span
               className={cn(
                 "h-1.5 rounded-full",
-                i < at && "bg-haven-400 dark:bg-haven-500",
-                i === at && "bg-haven-600 dark:bg-haven-300",
+                i < at && "bg-tone-strong/60",
+                i === at && "bg-tone-strong",
                 i > at && "bg-muted",
               )}
               aria-hidden
             />
             <span
               className={cn(
-                "flex items-center gap-1 text-[10.5px] leading-tight",
+                "flex items-center gap-1 text-xs leading-tight",
                 i === at ? "font-semibold text-foreground" : "text-subtle-foreground",
               )}
             >
-              {i < at ? <Check className="size-3 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden /> : null}
+              {i < at ? <Check className="size-3 shrink-0 text-tone-ink" aria-hidden /> : null}
               {s}
             </span>
           </li>
@@ -220,7 +219,7 @@ function DealDetail({ deal, job }: { deal: PipelineDeal; job?: Job }) {
             <dt className="text-muted-foreground">Job</dt>
             <dd className="flex flex-wrap items-center gap-2">
               {job.jobNo ? (
-                <span className="font-mono text-[11px] tabular-nums">{job.jobNo}</span>
+                <span className="font-mono text-xs tabular-nums">{job.jobNo}</span>
               ) : (
                 <span className="text-xs text-muted-foreground italic">Awaiting job no</span>
               )}
@@ -232,7 +231,7 @@ function DealDetail({ deal, job }: { deal: PipelineDeal; job?: Job }) {
       </dl>
 
       {deal.stage === "Sale won" ? (
-        <p className="rounded-lg border border-haven-300 bg-haven-50 px-3 py-2 text-xs text-haven-950 dark:border-haven-800 dark:bg-haven-950/40 dark:text-haven-100">
+        <p className="rounded-lg border border-tone-line bg-tone-soft px-3 py-2 text-xs text-foreground">
           Sale won creates the job in CRM Dash Sync automatically.
         </p>
       ) : null}

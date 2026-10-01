@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpen } from "lucide-react";
 import type { Job, Milestone } from "@/data/jobs";
 import { useLaunchpad } from "@/state/launchpad-store";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,9 @@ import { ConstructionCard, PreconCard, type MilestoneDraft } from "./MilestoneCa
 import { DocumentsCard, OpenInCard } from "./SideCards";
 import { AuditLog } from "./AuditLog";
 import { ConflictDialog, HandoverDialog } from "./JobDialogs";
+
+/** The Knowledge SOP, deep-linked as a search so the article is the only result. */
+const CONFLICT_GUIDE = `/knowledge?cat=sops&q=${encodeURIComponent("Resolving a sync conflict")}`;
 
 function BackLink() {
   return (
@@ -57,7 +60,13 @@ export function JobDetailScreen({ id }: { id: string }) {
 
 function JobDetail({ job }: { job: Job }) {
   const { activity, updateJob, logActivity } = useLaunchpad();
-  const { syncMilestone, syncDetails, handOver, resolveConflict } = useOperationsSync();
+  const { syncMilestone, syncDetails, handOver, resolveConflict, trailForJob, viewTrail } = useOperationsSync();
+  const trail = trailForJob(job.id);
+  // The audit log is this job's own history: entries scoped to it, plus any that apply to every job.
+  const history = React.useMemo(
+    () => activity.filter((e) => !e.jobs || e.jobs.includes(job.id)),
+    [activity, job.id],
+  );
 
   const [draft, setDraft] = React.useState<MilestoneDraft | null>(null);
   const [detailsDirty, setDetailsDirty] = React.useState(false);
@@ -93,26 +102,49 @@ function JobDetail({ job }: { job: Job }) {
           m.name === "Builder Acceptance" && m.status !== "done" ? { ...m, status: "done", date: "05 Aug 2026" } : m,
         ),
       }));
-      logActivity("details", "Job number entered", `${job.jobNo.trim()} · deal renamed, Builder Acceptance ticked`, [
-        "Monday",
-        "HubSpot",
-      ]);
+      logActivity(
+        "details",
+        "Job number entered",
+        `${job.jobNo.trim()} · deal renamed, Builder Acceptance ticked`,
+        ["Monday", "HubSpot"],
+        job.id,
+      );
     }
     syncDetails(job.id, "Job details");
   };
 
-  const editor = { draft, setDraft, onEdit: editMilestone, onSave: saveMilestone };
+  const editor = {
+    draft,
+    setDraft,
+    onEdit: editMilestone,
+    onSave: saveMilestone,
+    // A milestone in dispute can't be edited until the conflict is settled.
+    conflictOn: job.sync === "conflict" ? job.conflict?.milestone : undefined,
+    onConflict: () => setConflictOpen(true),
+  };
   const title = `${job.jobNo ? `Job ${job.jobNo}` : "New job"} · ${job.client}`;
 
   return (
     <PageContainer>
       <div className="flex flex-col gap-3">
         <BackLink />
-        <PageHeader eyebrow="Operations" title={title} actions={<SyncBadge sync={job.sync} className="text-[13px]" />} />
+        <PageHeader
+          title={title}
+          actions={
+            <>
+              <SyncBadge sync={job.sync} className="text-[13px]" />
+              {trail ? (
+                <Button variant="link" size="sm" className="h-auto text-xs" onClick={() => viewTrail(trail.id)}>
+                  View sync trail
+                </Button>
+              ) : null}
+            </>
+          }
+        />
         <div className="flex flex-wrap items-center gap-1.5">
-          <Pill tone="skyblue">{job.builder}</Pill>
+          <Pill tone="neutral">{job.builder}</Pill>
           <Pill tone="neutral">
-            Record ID <span className="font-mono text-[11px]">{job.recordId}</span>
+            Record ID <span className="font-mono text-xs">{job.recordId}</span>
           </Pill>
           <Pill tone="neutral">HubSpot · {job.hsStage}</Pill>
           <MondayPill job={job} long />
@@ -126,10 +158,20 @@ function JobDetail({ job }: { job: Job }) {
             className="flex flex-wrap items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-500/30 dark:bg-rose-500/10"
           >
             <AlertTriangle className="size-4 shrink-0 text-rose-600 dark:text-rose-300" aria-hidden />
-            <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-rose-800 dark:text-rose-200">
-              <strong className="font-semibold">Conflict on {job.conflict.field}.</strong> CRM Dash: {job.conflict.hub}.
-              Monday: {job.conflict.monday}.
-            </p>
+            <div className="min-w-0 flex-1">
+              <p className="max-w-[70ch] text-[13px] leading-relaxed text-rose-800 dark:text-rose-200">
+                <strong className="font-semibold">Conflict on {job.conflict.field}.</strong> CRM Dash:{" "}
+                {job.conflict.hub}. Monday: {job.conflict.monday}. Nothing on this milestone syncs until it&apos;s
+                resolved.
+              </p>
+              <Link
+                href={CONFLICT_GUIDE}
+                className="mt-1 inline-flex items-center gap-1 rounded-sm text-xs font-medium text-rose-800 underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/45 dark:text-rose-200"
+              >
+                <BookOpen className="size-3.5" aria-hidden />
+                Guide: Resolving a sync conflict
+              </Link>
+            </div>
             <Button size="sm" className="pulse-rose ml-auto" onClick={() => setConflictOpen(true)}>
               Resolve
             </Button>
@@ -180,7 +222,7 @@ function JobDetail({ job }: { job: Job }) {
             <DocumentsCard job={job} />
           </Reveal>
           <Reveal index={3}>
-            <AuditLog entries={activity} />
+            <AuditLog entries={history} />
           </Reveal>
           <Reveal index={4}>
             <OpenInCard job={job} />

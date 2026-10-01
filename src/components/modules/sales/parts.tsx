@@ -12,10 +12,10 @@ import { Pill } from "@/components/ui/pill";
  * app-wide primitives live in src/components/ui.
  */
 
-/** The "Managers only" lock tag on manager-visible cards (mockup: mist pill). */
+/** The "Managers only" lock tag on manager-visible cards (a quiet neutral tag). */
 export function ManagersOnly({ className }: { className?: string }) {
   return (
-    <Pill tone="skyblue" icon={Lock} className={cn("text-[11px]", className)}>
+    <Pill tone="neutral" icon={Lock} className={cn("text-xs", className)}>
       Managers only
     </Pill>
   );
@@ -23,7 +23,8 @@ export function ManagersOnly({ className }: { className?: string }) {
 
 /** A caption under a card or section — the mockup's faint 10.5–12px notes. */
 export function Footnote({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <p className={cn("text-[11px] leading-relaxed text-subtle-foreground", className)}>{children}</p>;
+  // Capped at ~70ch: the Sales pages run full width, a footnote shouldn't.
+  return <p className={cn("max-w-[70ch] text-xs leading-relaxed text-subtle-foreground", className)}>{children}</p>;
 }
 
 /**
@@ -31,8 +32,9 @@ export function Footnote({ className, children }: { className?: string; children
  * segment so Tailwind sees every name (HRIS § 15.2).
  */
 export const SEGMENT = {
-  /** Mockup "mist" → Sky Blue. */
-  skyblue: "bg-skyblue-300 dark:bg-skyblue-400/80",
+  /** Mockup "mist": a quiet neutral. Sky Blue is Locale Wealth's colour, so it
+   *  never stands in for a generic data series on a Homes dashboard. */
+  mist: "bg-zinc-300 dark:bg-zinc-600",
   /** Mockup "seafoam" → Haven Green. */
   haven: "bg-haven-300 dark:bg-haven-400",
   /** Mockup "charcoal" (inverts in dark, as the mockup's token did). */
@@ -42,7 +44,7 @@ export type SegmentTone = keyof typeof SEGMENT;
 
 export function Legend({ items, className }: { items: { label: string; tone: SegmentTone }[]; className?: string }) {
   return (
-    <div className={cn("flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground", className)}>
+    <div className={cn("flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground", className)}>
       {items.map((it) => (
         <span key={it.label} className="inline-flex items-center gap-1.5">
           <span className={cn("size-2 rounded-[2px]", SEGMENT[it.tone])} aria-hidden />

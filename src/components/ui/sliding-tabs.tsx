@@ -100,7 +100,7 @@ export function SlidingTabs<T extends string>({
                   layoutId={`${id}-underline`}
                   className={cn(
                     "absolute inset-x-0 bottom-0 h-0.5 rounded-full",
-                    it.danger ? "bg-rose-500" : "bg-haven-500 dark:bg-haven-300",
+                    it.danger ? "bg-rose-500" : "bg-tone-strong",
                   )}
                   transition={transition}
                 />
@@ -137,20 +137,18 @@ export function SlidingTabs<T extends string>({
               active
                 ? it.danger
                   ? "text-white"
-                  : "text-haven-950"
+                  : "text-tone-on-fill"
                 : it.danger
                   ? "text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                  : "text-muted-foreground hover:bg-haven-50 hover:text-haven-900 dark:hover:bg-haven-950/40 dark:hover:text-haven-100",
+                  : "text-muted-foreground hover:bg-tone-soft hover:text-tone-ink",
             )}
           >
             {active ? (
               <motion.span
                 layoutId={`${id}-pill`}
                 className={cn(
-                  "absolute inset-0 -z-10 rounded-md bg-gradient-to-r shadow-sm",
-                  it.danger
-                    ? "from-rose-500 to-red-700 shadow-rose-600/25"
-                    : "from-haven-300 to-haven-400 shadow-haven-600/20",
+                  "absolute inset-0 -z-10 rounded-md shadow-sm",
+                  it.danger ? "bg-rose-600 shadow-rose-600/20" : "bg-tone-fill shadow-black/10",
                 )}
                 transition={transition}
               />
@@ -176,20 +174,20 @@ function CountChip({
   variant?: "pill" | "underline";
   children: React.ReactNode;
 }) {
-  // On the pill variant the active chip sits on the Haven (or rose) fill; on the
+  // On the pill variant the active chip sits on the tone (or rose) fill; on the
   // underline variant it sits on the page, so it needs its own themed ground.
   const activeClass =
     variant === "pill"
       ? danger
         ? "bg-white/25 text-white"
-        : "bg-haven-950/10 text-haven-950"
+        : "bg-black/10 text-tone-on-fill dark:bg-black/15"
       : danger
         ? "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200"
-        : "bg-haven-100 text-haven-800 dark:bg-haven-400/20 dark:text-haven-200";
+        : "bg-tone-tint text-tone-ink";
   return (
     <span
       className={cn(
-        "rounded-full px-1.5 py-px text-[10.5px] font-semibold tabular-nums",
+        "rounded-full px-1.5 py-px text-xs font-semibold tabular-nums",
         active
           ? activeClass
           : danger

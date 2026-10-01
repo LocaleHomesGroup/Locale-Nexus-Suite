@@ -35,7 +35,7 @@ export function SpendDealsChart() {
 
   return (
     <div role="group" aria-label="Spend versus deals won, last six months" className="w-full">
-      <p className="mb-2 text-[11.5px] text-muted-foreground tabular-nums" aria-live="polite">
+      <p className="mb-2 text-xs text-muted-foreground tabular-nums" aria-live="polite">
         <span className="font-semibold text-foreground">{shown.month}</span> · ${shown.spend}k spend · {shown.won} deals
         won
       </p>
@@ -43,12 +43,12 @@ export function SpendDealsChart() {
       <div className="flex gap-2">
         {/* Strip labels — the gutter sits outside the columns (§ 19.11). */}
         <div className="hidden w-24 shrink-0 flex-col pt-1 sm:flex" aria-hidden>
-          <div className="flex items-end gap-1.5 pb-1 text-[10.5px] text-muted-foreground" style={{ height: BAR_ROOM + 17 }}>
-            <span className="mb-0.5 inline-block size-2 shrink-0 rounded-[2px] bg-skyblue-500" />
+          <div className="flex items-end gap-1.5 pb-1 text-xs text-muted-foreground" style={{ height: BAR_ROOM + 17 }}>
+            <span className="mb-0.5 inline-block size-2 shrink-0 rounded-[2px] bg-zinc-300 dark:bg-zinc-600" />
             Marketing spend
           </div>
-          <div className="mt-2 flex items-end gap-1.5 pb-1 text-[10.5px] text-muted-foreground" style={{ height: BAR_ROOM + 17 }}>
-            <span className="mb-0.5 inline-block size-2 shrink-0 rounded-[2px] bg-haven-500" />
+          <div className="mt-2 flex items-end gap-1.5 pb-1 text-xs text-muted-foreground" style={{ height: BAR_ROOM + 17 }}>
+            <span className="mb-0.5 inline-block size-2 shrink-0 rounded-[2px] bg-tone-strong" />
             Deals won
           </div>
         </div>
@@ -82,7 +82,7 @@ export function SpendDealsChart() {
                 </span>
                 <span className="flex w-full items-end justify-center" style={{ height: BAR_ROOM }}>
                   <motion.span
-                    className="block w-[46%] max-w-8 origin-bottom rounded-t-[4px] bg-skyblue-500"
+                    className="block w-[46%] max-w-8 origin-bottom rounded-t-[4px] bg-zinc-300 dark:bg-zinc-600"
                     style={{ height: `${(m.spend / maxSpend) * 100}%` }}
                     {...grow(i)}
                   />
@@ -100,7 +100,7 @@ export function SpendDealsChart() {
                 </span>
                 <span className="flex w-full items-end justify-center" style={{ height: BAR_ROOM }}>
                   <motion.span
-                    className="block w-[46%] max-w-8 origin-bottom rounded-t-[4px] bg-haven-500"
+                    className="block w-[46%] max-w-8 origin-bottom rounded-t-[4px] bg-tone-strong"
                     style={{ height: `${(m.won / maxWon) * 100}%` }}
                     {...grow(i, 0.04)}
                   />
@@ -109,7 +109,7 @@ export function SpendDealsChart() {
 
                 <span
                   className={cn(
-                    "mt-1.5 text-[10.5px]",
+                    "mt-1.5 text-xs",
                     isActive ? "font-semibold text-foreground" : "text-muted-foreground",
                   )}
                 >

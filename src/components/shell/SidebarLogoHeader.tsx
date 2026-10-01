@@ -9,8 +9,10 @@ import { cn } from "@/lib/utils";
  * Locale master logo.
  *
  * Expanded: the Locale Property Group wordmark in its plate, with the neon
- * hover ring (recoloured to the three sub-brand tints) and the periodic
- * slide-in "heartbeat" (first beat ~1s after mount, then every 12s).
+ * hover ring (recoloured to the three sub-brand tints) and one slide-in
+ * "heartbeat" ~1s after mount. HRIS repeats it every 12s; the Launchpad plays
+ * it once, as an arrival, so nothing in the corner of a working screen keeps
+ * moving (UI-GUIDE § 6, "One alarm, and it rests").
  *
  * Collapsed (desktop): the whole plate fades out and the Locale "L" sticker
  * fades + scales in, aligned with the nav icons. The heartbeat runs only while
@@ -34,13 +36,8 @@ export function SidebarLogoHeader({
 
   React.useEffect(() => {
     if (collapsed) return;
-    const fire = () => setBeat(true);
-    const first = setTimeout(fire, 1000);
-    const interval = setInterval(fire, 12000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(interval);
-    };
+    const first = setTimeout(() => setBeat(true), 1000);
+    return () => clearTimeout(first);
   }, [collapsed]);
 
   const beating = beat && !collapsed;
@@ -51,11 +48,12 @@ export function SidebarLogoHeader({
         <Link
           href="/"
           aria-label="Locale Launchpad — Home"
+          data-rail-tip="Launchpad home"
           onMouseEnter={() => {
             if (!collapsed && !beat) setBeat(true);
           }}
           className={cn(
-            "logo-neon block transform-gpu transition-opacity duration-[var(--sb-collapse-ms)] ease-[var(--sb-collapse-ease)] will-change-[opacity]",
+            "peer/logo logo-neon block transform-gpu transition-opacity focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none duration-[var(--sb-collapse-ms)] ease-[var(--sb-collapse-ease)] will-change-[opacity]",
             collapsed && "md:pointer-events-none md:opacity-0",
           )}
         >
@@ -86,10 +84,11 @@ export function SidebarLogoHeader({
 
         {/* Collapsed: the "L" sticker, lined up with the nav icons and centred on
             the plate. Fades AND scales in after a short delay so the wordmark
-            clears first. */}
+            clears first. It also shows the (hidden) logo link's keyboard focus. */}
         <div
           aria-hidden
           className={cn(
+            "md:peer-focus-visible/logo:[&>span]:rounded-full md:peer-focus-visible/logo:[&>span]:ring-2 md:peer-focus-visible/logo:[&>span]:ring-ring md:peer-focus-visible/logo:[&>span]:ring-offset-2 md:peer-focus-visible/logo:[&>span]:ring-offset-background",
             "sb-collapse-shift pointer-events-none absolute inset-y-0 left-0 flex origin-left scale-90 transform-gpu items-center opacity-0 transition-[opacity,transform] duration-[var(--sb-collapse-ms)] ease-[var(--sb-collapse-ease)] will-change-[opacity,transform]",
             collapsed &&
               "md:scale-100 md:opacity-100 md:delay-[calc(var(--sb-collapse-ms)/4)] md:duration-[calc(var(--sb-collapse-ms)*3/4)]",

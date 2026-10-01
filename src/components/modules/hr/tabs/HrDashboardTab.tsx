@@ -11,16 +11,19 @@ import { RateBar } from "@/components/ui/progress";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
-import { ATTENDANCE_TODAY, DIVISIONS, HR_KPIS, ON_LEAVE_TODAY, type HrTab } from "../data";
+import { ATTENDANCE_TODAY, DIVISIONS, HR_KPIS, ON_LEAVE_TODAY, personTone, type HrTab } from "../data";
+import { OrgChartCard } from "../OrgChart";
 
-/** HR › Dashboard — the mockup's "HR dashboard": four counts, divisions, today's leave and attendance. */
+/**
+ * HR › Dashboard — the mockup's "HR dashboard": four counts, divisions, today's leave and attendance,
+ * then the group's org chart, where HR can add someone under any department.
+ */
 export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
   const reduce = useReducedMotion();
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="HR"
         title="HR dashboard"
         description="Mirrored from Horilla · live counts, leave and attendance at a glance."
       />
@@ -31,7 +34,6 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
             label="Total employees"
             value={HR_KPIS.totalEmployees}
             icon={Users}
-            tone="haven"
             onClick={() => goTab("people")}
             hint="Across 4 divisions · tap to view"
           />
@@ -39,7 +41,6 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
             label="On leave today"
             value={HR_KPIS.onLeaveToday}
             icon={Plane}
-            tone="skyblue"
             onClick={() => goTab("leave")}
             hint="K. Ellery · tap to view leave"
           />
@@ -47,7 +48,6 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
             label="New joiners this month"
             value={HR_KPIS.newJoiners}
             icon={UserPlus}
-            tone="nectar"
             onClick={() => goTab("recruitment")}
             hint="Lane Dixon · tap to view"
           />
@@ -82,7 +82,7 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
                     </div>
                     <RateBar
                       value={d.share / 100}
-                      tone={i === 0 ? "haven" : "skyblue"}
+                      tone={i === 0 ? "tone" : "neutral"}
                       height="h-[7px]"
                       delay={rowDelay(i, reduce, 0.09, 0.3)}
                       label={`${d.name}: ${d.count} of ${HR_KPIS.totalEmployees} employees (${d.share}%)`}
@@ -100,13 +100,13 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
               <CardHeader>
                 <CardTitle>On leave today</CardTitle>
                 <CardMeta>
-                  <Button variant="link" size="xs" className="gap-1 text-[11px]" onClick={() => goTab("leave")}>
+                  <Button variant="link" size="xs" className="gap-1 text-xs" onClick={() => goTab("leave")}>
                     Leave <ArrowRight aria-hidden />
                   </Button>
                 </CardMeta>
               </CardHeader>
-              <CardContent className="flex items-center gap-2.5 text-[12.5px]">
-                <Avatar name={ON_LEAVE_TODAY.name} tone="skyblue" size="sm" />
+              <CardContent className="flex items-center gap-2.5 text-[13px]">
+                <Avatar name={ON_LEAVE_TODAY.name} tone={personTone(ON_LEAVE_TODAY.name)} size="sm" />
                 <span className="min-w-0">{ON_LEAVE_TODAY.note}</span>
               </CardContent>
             </Card>
@@ -117,7 +117,7 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
               <CardHeader>
                 <CardTitle>Attendance today</CardTitle>
                 <CardMeta>
-                  <Button variant="link" size="xs" className="gap-1 text-[11px]" onClick={() => goTab("attendance")}>
+                  <Button variant="link" size="xs" className="gap-1 text-xs" onClick={() => goTab("attendance")}>
                     Attendance <ArrowRight aria-hidden />
                   </Button>
                 </CardMeta>
@@ -141,6 +141,10 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
           </Reveal>
         </div>
       </div>
+
+      <Reveal index={4}>
+        <OrgChartCard />
+      </Reveal>
     </div>
   );
 }

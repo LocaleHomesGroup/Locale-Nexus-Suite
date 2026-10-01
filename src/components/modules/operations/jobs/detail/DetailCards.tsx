@@ -14,8 +14,8 @@ import { ChoiceChips } from "../../ui/ChoiceChips";
 import { FieldRow, InlineInput } from "../../ui/FieldRow";
 import { BUILDER_FORMAT_JOB_NO, CLIENT_PHONE } from "../data";
 
-/** Cards CRM Dash owns (editable) wear a Haven rim; HubSpot-owned ones stay neutral. */
-export const EDITABLE_CARD = "border-haven-300 dark:border-haven-800";
+/** Cards CRM Dash owns (editable) wear the dashboard's accent rim; HubSpot-owned ones stay neutral. */
+export const EDITABLE_CARD = "border-tone-line";
 
 export function OwnerPill({ owner }: { owner: "hubspot" | "crm" }) {
   return owner === "hubspot" ? (
@@ -23,7 +23,7 @@ export function OwnerPill({ owner }: { owner: "hubspot" | "crm" }) {
       HubSpot owns · read only
     </Pill>
   ) : (
-    <Pill tone="haven" icon={Pencil} className="ml-auto">
+    <Pill tone="tone" icon={Pencil} className="ml-auto">
       CRM Dash owns · editable
     </Pill>
   );
@@ -63,24 +63,24 @@ export function DealDetailsCard({ job }: { job: Job }) {
           <span className="text-right">
             {job.jobNo ? (
               <>
-                <span className="font-mono text-[12px]">{job.jobNo}</span> {job.client}
+                <span className="font-mono text-xs">{job.jobNo}</span> {job.client}
               </>
             ) : (
               job.client
             )}
-            <span className="text-[11px] text-subtle-foreground"> (auto from job no + client)</span>
+            <span className="text-xs text-subtle-foreground"> (auto from job no + client)</span>
           </span>
         </FieldRow>
         <FieldRow label="Sales rep">
           <span className="text-right">
             {job.rep}
-            <span className="text-[11px] text-subtle-foreground"> · locked after Sale Won</span>
+            <span className="text-xs text-subtle-foreground"> · locked after Sale Won</span>
           </span>
         </FieldRow>
         <FieldRow label="Client phone">
           <span className="text-right tabular-nums">{CLIENT_PHONE}</span>
         </FieldRow>
-        <p className="mt-2.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+        <p className="mt-2.5 flex items-center gap-1 text-xs text-muted-foreground">
           Mirrored from HubSpot. To change, edit in HubSpot <ExternalLink className="size-3" aria-hidden />
         </p>
       </CardContent>
@@ -137,7 +137,7 @@ export function JobDetailsCard({
               value={job[f.key]}
               placeholder={f.placeholder}
               onChange={(e) => onEdit({ [f.key]: e.target.value })}
-              className={cn(f.mono && "font-mono text-[12.5px] placeholder:font-sans placeholder:text-[13px]")}
+              className={cn(f.mono && "font-mono text-[13px] placeholder:font-sans placeholder:text-[13px]")}
             />
           </FieldRow>
         ))}
@@ -171,11 +171,11 @@ export function JobDetailsCard({
         </FieldRow>
 
         {!job.jobNo ? (
-          <p className="mt-2.5 text-[11px] font-medium text-haven-700 dark:text-haven-300">
+          <p className="mt-2.5 text-xs font-medium text-tone-ink">
             Saving the job number renames the deal, fills Monday, and ticks Builder Acceptance
           </p>
         ) : null}
-        <p className="mt-1.5 text-[10.5px] text-subtle-foreground">
+        <p className="mt-1.5 text-xs text-subtle-foreground">
           Job number format:{" "}
           {BUILDER_FORMAT_JOB_NO.includes(job.builder) ? "builder format, e.g. 2401022R" : "5 digits, e.g. 25431"} · Buyer
           type syncs to HubSpot and Monday
@@ -190,7 +190,7 @@ export function JobDetailsCard({
             <Button onClick={onMoveToConstruction}>
               <HardHat /> Move to construction
             </Button>
-            <p className="mt-1.5 text-[10.5px] text-subtle-foreground">
+            <p className="mt-1.5 text-xs text-subtle-foreground">
               Usually proposed automatically when the builder portal shows a site start date. Manual move is for
               exceptions.
             </p>
@@ -247,7 +247,7 @@ export function LandHouseCard({
           </FieldRow>
         ))}
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-          <p className="min-w-0 flex-1 text-[11px] text-muted-foreground">
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
             Syncs to the matching HubSpot deal properties and Monday columns.
           </p>
           <SaveButton show={dirty} onClick={onSave} className="ml-auto">

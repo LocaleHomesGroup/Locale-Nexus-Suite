@@ -5,16 +5,18 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { ExternalLink, LogOut, MoreHorizontal } from "lucide-react";
+import { ExternalLink, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EASE_SWAP } from "@/lib/motion";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import { useLaunchpad } from "@/state/launchpad-store";
 import { Avatar } from "@/components/ui/avatar";
-import { CollapsibleSidebarShell, SidebarCollapsedDot } from "./CollapsibleSidebarShell";
+import { CollapsibleSidebarShell, SidebarCollapsedDot, SidebarFocusTile } from "./CollapsibleSidebarShell";
 import { SidebarLogoHeader } from "./SidebarLogoHeader";
 import { ThemeToggle } from "./ThemeToggle";
 import { ViewSwitcher } from "./ViewSwitcher";
+import { PaletteTrigger } from "./CommandPalette";
+import { RailTooltip } from "./RailTooltip";
 import {
   NOTIFICATIONS_HREF,
   NOTIFICATIONS_ICON,
@@ -30,17 +32,58 @@ import { useNavState, type NavBadge } from "./nav-state";
 /**
  * The Launchpad rail — one per dashboard, HRIS-style. Its nav IS the
  * dashboard's sections (there is no tab strip in the page), in the dashboard's
- * own accent. Slots, top to bottom (HRIS § 2.3): brand row · the dashboard's
- * nav + inbox in one scroll surface · Switch view + theme toggle (inside the
- * scroll surface, so a short viewport still reaches them) · user card and
- * sign-out, anchored at the bottom.
+ * own accent. Top to bottom:
+ *
+ *   logo · Search (Ctrl K)                    fixed
+ *   sections · links · Inbox                  the only part that scrolls
+ *   Switch view                               HRIS's dashboard list, always in view
+ *   theme · user card · sign out              pinned, always in view
+ *
+ * The nav region takes the free height, so the Switch view card sits at the
+ * same place on every dashboard. On a viewport too short for both (under
+ * ~800px), the nav keeps a few rows and the middle scrolls as one, so the
+ * footer stays pinned and nothing is cut off.
  *
  * Collapse: the pull-tab, or Ctrl+B / ⌘B. Collapse is desktop-only; below md
- * the rail is a drawer.
+ * the rail is a drawer, and while the drawer is closed it is `inert`.
  */
+const RAIL_ID = "launchpad-sidebar-nav";
+const MOBILE_QUERY = "(max-width: 767px)";
+
+// The drawer's slide (and its rows' staggered slide-in) as inline styles:
+// globals.css's unlayered `*` transition rule outranks Tailwind's
+// `transition-*` utilities, so a class here would never animate. Mobile only;
+// on desktop the collapse rules in globals.css own the rail's transitions.
+const DRAWER_TRANSITION: React.CSSProperties = {
+  transitionProperty: "transform, opacity, box-shadow",
+  transitionDuration: "360ms",
+  transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+};
+const DRAWER_ROW_TRANSITION: React.CSSProperties = {
+  transitionProperty: "color, background-color, transform, opacity",
+  transitionDuration: "300ms",
+  transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+};
+
+function subscribeMobile(cb: () => void) {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+
+/** Below md. False on the server and during hydration, then the real value. */
+function useIsMobile(): boolean {
+  return React.useSyncExternalStore(
+    subscribeMobile,
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
+}
+
 export function Sidebar({ mobileOpen, onNavigate }: { mobileOpen: boolean; onNavigate: () => void }) {
   const { collapsed, toggle } = useSidebarCollapsed();
   const { dashboardId } = useNavState();
+  const isMobile = useIsMobile();
   const dash = dashboardById(dashboardId);
   const tone = TONES[dash.tone];
 
@@ -51,7 +94,7 @@ export function Sidebar({ mobileOpen, onNavigate }: { mobileOpen: boolean; onNav
       if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "b") return;
       const el = e.target as HTMLElement | null;
       if (el?.isContentEditable) return;
-      if (window.matchMedia("(max-width: 767px)").matches) return;
+      if (window.matchMedia(MOBILE_QUERY).matches) return;
       e.preventDefault();
       toggle();
     };
@@ -65,60 +108,85 @@ export function Sidebar({ mobileOpen, onNavigate }: { mobileOpen: boolean; onNav
       onToggle={toggle}
       innerWidthClassName="md:w-64"
       accentClassName={tone.pullTab}
-      id="launchpad-sidebar-nav"
+      id={RAIL_ID}
       ariaLabel={`${dash.label} navigation`}
+      inert={isMobile && !mobileOpen}
+      style={isMobile ? DRAWER_TRANSITION : undefined}
       className={cn(
         "flex h-dvh w-[85vw] max-w-[20rem] shrink-0 flex-col border-r md:w-64 md:max-w-none",
         tone.rail,
         "fixed inset-y-0 left-0 z-50 transform-gpu will-change-transform md:static md:z-auto md:translate-x-0 md:opacity-100",
-        "transition-[transform,opacity,box-shadow,width] duration-[360ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
         mobileOpen
           ? "translate-x-0 opacity-100 shadow-2xl shadow-black/25"
           : "-translate-x-full opacity-0 shadow-none md:translate-x-0 md:opacity-100",
       )}
     >
+      <RailTooltip railId={RAIL_ID} enabled={collapsed && !isMobile} />
+
       <div className="shrink-0 px-5 pt-6 pb-3">
         <SidebarLogoHeader collapsed={collapsed} captionClassName={tone.caption} />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-width:thin]">
-        <div className="sb-collapse-shift px-5 pr-3 pb-4">
+      <div className="sb-collapse-shift shrink-0 px-5 pb-3">
+        <PaletteTrigger collapsed={collapsed} />
+      </div>
+
+      {/* Middle: the dashboard's sections at their full height, then Switch
+          view, scrolling together as one block when the window is too short
+          for both. The sections are never squeezed into a box of their own:
+          they are this dashboard's navigation, and all of them stay in view. */}
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable] [scrollbar-width:thin]">
+        <div className="sb-collapse-shift pt-1 pr-[14px] pb-4 pl-5">
           {/* The nav reads ?tab= etc.; useSearchParams needs a Suspense boundary
               on static pages. The fallback is the same nav with the defaults. */}
           <React.Suspense
-            fallback={<RailNav dash={dash} tone={tone} params={EMPTY_PARAMS} collapsed={collapsed} mobileOpen={mobileOpen} onNavigate={onNavigate} />}
+            fallback={
+              <RailNav dash={dash} tone={tone} params={EMPTY_PARAMS} collapsed={collapsed} mobileOpen={mobileOpen} isMobile={isMobile} onNavigate={onNavigate} />
+            }
           >
-            <LiveRailNav dash={dash} tone={tone} collapsed={collapsed} mobileOpen={mobileOpen} onNavigate={onNavigate} />
+            <LiveRailNav dash={dash} tone={tone} collapsed={collapsed} mobileOpen={mobileOpen} isMobile={isMobile} onNavigate={onNavigate} />
           </React.Suspense>
+        </div>
 
-          <div className={cn("mt-5 border-t pt-4", tone.divider)}>
+        <div className={cn("border-t pt-4 pr-[14px] pb-4 pl-5", tone.divider)}>
+          <div className="sb-collapse-shift">
             <ViewSwitcher current={dash} collapsed={collapsed} onSwitch={onNavigate} />
-            <ThemeToggle collapsed={collapsed} className={cn(tone.softCard, tone.softCardHover)} />
           </div>
         </div>
       </div>
 
-      <div className={cn("shrink-0 border-t p-5", tone.divider)}>
-        <div className="sb-collapse-shift">
-          <div className={cn("vs-collapse-box flex items-center gap-2.5 rounded-md border px-[3px] py-2", tone.softCard)}>
+      {/* Pinned footer: always in view, whatever the nav's length. */}
+      <div className={cn("shrink-0 border-t px-5 pt-2.5 pb-4", tone.divider)}>
+        <div className="sb-collapse-shift flex flex-col gap-2">
+          <ThemeToggle collapsed={collapsed} />
+          <div
+            data-rail-tip="Shannan Hart, Manager"
+            className={cn("vs-collapse-box flex items-center gap-2.5 rounded-md border px-[3px] py-1.5", tone.softCard)}
+          >
             <Avatar name="Shannan Hart" tone="haven" size="sm" />
             <div className="sb-collapse-fade min-w-0 flex-1">
               <div className="truncate text-[13px] leading-tight font-medium text-zinc-900 dark:text-zinc-100">Shannan Hart</div>
-              <div className={cn("mt-px truncate text-[11px] leading-tight", tone.caption)}>Operations</div>
+              {/* No RBAC yet, so this account sees every dashboard, the
+                  manager-only pages included. Say so. */}
+              <div className={cn("mt-px truncate text-xs leading-tight", tone.caption)}>Manager · all dashboards</div>
             </div>
-            <MoreHorizontal className="sb-collapse-fade mr-1.5 size-4 shrink-0 text-zinc-400" aria-hidden />
           </div>
           <button
             type="button"
-            title={collapsed ? "Sign out" : undefined}
+            data-rail-tip="Sign out"
             onClick={() =>
               toast("Sign-in isn't wired up yet", {
-                description: "This is the static prototype — accounts and roles come with RBAC.",
+                description: "This is the static prototype. Accounts and roles come with RBAC.",
               })
             }
-            className="sb-row mt-3 flex h-8 w-full items-center justify-start gap-3 rounded-lg px-2.5 text-sm font-medium text-zinc-500 hover:bg-red-500/10 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400"
+            className={cn(
+              "group/row sb-row relative flex h-8 w-full items-center justify-start gap-2.5 rounded-md px-2.5 text-[13px] font-medium text-zinc-500 hover:bg-red-500/10 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400",
+              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+              collapsed && "md:ring-0!",
+            )}
           >
-            <LogOut className="size-4 shrink-0" aria-hidden />
+            <SidebarFocusTile collapsed={collapsed} />
+            <LogOut className="relative size-[15px] shrink-0" aria-hidden />
             <span className="sb-collapse-fade">Sign out</span>
           </button>
         </div>
@@ -140,6 +208,7 @@ interface RailNavProps {
   params: URLSearchParams;
   collapsed: boolean;
   mobileOpen: boolean;
+  isMobile: boolean;
   onNavigate: () => void;
 }
 
@@ -152,7 +221,7 @@ function viewKey(dash: Dashboard, entries: Iterable<[string, string]>): string {
     .join("&");
 }
 
-function RailNav({ dash, tone, params, collapsed, mobileOpen, onNavigate }: RailNavProps) {
+function RailNav({ dash, tone, params, collapsed, mobileOpen, isMobile, onNavigate }: RailNavProps) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const { badges, fireReselect } = useNavState();
@@ -171,13 +240,14 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, onNavigate }: Rail
     const exact = opts.href ? pathname === opts.href : onDashRoot && viewKey(dash, Object.entries(item.params)) === currentView;
     const index = order++;
     const attention = opts.badge && opts.badge.tone && opts.badge.tone !== "neutral";
+    const tip = opts.badge ? `${item.label} (${opts.badge.count > 99 ? "99+" : opts.badge.count})` : item.label;
     return (
       <Link
         key={item.key}
         href={href}
         scroll={false}
         aria-current={opts.active ? "page" : undefined}
-        title={collapsed ? item.label : undefined}
+        data-rail-tip={tip}
         onClick={(e) => {
           onNavigate();
           if (exact) {
@@ -187,12 +257,11 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, onNavigate }: Rail
           }
           document.getElementById("launchpad-scroll")?.scrollTo({ top: 0 });
         }}
-        style={{ transitionDelay: mobileOpen ? `${60 + index * 30}ms` : undefined }}
+        style={isMobile ? { ...DRAWER_ROW_TRANSITION, transitionDelay: mobileOpen ? `${60 + index * 30}ms` : "0ms" } : undefined}
         className={cn(
-          // The Tailwind transition drives the mobile drawer's staggered slide-in;
-          // on desktop the unlayered .sb-row rule (globals.css) takes over for the collapse.
-          "sb-row flex w-full items-center gap-2.5 rounded-md px-2.5 font-[450] transition-[color,background-color,box-shadow,transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset motion-reduce:transition-none",
-          opts.child ? "py-[6px] text-[13px]" : "py-[7px] text-[13.5px]",
+          "group/row sb-row relative flex w-full items-center gap-2.5 rounded-md px-2.5 font-[450] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+          collapsed && "md:ring-0!",
+          opts.child ? "py-[6px] text-[13px]" : "py-[7px] text-sm",
           mobileOpen ? "translate-x-0 opacity-100" : "-translate-x-6 opacity-0 md:translate-x-0 md:opacity-100",
           opts.active
             ? opts.child
@@ -201,6 +270,7 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, onNavigate }: Rail
             : cn("text-zinc-700 dark:text-zinc-300", tone.navHover),
         )}
       >
+        <SidebarFocusTile collapsed={collapsed} />
         <span className="relative shrink-0">
           <Icon
             aria-hidden
@@ -225,9 +295,6 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, onNavigate }: Rail
 
   return (
     <>
-      <p className={cn("sb-collapse-fade mb-1.5 px-2.5 text-[10.5px] font-semibold tracking-[0.08em] uppercase", tone.caption)}>
-        {dash.label}
-      </p>
       <nav className="flex flex-col gap-px" aria-label={`${dash.label} sections`}>
         {dash.items.map((item) => {
           const active = isItemActive(dash, item, pathname, params);
@@ -248,7 +315,7 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, onNavigate }: Rail
                     >
                       <div className="sb-collapse-indent relative my-0.5 flex flex-col gap-px pl-4">
                         {/* The thread that ties the nested views to their parent. */}
-                        <span aria-hidden className={cn("sb-collapse-fade absolute top-1 bottom-1 left-[17px] w-px", "bg-zinc-200 dark:bg-white/10")} />
+                        <span aria-hidden className="sb-collapse-fade absolute top-1 bottom-1 left-[17px] w-px bg-zinc-200 dark:bg-white/10" />
                         {kids.map((child) =>
                           row(child, {
                             child: true,
@@ -276,13 +343,15 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, onNavigate }: Rail
                 href={l.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                title={collapsed ? `${l.label} (opens in a new tab)` : undefined}
+                data-rail-tip={`${l.label} (new tab)`}
                 className={cn(
-                  "sb-row flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13.5px] font-[450] text-zinc-700 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset dark:text-zinc-300",
+                  "group/row sb-row relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-sm font-[450] text-zinc-700 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset dark:text-zinc-300",
+                  collapsed && "md:ring-0!",
                   tone.navHover,
                 )}
               >
-                <Icon className="size-[15px] shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+                <SidebarFocusTile collapsed={collapsed} />
+                <Icon className="relative size-[15px] shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
                 <span className="sb-collapse-fade min-w-0 flex-1 truncate">{l.label}</span>
                 <ExternalLink className="sb-collapse-fade size-3 shrink-0 text-zinc-400" aria-hidden />
                 <span className="sr-only">(opens in a new tab)</span>
@@ -292,7 +361,7 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, onNavigate }: Rail
         </div>
       ) : null}
 
-      <p className="sb-collapse-fade mt-5 mb-1.5 px-2.5 text-[10.5px] font-medium tracking-[0.06em] text-zinc-400 uppercase">
+      <p className="sb-collapse-fade mt-5 mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.12em] text-subtle-foreground uppercase">
         Inbox
       </p>
       <nav className="flex flex-col gap-px" aria-label="Inbox">

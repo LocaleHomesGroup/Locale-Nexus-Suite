@@ -9,16 +9,18 @@ import { cn } from "@/lib/utils";
  *
  * Tones carry meaning (HRIS § 15). Brand tones are identity, status tones are
  * verdicts — never use `ok` green for a brand accent or `haven` for a verdict.
- *   haven    Locale accent / current / selected (Homes)
- *   nectar   Financial sub-brand
- *   skyblue  Wealth sub-brand, neutral info
- *   neutral  default / inactive
+ *   tone     this dashboard's accent: current / selected / pinned / "Jarvis"
+ *   haven    Locale Homes identity
+ *   nectar   Locale Financial identity
+ *   skyblue  Locale Wealth identity (never generic "info")
+ *   neutral  default / inactive / info
  *   ok       done, approved, synced
  *   pending  waiting, in review, caution
  *   problem  conflict, rejected, overdue
  *   charcoal inverse emphasis
  */
 export type PillTone =
+  | "tone"
   | "haven"
   | "nectar"
   | "skyblue"
@@ -29,6 +31,7 @@ export type PillTone =
   | "charcoal";
 
 const SOFT: Record<PillTone, string> = {
+  tone: "bg-tone-tint text-tone-ink",
   haven: "bg-haven-300 text-haven-950 dark:bg-haven-300/90 dark:text-haven-950",
   nectar: "bg-nectar-200 text-nectar-900 dark:bg-nectar-300/20 dark:text-nectar-200",
   skyblue: "bg-skyblue-200 text-skyblue-900 dark:bg-skyblue-300/20 dark:text-skyblue-200",
@@ -40,6 +43,7 @@ const SOFT: Record<PillTone, string> = {
 };
 
 const CAPS: Record<PillTone, string> = {
+  tone: "border-tone-line bg-tone-soft text-tone-ink",
   haven: "border-haven-300 bg-haven-50 text-haven-800 dark:border-haven-700/60 dark:bg-haven-500/10 dark:text-haven-200",
   nectar: "border-nectar-300 bg-nectar-50 text-nectar-800 dark:border-nectar-700/50 dark:bg-nectar-500/10 dark:text-nectar-200",
   skyblue: "border-skyblue-300 bg-skyblue-50 text-skyblue-800 dark:border-skyblue-700/50 dark:bg-skyblue-500/10 dark:text-skyblue-200",
@@ -84,7 +88,7 @@ export function SystemTag({ children, className }: { children: React.ReactNode; 
   return (
     <span
       className={cn(
-        "rounded-full bg-muted px-1.5 py-px text-[9.5px] font-semibold tracking-[0.1em] text-muted-foreground uppercase",
+        "rounded-full bg-muted px-1.5 py-px text-[10px] font-semibold tracking-[0.1em] text-muted-foreground uppercase",
         className,
       )}
     >

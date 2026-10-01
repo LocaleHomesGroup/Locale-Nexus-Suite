@@ -21,7 +21,6 @@ export function HrPerformanceTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="HR"
         title="Performance"
         description="Q3 objectives and key results · 360 feedback opens 1 September."
       />
@@ -48,7 +47,7 @@ export function HrPerformanceTab() {
                     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                       <Avatar name={p.name} tone={personTone(p.name)} size="xs" />
                       <span className="text-[13px] font-semibold">{p.name}</span>
-                      <span className="text-[11px] text-muted-foreground tabular-nums">
+                      <span className="text-xs text-muted-foreground tabular-nums">
                         {p.onTrack} of {p.total} key results on track
                       </span>
                       <span

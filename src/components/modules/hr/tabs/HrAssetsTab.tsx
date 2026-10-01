@@ -12,10 +12,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { Reveal } from "@/components/ui/reveal";
 import { ASSETS, personTone, type Asset, type AssetStatus } from "../data";
 
-/** In use = current (Haven), available = neutral info (Sky Blue), in repair = caution (amber). */
+/** In use = neutral, available to issue = ready (emerald), in repair = caution (amber). */
 const STATUS_TONE: Record<AssetStatus, PillTone> = {
-  "In use": "haven",
-  Available: "skyblue",
+  "In use": "neutral",
+  Available: "ok",
   "In repair": "pending",
 };
 
@@ -32,7 +32,6 @@ export function HrAssetsTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="HR"
         title="Assets"
         description="Company equipment register · allocations and returns tracked in Horilla."
       />
@@ -57,12 +56,12 @@ export function HrAssetsTab() {
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: reduce ? 0 : 0.2, ease: EASE_OUT, delay: rowDelay(i, reduce, 0.04) }}
-                    className="border-b border-hairline transition-colors hover:bg-haven-50/60 dark:hover:bg-haven-950/25"
+                    className="border-b border-hairline transition-colors hover:bg-tone-soft/70"
                   >
                     <TableCell className="pl-5">
                       <span className="flex items-baseline gap-2 whitespace-nowrap">
                         <span className="font-medium">{a.name}</span>
-                        <span className="rounded bg-muted px-1.5 py-px font-mono text-[11px] text-muted-foreground">
+                        <span className="rounded bg-muted px-1.5 py-px font-mono text-xs text-muted-foreground">
                           {a.tag}
                         </span>
                       </span>

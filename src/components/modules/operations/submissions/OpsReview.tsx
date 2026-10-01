@@ -91,19 +91,18 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
           <ArrowLeft aria-hidden /> Review queue
         </Button>
         <PageHeader
-          eyebrow="Operations"
           title={
             <span className="inline-flex items-center gap-2">
-              <ShieldCheck className="size-5 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+              <ShieldCheck className="size-5 shrink-0 text-tone-ink" aria-hidden />
               Ops review · M. and T. Nguyen
             </span>
           }
           description="Open each document, check it against the deal, then verify or send it back. Automated checks run first so you only look closely at what matters."
           actions={
             <>
-              <Pill tone="skyblue">{NGUYEN.builder}</Pill>
+              <Pill tone="neutral">{NGUYEN.builder}</Pill>
               {statusPill}
-              <span className="text-[11.5px] text-subtle-foreground">Submitted by {NGUYEN.repName}</span>
+              <span className="text-xs text-subtle-foreground">Submitted by {NGUYEN.repName}</span>
             </>
           }
         />
@@ -131,8 +130,8 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors",
                           active
-                            ? "border-haven-300 bg-haven-50 dark:border-haven-800 dark:bg-haven-950/40"
-                            : "border-transparent hover:bg-haven-50/60 dark:hover:bg-haven-950/25",
+                            ? "border-tone-line bg-tone-soft"
+                            : "border-transparent hover:bg-tone-soft/60",
                         )}
                       >
                         {isVerified(d.state) ? (
@@ -146,7 +145,7 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
                           <span className={cn("block text-xs leading-snug", active ? "font-semibold" : "font-normal")}>
                             {d.name}
                           </span>
-                          <span className="block font-mono text-[10px] text-subtle-foreground">{d.ref}</span>
+                          <span className="block font-mono text-xs text-subtle-foreground">{d.ref}</span>
                         </span>
                         <span className="sr-only">
                           {isVerified(d.state) ? "Verified" : d.state === "fix" ? "Sent back" : "Not reviewed"}
@@ -158,7 +157,7 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
               </ul>
             </CardContent>
             <CardFooter className="flex-col items-stretch gap-1.5">
-              <span className="text-[11px] text-subtle-foreground tabular-nums">
+              <span className="text-xs text-subtle-foreground tabular-nums">
                 {verifiedCount} of {uploaded.length} verified
               </span>
               <RateBar
@@ -174,7 +173,7 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
           {/* The selected document */}
           {current ? (
             <Reveal index={1}>
-              <Card className="border-haven-300 dark:border-haven-800">
+              <Card className="border-tone-line">
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
                     key={current.ref}
@@ -183,18 +182,18 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
                     exit={{ opacity: 0, transition: { duration: reduce ? 0 : 0.1 } }}
                   >
                     <CardHeader className="pt-4">
-                      <FileText className="size-4 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
-                      <CardTitle as="h2" className="text-[14px]">
+                      <FileText className="size-4 shrink-0 text-tone-ink" aria-hidden />
+                      <CardTitle as="h2" className="text-sm">
                         {current.name}
                       </CardTitle>
-                      <span className="ml-auto font-mono text-[11px] text-subtle-foreground">{current.file}</span>
+                      <span className="ml-auto font-mono text-xs text-subtle-foreground">{current.file}</span>
                     </CardHeader>
                     <CardContent className="pb-5">
                       <div className="mb-3 rounded-lg border border-hairline bg-muted/60 px-4 py-5 text-center dark:bg-white/[0.03]">
                         <div className="mx-auto mb-2 flex h-[68px] w-[54px] items-center justify-center rounded border border-border bg-card shadow-md shadow-black/10">
-                          <FileText className="size-5.5 text-haven-700 dark:text-haven-300" aria-hidden />
+                          <FileText className="size-5.5 text-tone-ink" aria-hidden />
                         </div>
-                        <p className="text-[11.5px] text-muted-foreground">Document preview · page 1 of 3</p>
+                        <p className="text-xs text-muted-foreground">Document preview · page 1 of 3</p>
                         <div className="mt-2.5 flex flex-wrap justify-center gap-2">
                           <Button variant="outline" size="xs" onClick={() => setPreview(true)}>
                             <Maximize2 aria-hidden /> Open full size
@@ -220,7 +219,7 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
                             <span>{label}</span>
                             <span
                               className={cn(
-                                "ml-auto text-[10.5px] font-medium",
+                                "ml-auto text-xs font-medium",
                                 pass ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300",
                               )}
                             >
@@ -231,11 +230,11 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
                       </ul>
 
                       {isVerified(current.state) ? (
-                        <p className="mt-3.5 flex items-center justify-center gap-1.5 text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        <p className="mt-3.5 flex items-center justify-center gap-1.5 text-[13px] font-semibold text-emerald-700 dark:text-emerald-300">
                           <Check className="size-4" aria-hidden /> Verified by S. Hart
                         </p>
                       ) : current.state === "fix" ? (
-                        <div className="mt-3.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-[11.5px] text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+                        <div className="mt-3.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
                           <span className="font-semibold">Sent back to {NGUYEN.repName}:</span> {current.fixNote}
                         </div>
                       ) : (
@@ -260,16 +259,16 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
                                 aria-pressed={reason === r}
                                 onClick={() => setReason(reason === r ? "" : r)}
                                 className={cn(
-                                  "rounded-full border px-2.5 py-1 text-[10.5px] font-medium transition-colors",
+                                  "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
                                   reason === r
-                                    ? "border-haven-300 bg-haven-300 text-haven-950"
-                                    : "border-border bg-card text-muted-foreground hover:border-haven-300 hover:text-foreground dark:bg-white/[0.03] dark:hover:border-haven-800",
+                                    ? "border-tone-fill bg-tone-fill text-tone-on-fill"
+                                    : "border-border bg-card text-muted-foreground hover:border-tone-line hover:text-foreground dark:bg-white/[0.03]",
                                 )}
                               >
                                 {r}
                               </button>
                             ))}
-                            <span className="text-[10.5px] text-subtle-foreground">reason sent to the rep</span>
+                            <span className="text-xs text-subtle-foreground">reason sent to the rep</span>
                           </div>
                         </>
                       )}
@@ -284,7 +283,7 @@ export function OpsReview({ onBack }: { onBack: () => void }) {
           <Reveal index={2}>
             <Card className="px-4 py-3">
               {status === "approved" ? (
-                <p className="flex items-center gap-2 text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-300">
+                <p className="flex items-center gap-2 text-[13px] font-semibold text-emerald-700 dark:text-emerald-300">
                   <Sparkles className="size-4 shrink-0" aria-hidden /> Approved · Forma workbook generated and delivered
                   to their Teams folder
                 </p>

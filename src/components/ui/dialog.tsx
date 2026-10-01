@@ -93,11 +93,12 @@ export function Dialog({
   if (!mounted) return null;
 
   const iconClass = {
-    haven: "from-haven-300 to-haven-500 text-haven-950 shadow-haven-500/30",
-    problem: "from-rose-500 to-red-600 text-white shadow-rose-500/30",
-    pending: "from-amber-400 to-orange-500 text-white shadow-amber-500/30",
-    ok: "from-emerald-500 to-emerald-700 text-white shadow-emerald-500/30",
-    charcoal: "from-granite to-charcoal text-haven-300 shadow-black/25",
+    // "haven" is the accent slot: it follows the dashboard's tone.
+    haven: "bg-tone-fill text-tone-on-fill shadow-black/10",
+    problem: "bg-rose-600 text-white shadow-rose-500/25",
+    pending: "bg-amber-500 text-white shadow-amber-500/25",
+    ok: "bg-emerald-600 text-white shadow-emerald-500/25",
+    charcoal: "bg-charcoal text-haven-300 shadow-black/20 dark:bg-zinc-700",
   }[iconTone];
 
   return createPortal(
@@ -106,7 +107,7 @@ export function Dialog({
         <div className="fixed inset-0 z-[80] flex items-end justify-center p-3 sm:items-center sm:p-6">
           <motion.div
             aria-hidden
-            className="absolute inset-0 bg-gradient-to-br from-charcoal/55 to-haven-950/45 backdrop-blur-[2px] dark:from-black/75 dark:to-haven-950/60"
+            className="absolute inset-0 bg-charcoal/55 backdrop-blur-[2px] dark:bg-black/70"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -136,7 +137,7 @@ export function Dialog({
               {Icon ? (
                 <span
                   className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md",
+                    "flex size-9 shrink-0 items-center justify-center rounded-xl shadow-sm",
                     iconClass,
                   )}
                   aria-hidden
@@ -149,7 +150,7 @@ export function Dialog({
                   {title}
                 </h2>
                 {description ? (
-                  <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{description}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{description}</p>
                 ) : null}
               </div>
             </div>

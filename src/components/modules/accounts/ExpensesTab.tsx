@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Check, Hourglass, Timer, Wallet, X } from "lucide-react";
-import { aud } from "@/lib/utils";
+import { Check, Hourglass, Loader2, Timer, Wallet, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT } from "@/lib/motion";
 import { PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
@@ -13,23 +13,28 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Reveal } from "@/components/ui/reveal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AVG_APPROVAL_TIME, EXPENSES_THIS_MONTH, type ExpenseClaim } from "./data";
+import { AVG_APPROVAL_TIME, EXPENSES_THIS_MONTH, cents, type ClaimDecision, type ExpenseClaim } from "./data";
 import { CLAIM_TONE } from "./status";
 
-/** Claim amounts keep their cents — "$186.40". */
-export const cents = (n: number) => aud(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Kept for existing imports: claim amounts keep their cents ("$186.40"). */
+export { cents };
 
 /**
  * Accounts › Expenses. Home's "2 expense claims awaiting approval" lands here;
  * the waiting claims sit at the top of the table with Approve / Decline (the
- * mockup's own approval pair, from HR › Leave).
+ * mockup's own approval pair, from HR › Leave). A decision waits out an undo
+ * window in the shared store; meanwhile the row says "Approving…" and the
+ * claim still counts as awaiting approval.
  */
 export function ExpensesTab({
   claims,
+  deciding,
   onDecide,
 }: {
   claims: ExpenseClaim[];
-  onDecide: (claim: string, decision: "Approved" | "Declined") => void;
+  /** Decisions inside their undo window, by claim name. */
+  deciding: Readonly<Record<string, ClaimDecision>>;
+  onDecide: (claim: string, decision: ClaimDecision) => void;
 }) {
   const reduce = useReducedMotion();
   const waiting = claims.filter((c) => c.status === "Awaiting approval");
@@ -38,7 +43,6 @@ export function ExpensesTab({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Accounts"
         title="Expense management"
         description="Claims flow to the right approver and land in Xero coded correctly."
       />
@@ -49,7 +53,6 @@ export function ExpensesTab({
             label="Awaiting approval"
             value={waiting.length}
             icon={Hourglass}
-            tone="haven"
             sub={waiting.length > 0 ? `${cents(waitingTotal)} to review` : "All claims reviewed"}
           />
           <KpiCard label="This month" value={EXPENSES_THIS_MONTH} icon={Wallet} tone="charcoal" sub="claimed in August" />
@@ -57,7 +60,6 @@ export function ExpensesTab({
             label="Avg approval time"
             value={AVG_APPROVAL_TIME}
             icon={Timer}
-            tone="skyblue"
             sub="submitted to approved"
           />
         </KpiGrid>
@@ -81,8 +83,13 @@ export function ExpensesTab({
             <TableBody>
               {claims.map((c) => {
                 const isWaiting = c.status === "Awaiting approval";
+                const decision = isWaiting ? deciding[c.claim] : undefined;
                 return (
-                  <TableRow key={c.claim}>
+                  <TableRow
+                    key={c.claim}
+                    aria-busy={decision ? true : undefined}
+                    className={cn(decision && "bg-amber-50/50 dark:bg-amber-500/[0.06]")}
+                  >
                     <TableCell className="pl-5 font-medium whitespace-nowrap">{c.claim}</TableCell>
                     <TableCell>
                       <span className="inline-flex items-center gap-2 whitespace-nowrap">
@@ -92,7 +99,7 @@ export function ExpensesTab({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{cents(c.amount)}</TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
-                      <span className="font-mono text-[11px] text-foreground tabular-nums">{c.code}</span> · {c.account}
+                      <span className="font-mono text-xs text-foreground tabular-nums">{c.code}</span> · {c.account}
                     </TableCell>
                     <TableCell>
                       <AnimatePresence mode="popLayout" initial={false}>
@@ -111,12 +118,20 @@ export function ExpensesTab({
                       </AnimatePresence>
                     </TableCell>
                     <TableCell className="pr-5">
-                      {isWaiting ? (
+                      {decision ? (
+                        <span
+                          role="status"
+                          className="flex items-center justify-end gap-1.5 text-xs font-medium whitespace-nowrap text-amber-700 dark:text-amber-300"
+                        >
+                          <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
+                          {decision === "Approved" ? "Approving…" : "Declining…"}
+                        </span>
+                      ) : isWaiting ? (
                         <span className="flex justify-end gap-1.5">
                           <Button
                             size="xs"
                             onClick={() => onDecide(c.claim, "Approved")}
-                            aria-label={`Approve ${c.claim} — ${c.staff}`}
+                            aria-label={`Approve ${c.claim}, ${c.staff}, ${cents(c.amount)}`}
                           >
                             <Check aria-hidden /> Approve
                           </Button>
@@ -124,7 +139,7 @@ export function ExpensesTab({
                             size="xs"
                             variant="outline"
                             onClick={() => onDecide(c.claim, "Declined")}
-                            aria-label={`Decline ${c.claim} — ${c.staff}`}
+                            aria-label={`Decline ${c.claim}, ${c.staff}, ${cents(c.amount)}`}
                           >
                             <X aria-hidden /> Decline
                           </Button>

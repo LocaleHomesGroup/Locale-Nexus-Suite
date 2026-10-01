@@ -44,7 +44,7 @@ export function ReportDialog({ state, kpis }: { state: CustomDashboardState; kpi
         </>
       }
     >
-      <div className="rounded-lg border border-haven-300 bg-haven-50 px-3.5 py-3 text-xs leading-relaxed text-foreground dark:border-haven-800 dark:bg-haven-950/40">
+      <div className="rounded-lg border border-tone-line bg-tone-soft px-3.5 py-3 text-xs leading-relaxed text-foreground">
         <strong className="font-semibold">Summary.</strong>
         {REPORT_SUMMARY}
       </div>
@@ -58,13 +58,13 @@ export function ReportDialog({ state, kpis }: { state: CustomDashboardState; kpi
             >
               <span className="text-muted-foreground">{m.label}</span>
               <span className="ml-auto font-semibold tabular-nums">{m.value}</span>
-              <span className="text-[11px] text-subtle-foreground tabular-nums">{m.delta}</span>
+              <span className="text-xs text-subtle-foreground tabular-nums">{m.delta}</span>
             </li>
           ))}
         </ul>
       ) : null}
 
-      <p className="mt-3 text-[11px] text-subtle-foreground">
+      <p className="mt-3 text-xs text-subtle-foreground">
         Figures are as at the last sync. Commission values are payable to Locale, not contract value.
       </p>
     </Dialog>

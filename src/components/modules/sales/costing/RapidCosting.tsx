@@ -168,7 +168,6 @@ export function RapidCosting() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Sales"
         title="Rapid costing"
         description="Price a job in the room with the client. Rates come from the current builder price list, so a costing can never be built on a stale spreadsheet."
         actions={<Pill tone="neutral">Forma price list v3 · effective 1 August 2026</Pill>}
@@ -204,7 +203,7 @@ export function RapidCosting() {
               <Section
                 icon={ShieldCheck}
                 title="Compliance check"
-                badge={<Pill tone="skyblue">Jarvis</Pill>}
+                badge={<Pill tone="tone">Jarvis</Pill>}
               >
                 <AnimatePresence mode="wait" initial={false}>
                   {checked ? (
@@ -213,8 +212,8 @@ export function RapidCosting() {
                       {...fade}
                       className="rounded-xl border border-border bg-card px-3.5 py-3 shadow-xs"
                     >
-                      <p className="mb-1.5 text-[11.5px] text-muted-foreground">
-                        <span className="font-mono text-[11px] text-foreground">{GUIDELINES_FILE}</span> · 4 requirements
+                      <p className="mb-1.5 text-xs text-muted-foreground">
+                        <span className="font-mono text-xs text-foreground">{GUIDELINES_FILE}</span> · 4 requirements
                         found
                       </p>
                       <ul aria-live="polite">
@@ -240,12 +239,12 @@ export function RapidCosting() {
                               >
                                 {r.label}
                               </p>
-                              <p className="text-[11px] text-muted-foreground">{r.note}</p>
+                              <p className="text-xs text-muted-foreground">{r.note}</p>
                             </div>
                           </li>
                         ))}
                       </ul>
-                      <p className="mt-1.5 text-[10.5px] text-subtle-foreground">
+                      <p className="mt-1.5 text-xs text-subtle-foreground">
                         Caught before submission, not after contracts. Jarvis flags; a human decides.
                       </p>
                     </motion.div>
@@ -257,17 +256,17 @@ export function RapidCosting() {
                       disabled={reading}
                       aria-busy={reading}
                       onClick={() => setReading(true)}
-                      className="flex w-full flex-col items-center rounded-xl border-[1.5px] border-dashed border-border bg-canvas px-4 py-4 text-center transition-colors hover:border-haven-300 hover:bg-haven-50/60 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none disabled:cursor-progress dark:hover:border-haven-800 dark:hover:bg-haven-950/30"
+                      className="flex w-full flex-col items-center rounded-xl border-[1.5px] border-dashed border-border bg-canvas px-4 py-4 text-center transition-colors hover:border-tone-line hover:bg-tone-soft/60 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none disabled:cursor-progress"
                     >
                       {reading ? (
                         <RefreshCw className="size-5 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden />
                       ) : (
                         <Upload className="size-5 text-muted-foreground" aria-hidden />
                       )}
-                      <span className="mt-1.5 text-[12.5px] font-medium" aria-live="polite">
+                      <span className="mt-1.5 text-[13px] font-medium" aria-live="polite">
                         {reading ? "Jarvis is reading the documents…" : "Drop the design guidelines, DAP or LDP"}
                       </span>
-                      <span className="mt-0.5 text-[11px] text-subtle-foreground">
+                      <span className="mt-0.5 text-xs text-subtle-foreground">
                         {reading
                           ? "Checking this costing against every requirement found"
                           : "Jarvis checks the quote against them before submission"}
@@ -293,14 +292,14 @@ export function RapidCosting() {
         <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-4">
           <Reveal index={1}>
             <Card tone="inverse" className="px-5 py-4 shadow-lg shadow-black/15">
-              <p className="text-[10.5px] font-semibold tracking-[0.18em] text-zinc-300 uppercase">Package total</p>
+              <p className="text-[10px] font-semibold tracking-[0.18em] text-zinc-300 uppercase">Package total</p>
               <p className="mt-1 font-heading text-[30px] leading-tight font-bold text-haven-300">
                 <TweenNumber value={packageTotal} format={aud} countUp />
               </p>
               <p className="sr-only" aria-live="polite">
                 Package total {aud(packageTotal)}
               </p>
-              <p className="mt-1 text-[11.5px] text-zinc-300 tabular-nums">
+              <p className="mt-1 text-xs text-zinc-300 tabular-nums">
                 Build {aud(buildTotal)} + land {aud(land)}
               </p>
             </Card>
@@ -330,16 +329,16 @@ export function RapidCosting() {
                     >
                       <span
                         className={cn(
-                          row.strong ? "text-[12.5px] font-semibold text-foreground" : "text-xs text-muted-foreground",
+                          row.strong ? "text-[13px] font-semibold text-foreground" : "text-xs text-muted-foreground",
                         )}
                       >
                         {row.label}
                       </span>
-                      {row.sub ? <span className="text-[10.5px] text-subtle-foreground">{row.sub}</span> : null}
+                      {row.sub ? <span className="text-xs text-subtle-foreground">{row.sub}</span> : null}
                       <span
                         className={cn(
                           "ml-auto tabular-nums",
-                          row.strong ? "text-[13px] font-semibold" : "text-[12.5px]",
+                          row.strong ? "text-[13px] font-semibold" : "text-[13px]",
                           row.neg ? "text-emerald-700 dark:text-emerald-300" : "text-foreground",
                         )}
                       >
@@ -356,20 +355,20 @@ export function RapidCosting() {
           <Reveal index={3}>
             <Card tone="accent" className="px-4 py-3.5">
               <div className="flex items-center gap-2 text-xs font-semibold">
-                <Briefcase className="size-3.5 text-haven-700 dark:text-haven-300" aria-hidden />
+                <Briefcase className="size-3.5 text-tone-ink" aria-hidden />
                 Your commission
-                <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground">
+                <span className="ml-auto inline-flex items-center gap-1 text-xs font-normal text-muted-foreground">
                   <Lock className="size-2.5" aria-hidden /> only you
                 </span>
               </div>
-              <p className="mt-1 text-xl font-bold text-haven-700 dark:text-haven-300">
+              <p className="mt-1 text-xl font-bold text-foreground">
                 <TweenNumber value={commission} format={aud} />
               </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+              <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
                 {buyerType} rate
                 {discount > 0 ? ` · reduced by the ${aud(discount)} discount` : ""}
               </p>
-              <p className="mt-1.5 text-[10.5px] leading-relaxed text-subtle-foreground">
+              <p className="mt-1.5 text-xs leading-relaxed text-subtle-foreground">
                 Indicative until the rate card is confirmed. Visible to you, your manager and leadership only.
               </p>
             </Card>
@@ -398,7 +397,7 @@ export function RapidCosting() {
                     )}
                     {needsApproval ? "Manager approval required" : "Within your discretion"}
                   </p>
-                  <p className="mt-1 text-[11.5px] leading-relaxed text-foreground tabular-nums">
+                  <p className="mt-1 text-xs leading-relaxed text-foreground tabular-nums">
                     {needsApproval
                       ? `A ${aud(discount)} discount needs a company contribution, so it cannot be submitted until a sales manager approves it.`
                       : `A ${aud(discount)} discount sits inside the builder's allowance, so no approval is needed.`}
@@ -439,7 +438,7 @@ export function RapidCosting() {
               <FileText /> Export
             </Button>
           </div>
-          <p className="text-center text-[10.5px] text-subtle-foreground">
+          <p className="text-center text-xs text-subtle-foreground">
             Saving attaches the Rapid Costing Tool document to the deal submission checklist.
           </p>
         </div>
@@ -472,7 +471,7 @@ function Section({
   return (
     <section className="flex flex-col gap-3 py-4">
       <div className="flex items-center gap-2">
-        <Icon className="size-3.5 text-haven-700 dark:text-haven-300" aria-hidden />
+        <Icon className="size-3.5 text-tone-ink" aria-hidden />
         <CardTitle as="h3" className="text-sm">
           {title}
         </CardTitle>
@@ -509,7 +508,7 @@ function MoneyField({
         autoComplete="off"
         value={value.toLocaleString("en-AU")}
         onChange={(e) => onChange(Number(e.target.value.replace(/[^0-9]/g, "")) || 0)}
-        className="w-[110px] text-right text-[12.5px] tabular-nums"
+        className="w-[110px] text-right text-[13px] tabular-nums"
       />
     </div>
   );

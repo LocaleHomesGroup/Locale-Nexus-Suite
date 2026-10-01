@@ -27,7 +27,7 @@ import {
 /** Open = waiting on IT (amber), in progress = neutral info, resolved = done (emerald). */
 const STATUS_TONE: Record<TicketStatus, PillTone> = {
   Open: "pending",
-  "In progress": "skyblue",
+  "In progress": "tone",
   Resolved: "ok",
 };
 
@@ -83,7 +83,6 @@ export function ItScreen() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="IT"
         title="IT help desk"
         description="Raise it here — not in a hallway conversation — so nothing gets lost."
       />
@@ -117,8 +116,8 @@ export function ItScreen() {
                         className={cn(
                           "rounded-full border px-3.5 py-1.5 text-xs transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                           priority === p
-                            ? "border-haven-300 bg-haven-300 font-semibold text-haven-950 dark:border-haven-300 dark:bg-haven-300 dark:text-haven-950"
-                            : "border-border bg-card text-foreground hover:border-haven-300 hover:bg-haven-50/70 dark:bg-white/[0.03] dark:hover:border-haven-800 dark:hover:bg-haven-950/40",
+                            ? "border-tone-fill bg-tone-fill font-semibold text-tone-on-fill"
+                            : "border-border bg-card text-foreground hover:border-tone-line hover:bg-tone-soft/70 dark:bg-white/[0.03] dark:hover:bg-tone-soft",
                         )}
                       >
                         {p}
@@ -144,7 +143,7 @@ export function ItScreen() {
                     className="min-h-[72px] text-[13px]"
                   />
                   {error ? (
-                    <p id={`${descId}-error`} role="alert" className="text-[11px] text-rose-700 dark:text-rose-300">
+                    <p id={`${descId}-error`} role="alert" className="text-xs text-rose-700 dark:text-rose-300">
                       Describe the issue before you submit.
                     </p>
                   ) : null}
@@ -156,11 +155,11 @@ export function ItScreen() {
                   </Button>
                 </div>
 
-                <p className="text-[11px] leading-relaxed text-subtle-foreground">
+                <p className="text-xs leading-relaxed text-subtle-foreground">
                   Urgent?{" "}
                   <a
                     href="mailto:support@localegroup.au"
-                    className="font-medium text-haven-700 underline-offset-2 hover:underline dark:text-haven-300"
+                    className="font-medium text-tone-ink underline-offset-2 hover:underline"
                   >
                     support@localegroup.au
                   </a>{" "}
@@ -192,15 +191,15 @@ export function ItScreen() {
                       }}
                       className={cn(
                         "flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-hairline px-5 py-3 transition-colors first:border-t-0",
-                        t.id === freshId && "bg-haven-50/70 dark:bg-haven-950/30",
+                        t.id === freshId && "bg-tone-soft/70",
                       )}
                     >
-                      <span className="w-9 shrink-0 font-mono text-[11px] text-subtle-foreground tabular-nums">
+                      <span className="w-9 shrink-0 font-mono text-xs text-subtle-foreground tabular-nums">
                         #{t.id}
                       </span>
                       <div className="min-w-[180px] flex-1">
                         <p className="text-[13px] font-semibold">{t.title}</p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {t.requester} · {t.priority} priority
                         </p>
                       </div>

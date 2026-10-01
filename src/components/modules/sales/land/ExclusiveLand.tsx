@@ -99,7 +99,6 @@ export function ExclusiveLand() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Sales"
         title="Exclusive land"
         description="Lots allocated exclusively to Locale by our builders. Place a 24-hour hold to lock one in for your client — up to three holds queue per lot."
         actions={<span className="text-xs text-subtle-foreground">Synced from the Exclusive Land board in Monday</span>}
@@ -169,7 +168,7 @@ export function ExclusiveLand() {
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {holdLot.estate} · Exclusive: {holdLot.builder}
               </p>
-              <p className="mt-1 text-[13px] font-semibold text-haven-700 tabular-nums dark:text-haven-300">
+              <p className="mt-1 text-[13px] font-semibold text-foreground tabular-nums">
                 {holdLot.price}
               </p>
             </div>
@@ -213,7 +212,7 @@ function LotCard({
     <Card
       className={cn(
         "flex h-full flex-col px-4 py-3.5 transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0",
-        lot.status === "available" && "border-haven-300 dark:border-haven-700",
+        lot.status === "available" && "border-tone-line",
         lot.status === "sold" && "opacity-65",
       )}
     >
@@ -221,9 +220,9 @@ function LotCard({
         <h2 className="text-[13px] font-semibold">{lot.lot}</h2>
         <span className="ml-auto">
           {lot.status === "available" ? (
-            <Pill tone="haven">Available</Pill>
+            <Pill tone="ok">Available</Pill>
           ) : lot.status === "hold" ? (
-            <Pill tone="skyblue">On hold</Pill>
+            <Pill tone="pending">On hold</Pill>
           ) : (
             <Pill tone="neutral">Sold</Pill>
           )}
@@ -232,7 +231,7 @@ function LotCard({
       <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
         {lot.estate} · Exclusive: {lot.builder}
       </p>
-      <p className="text-[13px] font-semibold text-haven-700 tabular-nums dark:text-haven-300">{lot.price}</p>
+      <p className="text-[13px] font-semibold text-foreground tabular-nums">{lot.price}</p>
       <p className="my-0.5 text-xs text-muted-foreground tabular-nums">{lot.specs}</p>
       <p
         className={cn(
@@ -243,23 +242,23 @@ function LotCard({
         {lot.titled}
       </p>
       {lot.note ? (
-        <p className="mt-2 rounded-md bg-skyblue-100 px-2.5 py-1.5 text-[11px] text-skyblue-950 dark:bg-skyblue-500/15 dark:text-skyblue-100">
+        <p className="mt-2 rounded-md bg-muted px-2.5 py-1.5 text-xs text-foreground">
           {lot.note}
         </p>
       ) : null}
       {lot.status === "hold" ? (
-        <p className="mt-2 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300">
+        <p className="mt-2 flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
           <Clock className="size-3 shrink-0" aria-hidden />
           {lot.holder} · {lot.expires}
         </p>
       ) : null}
       {lot.status === "hold" && lot.queuedAt ? (
-        <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
           <Users className="size-3 shrink-0" aria-hidden />
           You&apos;re {ordinal(lot.queuedAt)} of {HOLD_QUEUE_MAX} in the hold queue
         </p>
       ) : null}
-      {lot.status === "sold" ? <p className="mt-2 text-[11px] text-subtle-foreground">Sold by {lot.holder}</p> : null}
+      {lot.status === "sold" ? <p className="mt-2 text-xs text-subtle-foreground">Sold by {lot.holder}</p> : null}
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
         {lot.status === "available" ? (
@@ -288,7 +287,7 @@ function LotCard({
             Leave queue
           </Button>
         ) : null}
-        <Button size="sm" variant="ghost" className="text-haven-700 hover:text-haven-800 dark:text-haven-300 dark:hover:text-haven-200" onClick={onFiles}>
+        <Button size="sm" variant="ghost" className="text-tone-ink hover:text-foreground" onClick={onFiles}>
           Plans and files <ExternalLink className="size-3" aria-hidden />
         </Button>
       </div>

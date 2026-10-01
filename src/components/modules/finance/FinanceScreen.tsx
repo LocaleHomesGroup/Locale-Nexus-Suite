@@ -3,7 +3,7 @@
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, CircleCheck, LoaderCircle } from "lucide-react";
-import { aud } from "@/lib/utils";
+import { aud, cn } from "@/lib/utils";
 import { DURATION, EASE_OUT } from "@/lib/motion";
 import { confirm, useLaunchpad } from "@/state/launchpad-store";
 import { PageContainer, PageHeader } from "@/components/ui/page";
@@ -11,13 +11,12 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { SmoothSelect } from "@/components/ui/select";
-import { RateBar } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
 
 /**
  * Finance — the mockup's `mm` (app.js 9955–10097): the client-facing Finance
  * health check, shown at step 2 of 5. Nectar is the Locale Financial
- * sub-brand, so the step bar and eyebrow carry it.
+ * sub-brand, so the stepper carries it (via the dashboard tone).
  *
  * The mockup draws step 2 only. Here the preview works: Continue checks the
  * income, "writes" the step to Mercury and moves the bar to step 3; Back walks
@@ -69,7 +68,6 @@ export function FinanceScreen() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow={<span className="text-nectar-700 dark:text-nectar-300">Finance</span>}
         title="Finance health check"
         description="Client-facing form. Replaces the WordPress form and writes straight to Mercury."
       />
@@ -84,13 +82,34 @@ export function FinanceScreen() {
               </span>
               <span className="font-medium text-foreground tabular-nums">{pct}%</span>
             </div>
-            <RateBar
-              value={pct / 100}
-              tone="nectar"
-              height="h-2"
-              className="mt-2"
-              label={`Step ${step} of ${TOTAL_STEPS}, ${pct}% complete`}
-            />
+            {/* Five segments, not one bar: the earlier step reads as done, so
+                "Step 2 of 5" never looks like the form skipped its start. */}
+            <ol className="mt-2 grid grid-cols-5 gap-1.5" aria-label={`Step ${step} of ${TOTAL_STEPS}, ${pct}% complete`}>
+              {Array.from({ length: TOTAL_STEPS }, (_, i) => {
+                const n = i + 1;
+                const state = n < step ? "done" : n === step ? "current" : "todo";
+                return (
+                  <li
+                    key={n}
+                    aria-current={state === "current" ? "step" : undefined}
+                    className={cn(
+                      "h-1.5 rounded-full transition-colors duration-200",
+                      state === "done" && "bg-tone-strong",
+                      state === "current" && "bg-tone-strong/45",
+                      state === "todo" && "bg-muted",
+                    )}
+                  >
+                    <span className="sr-only">
+                      Step {n}
+                      {state === "done" ? ", saved" : state === "current" ? ", current" : ""}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+            <p className="mt-2 text-xs text-subtle-foreground">
+              {step > 1 ? "Step 1 is already saved to Mercury. " : ""}This is the form as your client sees it.
+            </p>
 
             <div className="mt-5">
               <AnimatePresence mode="wait" initial={false}>
@@ -132,7 +151,7 @@ export function FinanceScreen() {
                           }}
                         />
                         {error ? (
-                          <p id="fhc-income-error" role="alert" className="text-[11px] text-rose-700 dark:text-rose-300">
+                          <p id="fhc-income-error" role="alert" className="text-xs text-rose-700 dark:text-rose-300">
                             {error}
                           </p>
                         ) : null}

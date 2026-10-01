@@ -29,7 +29,7 @@ export function EmptyState({
   return (
     <div className={cn("flex flex-col items-center justify-center px-6 py-12 text-center", className)}>
       <motion.div
-        className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-haven-300 to-haven-500 text-haven-950 shadow-md shadow-haven-500/25"
+        className="mb-3 flex size-12 items-center justify-center rounded-2xl border border-tone-line bg-tone-soft text-tone-ink"
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: reduce ? 0 : 0.4, ease: EASE_OUT }}
@@ -47,13 +47,13 @@ export function EmptyState({
 export function NoMatches({ query, onClear, className }: { query: string; onClear: () => void; className?: string }) {
   return (
     <div className={cn("flex flex-col items-center justify-center px-6 py-12 text-center", className)}>
-      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-300 to-zinc-500 text-white shadow-md dark:from-zinc-600 dark:to-zinc-800">
+      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl border border-border bg-muted text-muted-foreground">
         <SearchX className="size-6" />
       </div>
       <h3 className="text-sm font-semibold">No matches</h3>
       <p className="mt-1.5 text-xs text-muted-foreground">
         Nothing matches{" "}
-        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground">{query}</span>
+        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">{query}</span>
       </p>
       <Button variant="outline" size="sm" className="mt-4 rounded-full" onClick={onClear}>
         Clear search
@@ -76,7 +76,7 @@ export function ErrorState({
 }) {
   return (
     <div className={cn("flex flex-col items-center justify-center gap-3 px-6 py-12 text-center", className)}>
-      <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-lg shadow-rose-500/30">
+      <div className="flex size-12 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
         <AlertTriangle className="size-6" />
       </div>
       <h2 className="text-base font-semibold">{title}</h2>

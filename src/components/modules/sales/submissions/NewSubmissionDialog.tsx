@@ -72,7 +72,7 @@ export function NewSubmissionDialog({
           size="md"
           labelClassName="text-xs font-medium"
         />
-        <p className="rounded-lg border border-haven-300 bg-haven-50 px-3 py-2.5 text-[11.5px] leading-relaxed dark:border-haven-800 dark:bg-haven-950/40">
+        <p className="rounded-lg border border-tone-line bg-tone-soft px-3 py-2.5 text-xs leading-relaxed">
           <strong className="font-semibold">{builder}</strong> requires{" "}
           <span className="tabular-nums">{mandatory}</span> mandatory documents{BUILDER_SUBMISSION_NOTE[builder]}.
         </p>

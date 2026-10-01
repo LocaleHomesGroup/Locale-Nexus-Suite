@@ -1,129 +1,23 @@
 /**
- * Accounts — static data from the mockup (`hm`, app.js 10098–10855).
- * Builder invoices and expense claims seed the module's local state; the
- * report figures are read-only. All builder invoice amounts are excl GST.
+ * Accounts — static data from the mockup (`hm`, app.js 10098–10855): the
+ * read-only report figures. Builder invoices and expense claims live in
+ * src/data/accounts.ts, where they seed the shared Launchpad store; they are
+ * re-exported here so existing imports keep working.
  */
+export {
+  INVOICED_THIS_MONTH,
+  SEED_CLAIMS,
+  SEED_INVOICES,
+  cents,
+  invoicedThisMonth,
+  type BuilderInvoice,
+  type ClaimDecision,
+  type ClaimStatus,
+  type ExpenseClaim,
+  type InvoiceStatus,
+} from "@/data/accounts";
 
-export type InvoiceStatus = "Draft" | "Approved" | "Paid";
-
-export interface BuilderInvoice {
-  id: string;
-  job: string;
-  client: string;
-  builder: string;
-  stage: string;
-  /** AUD excl GST. */
-  amount: number;
-  note: string;
-  status: InvoiceStatus;
-  /** Approved in this session — counts toward "Invoiced this month". */
-  approvedNow?: boolean;
-}
-
-export const SEED_INVOICES: BuilderInvoice[] = [
-  {
-    id: "INV-D-1042",
-    job: "25211",
-    client: "A. Davoile and C. Alex",
-    builder: "Forma",
-    stage: "Slab Down",
-    amount: 17500,
-    note: "50% down deduction applies at this stage",
-    status: "Draft",
-  },
-  {
-    id: "INV-D-1041",
-    job: "25478",
-    client: "S. and P. Nakamura",
-    builder: "Move Homes",
-    stage: "Slab Down",
-    amount: 10000,
-    note: "Down deducted here if applicable",
-    status: "Draft",
-  },
-  {
-    id: "INV-D-1040",
-    job: "23901",
-    client: "F. Adeyemi",
-    builder: "New Era",
-    stage: "Land Settlement",
-    amount: 15000,
-    note: "",
-    status: "Draft",
-  },
-  {
-    id: "INV-1036",
-    job: "25302",
-    client: "M. Achebe",
-    builder: "La Vida",
-    stage: "Slab Down",
-    amount: 15000,
-    note: "",
-    status: "Approved",
-  },
-  {
-    id: "INV-1031",
-    job: "25431",
-    client: "R. de Thierry and J. Kumar",
-    builder: "Forma",
-    stage: "Finance Approval",
-    amount: 17500,
-    note: "",
-    status: "Paid",
-  },
-];
-
-/** "Invoiced this month" before anything is approved in this session. */
-export const INVOICED_THIS_MONTH = 135000;
 export const FORECAST_NEXT_MONTH = 310000;
-
-export type ClaimStatus = "Awaiting approval" | "Approved" | "Paid" | "Declined";
-
-export interface ExpenseClaim {
-  claim: string;
-  staff: string;
-  /** AUD, cents kept. */
-  amount: number;
-  /** Xero account code and name — "453 · Travel". */
-  code: string;
-  account: string;
-  status: ClaimStatus;
-}
-
-export const SEED_CLAIMS: ExpenseClaim[] = [
-  {
-    claim: "Site travel — Baldivis x3",
-    staff: "A. Mercer",
-    amount: 186.4,
-    code: "453",
-    account: "Travel",
-    status: "Awaiting approval",
-  },
-  {
-    claim: "Client settlement gift",
-    staff: "K. Ellery",
-    amount: 120,
-    code: "429",
-    account: "Client costs",
-    status: "Awaiting approval",
-  },
-  {
-    claim: "Display home consumables",
-    staff: "S. Hart",
-    amount: 342.75,
-    code: "461",
-    account: "Office",
-    status: "Approved",
-  },
-  {
-    claim: "Software — measurement app",
-    staff: "P. Lopez",
-    amount: 29,
-    code: "489",
-    account: "Subscriptions",
-    status: "Paid",
-  },
-];
 
 export const EXPENSES_THIS_MONTH = "$6,840";
 export const AVG_APPROVAL_TIME = "1.2 days";

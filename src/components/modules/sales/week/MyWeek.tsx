@@ -55,7 +55,6 @@ export function MyWeek() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Sales"
         title="My week"
         description="Your signed deals are filled in automatically from the CRM. You only need to give your forecast for the month. Takes under a minute, and it replaces the Monday email."
         actions={
@@ -87,7 +86,7 @@ export function MyWeek() {
             <CardContent>
               <div>
                 {signedRows.map((b) => (
-                  <CardRow key={b} className="flex items-baseline py-1.5 text-[12.5px]">
+                  <CardRow key={b} className="flex items-baseline py-1.5 text-[13px]">
                     <span>{b}</span>
                     <span className="ml-auto font-semibold tabular-nums">{SIGNED_THIS_WEEK[b]}</span>
                   </CardRow>
@@ -96,7 +95,7 @@ export function MyWeek() {
               <TotalRow label="Total signed">
                 <CountUp value={totalSigned} />
               </TotalRow>
-              <p className="mt-3 rounded-lg border border-haven-300 bg-haven-50 px-3 py-2.5 text-[11.5px] leading-relaxed dark:border-haven-800 dark:bg-haven-950/40">
+              <p className="mt-3 rounded-lg border border-tone-line bg-tone-soft px-3 py-2.5 text-xs leading-relaxed">
                 Last week you forecast <strong className="font-semibold tabular-nums">{LAST_WEEK.forecast}</strong> and
                 signed <strong className="font-semibold tabular-nums">{LAST_WEEK.signed}</strong>. Your forecasts have
                 been within one for six weeks running.
@@ -109,7 +108,7 @@ export function MyWeek() {
         <Reveal index={1} className="min-w-0">
           <Card tone="accent">
             <CardHeader>
-              <Target className="size-3.5 text-haven-700 dark:text-haven-300" aria-hidden />
+              <Target className="size-3.5 text-tone-ink" aria-hidden />
               <CardTitle as="h3" className="text-sm">
                 Your forecast for August
               </CardTitle>
@@ -128,7 +127,7 @@ export function MyWeek() {
                       <label
                         htmlFor={inputId}
                         className={cn(
-                          "flex-1 text-[12.5px] transition-colors",
+                          "flex-1 text-[13px] transition-colors",
                           n > 0 ? "text-foreground" : "text-muted-foreground",
                         )}
                       >
@@ -152,7 +151,7 @@ export function MyWeek() {
                           const v = e.target.value.replace(/[^0-9]/g, "");
                           setForecast((f) => ({ ...f, [b]: v }));
                         }}
-                        className="h-6 w-[42px] px-0 text-center text-[12.5px] tabular-nums"
+                        className="h-6 w-[42px] px-0 text-center text-[13px] tabular-nums"
                       />
                       <Button
                         variant="outline"
@@ -175,7 +174,7 @@ export function MyWeek() {
                       key="submitted"
                       {...swap}
                       role="status"
-                      className="flex min-h-9 items-center justify-center gap-2 text-[12.5px] font-semibold text-haven-700 dark:text-haven-300"
+                      className="flex min-h-9 items-center justify-center gap-2 text-[13px] font-semibold text-tone-ink"
                     >
                       <Check className="size-3.5" aria-hidden /> Submitted · your manager sees it straight away
                     </motion.p>
@@ -188,7 +187,7 @@ export function MyWeek() {
                   )}
                 </AnimatePresence>
               </div>
-              <p className="mt-2 text-center text-[10.5px] text-subtle-foreground">
+              <p className="mt-2 text-center text-xs text-subtle-foreground">
                 No spreadsheet, no Monday email. Managers see the whole team roll up automatically.
               </p>
             </CardContent>
@@ -203,7 +202,7 @@ function TotalRow({ label, children }: { label: string; children: React.ReactNod
   return (
     <div className="mt-1 flex items-baseline border-t border-border pt-2 text-[13px] font-semibold">
       <span>{label}</span>
-      <span className="ml-auto text-haven-700 tabular-nums dark:text-haven-300">{children}</span>
+      <span className="ml-auto text-tone-ink tabular-nums">{children}</span>
     </div>
   );
 }

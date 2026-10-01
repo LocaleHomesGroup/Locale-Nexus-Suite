@@ -114,11 +114,11 @@ export function AddMaterialDialog({
           {fileName ? (
             <div className="flex items-center gap-2.5 rounded-lg border border-border bg-canvas px-3 py-2.5">
               {kind === "video" ? (
-                <PlayCircle className="size-4 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+                <PlayCircle className="size-4 shrink-0 text-tone-ink" aria-hidden />
               ) : (
-                <FileText className="size-4 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+                <FileText className="size-4 shrink-0 text-tone-ink" aria-hidden />
               )}
-              <span className="min-w-0 flex-1 truncate font-mono text-[11px]">{fileName}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-xs">{fileName}</span>
               <Button
                 variant="ghost"
                 size="icon-xs"
@@ -148,13 +148,13 @@ export function AddMaterialDialog({
               className={cn(
                 "flex w-full flex-col items-center gap-1 rounded-lg border border-dashed px-4 py-5 text-center transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                 dragging
-                  ? "border-haven-400 bg-haven-50 dark:border-haven-600 dark:bg-haven-950/40"
-                  : "border-input hover:border-haven-300 hover:bg-haven-50/60 dark:hover:border-haven-800 dark:hover:bg-haven-950/25",
+                  ? "border-tone-strong bg-tone-soft"
+                  : "border-input hover:border-tone-line hover:bg-tone-soft/60",
               )}
             >
               <FileUp className="size-5 text-subtle-foreground" aria-hidden />
               <span className="text-xs font-medium">Drop a file or choose one</span>
-              <span className="text-[11px] text-subtle-foreground">PDF, Word, PowerPoint, Excel or video</span>
+              <span className="text-xs text-subtle-foreground">PDF, Word, PowerPoint, Excel or video</span>
             </button>
           )}
         </div>
@@ -211,8 +211,8 @@ function ChipGroup<T extends string>({
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                 checked
-                  ? "border-haven-400 bg-haven-50 text-haven-900 dark:border-haven-600 dark:bg-haven-950/50 dark:text-haven-100"
-                  : "border-border bg-card text-muted-foreground hover:border-haven-300 hover:text-foreground dark:bg-white/[0.03] dark:hover:border-haven-800",
+                  ? "border-tone-strong bg-tone-soft text-tone-ink"
+                  : "border-border bg-card text-muted-foreground hover:border-tone-line hover:text-foreground dark:bg-white/[0.03]",
               )}
             >
               <Icon className="size-3" aria-hidden />

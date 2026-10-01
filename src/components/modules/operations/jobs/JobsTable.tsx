@@ -26,12 +26,12 @@ export function MondayPill({ job, long = false }: { job: Job; long?: boolean }) 
   if (job.board === "construction") {
     const done = job.milestones.filter((m) => m.status === "done").length;
     return (
-      <Pill tone="haven" className="tabular-nums">
+      <Pill tone="tone" className="tabular-nums">
         {long ? `Monday · Construction, ${done} of ${job.milestones.length} done` : `Construction · ${done} of ${job.milestones.length}`}
       </Pill>
     );
   }
-  return <Pill tone="skyblue">{long ? "Monday · Sales board" : "Sales board"}</Pill>;
+  return <Pill tone="neutral">{long ? "Monday · Sales board" : "Sales board"}</Pill>;
 }
 
 function openLabel(job: Job) {
@@ -88,7 +88,7 @@ export function JobsTable({
                     onClick={(e) => e.stopPropagation()}
                     className={cn(
                       "rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/45",
-                      j.jobNo ? "font-mono text-[12px] font-semibold text-foreground" : "text-[12.5px] text-subtle-foreground",
+                      j.jobNo ? "font-mono text-xs font-semibold text-foreground" : "text-[13px] text-subtle-foreground",
                     )}
                   >
                     {j.jobNo || "Awaiting"}
@@ -127,13 +127,13 @@ export function JobsTable({
             <Link
               href={jobHref(j.id)}
               aria-label={openLabel(j)}
-              className="flex flex-col gap-1.5 px-4 py-3 outline-none transition-colors hover:bg-haven-50/60 focus-visible:bg-haven-50/60 dark:hover:bg-haven-950/25 dark:focus-visible:bg-haven-950/25"
+              className="flex flex-col gap-1.5 px-4 py-3 outline-none transition-colors hover:bg-tone-soft/60 focus-visible:bg-tone-soft/60"
             >
               <span className="flex items-center gap-2">
                 <span
                   className={cn(
                     "shrink-0",
-                    j.jobNo ? "font-mono text-[12px] font-semibold" : "text-xs text-subtle-foreground",
+                    j.jobNo ? "font-mono text-xs font-semibold" : "text-xs text-subtle-foreground",
                   )}
                 >
                   {j.jobNo || "Awaiting"}
@@ -161,7 +161,7 @@ export function JobsTable({
 function NoJobMatches({ query, filter, onClear }: { query: string; filter: SyncFilter; onClear: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-300 to-zinc-500 text-white shadow-md dark:from-zinc-600 dark:to-zinc-800">
+      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl border border-border bg-muted text-muted-foreground">
         <SearchX className="size-6" aria-hidden />
       </div>
       <h3 className="text-sm font-semibold">No matches</h3>
@@ -170,7 +170,7 @@ function NoJobMatches({ query, filter, onClear }: { query: string; filter: SyncF
         {query ? (
           <>
             {" "}
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground">{query}</span>
+            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">{query}</span>
           </>
         ) : null}
         {filter !== "all" ? ` with status ${filter}` : ""}. Try clearing the filter or search.

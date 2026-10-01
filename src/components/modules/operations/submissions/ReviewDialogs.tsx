@@ -39,7 +39,7 @@ export function PreviewDialog({ open, onClose, doc }: { open: boolean; onClose: 
       size="lg"
       icon={FileText}
       title={doc.name}
-      description={<span className="font-mono text-[11px]">{doc.file}</span>}
+      description={<span className="font-mono text-xs">{doc.file}</span>}
       footer={
         <Button variant="outline" onClick={onClose}>
           Close
@@ -79,7 +79,7 @@ export function PreviewDialog({ open, onClose, doc }: { open: boolean; onClose: 
             <div className="mt-8 grid grid-cols-2 gap-6">
               {[0, 1].map((i) => (
                 <div key={i}>
-                  <svg viewBox="0 0 120 32" className="h-7 w-full text-haven-800" aria-hidden>
+                  <svg viewBox="0 0 120 32" className="h-7 w-full text-zinc-700" aria-hidden>
                     <path
                       d={i === 0 ? "M4 24 C 18 4, 26 30, 40 14 S 64 6, 70 22 S 96 10, 116 16" : "M6 20 C 20 8, 30 28, 46 12 S 72 26, 84 10 S 104 22, 114 14"}
                       fill="none"
@@ -107,7 +107,7 @@ export function PreviewDialog({ open, onClose, doc }: { open: boolean; onClose: 
           <ChevronRight />
         </Button>
       </div>
-      <p className="mt-3 text-center text-[11.5px] text-muted-foreground tabular-nums" aria-live="polite">
+      <p className="mt-3 text-center text-xs text-muted-foreground tabular-nums" aria-live="polite">
         Document preview · page {page} of {PREVIEW_PAGES}
       </p>
     </Dialog>
@@ -125,7 +125,7 @@ export function CompareDialog({ open, onClose, doc }: { open: boolean; onClose: 
       title="Compare to deal form"
       description={
         <>
-          {doc.name} · <span className="font-mono text-[11px]">{doc.file}</span>
+          {doc.name} · <span className="font-mono text-xs">{doc.file}</span>
         </>
       }
       footer={
@@ -164,7 +164,7 @@ export function CompareDialog({ open, onClose, doc }: { open: boolean; onClose: 
                   <span className="min-w-0 flex-1">{label}</span>
                   <span
                     className={cn(
-                      "text-[10.5px] font-medium",
+                      "text-xs font-medium",
                       pass ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300",
                     )}
                   >
@@ -177,7 +177,7 @@ export function CompareDialog({ open, onClose, doc }: { open: boolean; onClose: 
           <section className="rounded-lg border border-hairline bg-canvas px-3 py-2.5">
             <p className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">Document</p>
             <p className="mt-1 text-xs font-semibold">{doc.name}</p>
-            <p className="mt-0.5 font-mono text-[11px] text-subtle-foreground">
+            <p className="mt-0.5 font-mono text-xs text-subtle-foreground">
               {doc.ref} · {doc.cat}
             </p>
           </section>

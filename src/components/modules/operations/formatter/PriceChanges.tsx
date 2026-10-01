@@ -60,13 +60,13 @@ export function PriceChanges({
     <div className="flex flex-col gap-5">
       <Reveal index={0}>
         <Card className="flex flex-wrap items-center gap-3 px-4 py-3">
-          <TrendingUp className="size-4 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+          <TrendingUp className="size-4 shrink-0 text-tone-ink" aria-hidden />
           <div className="min-w-0">
             <p className="text-[13px] font-semibold">Forma · August 2026 against July 2026</p>
-            <p className="text-[11px] text-muted-foreground">Compared automatically against the last published list</p>
+            <p className="text-xs text-muted-foreground">Compared automatically against the last published list</p>
           </div>
           <span className="ml-auto flex flex-wrap gap-2">
-            <Pill tone="skyblue" className="tabular-nums">
+            <Pill tone="neutral" className="tabular-nums">
               {changed.length} changed
             </Pill>
             {flagged.length > 0 ? (
@@ -80,9 +80,9 @@ export function PriceChanges({
 
       <Reveal index={1}>
         <KpiGrid cols={4}>
-          <KpiCard label="Models changed" value={changed.length} icon={TrendingUp} tone="haven" />
-          <KpiCard label="Increases" value={up} icon={TrendingUp} tone="skyblue" />
-          <KpiCard label="Decreases" value={down} icon={TrendingDown} tone="skyblue" />
+          <KpiCard label="Models changed" value={changed.length} icon={TrendingUp} />
+          <KpiCard label="Increases" value={up} icon={TrendingUp} />
+          <KpiCard label="Decreases" value={down} icon={TrendingDown} />
           <KpiCard label="Unchanged" value={PRICE_CHANGES.length - changed.length} icon={Equal} tone="charcoal" />
         </KpiGrid>
       </Reveal>
@@ -90,7 +90,7 @@ export function PriceChanges({
       <div className="grid items-start gap-5 lg:grid-cols-[1.15fr_0.85fr]">
         <Reveal index={2} className="min-w-0">
           <Card className="overflow-hidden">
-            <Table className="min-w-[500px] text-[12.5px]">
+            <Table className="min-w-[500px] text-[13px]">
                 <caption className="sr-only">Forma price list, August 2026 against July 2026</caption>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent dark:hover:bg-transparent">
@@ -121,12 +121,12 @@ export function PriceChanges({
                           "border-b border-hairline transition-colors",
                           review
                             ? "bg-rose-50 hover:bg-rose-100/70 dark:bg-rose-500/10 dark:hover:bg-rose-500/15"
-                            : "hover:bg-haven-50/60 dark:hover:bg-haven-950/25",
+                            : "hover:bg-tone-soft/60",
                         )}
                       >
                         <td className={cn("px-3 py-2 pl-4", diff !== 0 ? "font-medium" : "text-muted-foreground")}>
                           {r.m}
-                          {review ? <span className="text-[10.5px] font-semibold text-rose-700 dark:text-rose-300"> · review</span> : null}
+                          {review ? <span className="text-xs font-semibold text-rose-700 dark:text-rose-300"> · review</span> : null}
                         </td>
                         <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">{money(r.prev)}</td>
                         <td className={cn("px-3 py-2 text-right tabular-nums", diff !== 0 && "font-semibold")}>{money(r.now)}</td>
@@ -146,21 +146,21 @@ export function PriceChanges({
 
         <div className="flex min-w-0 flex-col gap-4">
           <Reveal index={3}>
-            <Card className="border-haven-300 dark:border-haven-800">
+            <Card className="border-tone-line">
               <CardHeader>
-                <Send className="size-3.5 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
-                <CardTitle className="text-[14px]">Price change report</CardTitle>
+                <Send className="size-3.5 shrink-0 text-tone-ink" aria-hidden />
+                <CardTitle className="text-sm">Price change report</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="mb-2.5 text-[11.5px] leading-relaxed text-muted-foreground">
+                <p className="mb-2.5 text-xs leading-relaxed text-muted-foreground">
                   Goes to Sean each time a list is published, so pricing changes are never found out after a quote has
                   gone out.
                 </p>
                 <dl>
                   {REPORT_ROUTING.map(([k, v]) => (
-                    <div key={k} className="flex gap-2 py-0.5 text-[11.5px]">
+                    <div key={k} className="flex gap-2 py-0.5 text-xs">
                       <dt className="w-14 shrink-0 text-muted-foreground">{k}</dt>
-                      <dd className={cn("min-w-0 break-words", k === "Attached" && "font-mono text-[11px]")}>{v}</dd>
+                      <dd className={cn("min-w-0 break-words", k === "Attached" && "font-mono text-xs")}>{v}</dd>
                     </div>
                   ))}
                 </dl>
@@ -185,12 +185,12 @@ export function PriceChanges({
           <Reveal index={4}>
             <Card tone={published ? "accent" : "default"} className="transition-colors">
               <CardHeader>
-                <CardTitle className="text-[14px]">Publish this list</CardTitle>
+                <CardTitle className="text-sm">Publish this list</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul>
                   {PUBLISH_TARGETS.map(([k, v]) => (
-                    <li key={k} className="flex items-baseline gap-2 border-t border-hairline py-1.5 text-[11.5px]">
+                    <li key={k} className="flex items-baseline gap-2 border-t border-hairline py-1.5 text-xs">
                       {published ? (
                         <Check className="size-3 shrink-0 translate-y-0.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
                       ) : (

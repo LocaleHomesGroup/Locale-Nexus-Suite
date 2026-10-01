@@ -20,10 +20,11 @@ import {
 } from "./data";
 import type { PickedFile } from "./UploadStep";
 
+/** A quiet wash on the rows that need a person; the chip and input border say why. */
 const ROW_TONE: Record<Confidence, string> = {
-  high: "border-transparent",
-  check: "border-amber-500 bg-amber-50 dark:border-amber-400 dark:bg-amber-500/10",
-  missing: "border-rose-500 bg-rose-50 dark:border-rose-400 dark:bg-rose-500/10",
+  high: "",
+  check: "bg-amber-50/70 dark:bg-amber-500/10",
+  missing: "bg-rose-50/70 dark:bg-rose-500/10",
 };
 
 const INPUT_TONE: Record<Confidence, string> = {
@@ -34,7 +35,7 @@ const INPUT_TONE: Record<Confidence, string> = {
 
 /** Spreadsheet cell fill for a value that came from the upload. */
 const CELL_TONE: Record<Confidence, string> = {
-  high: "bg-haven-50 dark:bg-haven-950/40",
+  high: "bg-tone-soft",
   check: "bg-amber-50 dark:bg-amber-500/10",
   missing: "bg-rose-50 dark:bg-rose-500/10",
 };
@@ -82,21 +83,21 @@ export function ExtractionReview({
     <div className="flex flex-col gap-5">
       <Reveal index={0}>
         <Card className="flex flex-wrap items-center gap-3 px-4 py-3">
-          <FileText className="size-4 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+          <FileText className="size-4 shrink-0 text-tone-ink" aria-hidden />
           <div className="min-w-0">
-            <p className="truncate font-mono text-[12.5px] font-semibold">{file ? file.name : SAMPLE_FILE.name}</p>
-            <p className="text-[11px] text-muted-foreground">Uploaded just now · 6 pages · 13 fields detected</p>
+            <p className="truncate font-mono text-[13px] font-semibold">{file ? file.name : SAMPLE_FILE.name}</p>
+            <p className="text-xs text-muted-foreground">Uploaded just now · 6 pages · 13 fields detected</p>
           </div>
           <div className="ml-auto text-right">
             <p className="text-xs font-semibold">{template || DEFAULT_TEMPLATE}</p>
-            <p className="text-[11px] text-muted-foreground">Version 3 · active</p>
+            <p className="text-xs text-muted-foreground">Version 3 · active</p>
           </div>
         </Card>
       </Reveal>
 
       <Reveal index={1}>
         <KpiGrid cols={3}>
-          <KpiCard label="Fields extracted" value={`${extracted} / ${fields.length}`} icon={ScanText} tone="haven" />
+          <KpiCard label="Fields extracted" value={`${extracted} / ${fields.length}`} icon={ScanText} />
           <KpiCard
             label="Needs review"
             value={checkCount}
@@ -133,9 +134,9 @@ export function ExtractionReview({
                   const level = levels[i];
                   const id = `${idBase}-${i}`;
                   return (
-                    <div key={f.k} className={cn("rounded-md border-l-2 px-2.5 py-2", ROW_TONE[level])}>
+                    <div key={f.k} className={cn("rounded-md px-2.5 py-2", ROW_TONE[level])}>
                       <div className="mb-1 flex items-center gap-2">
-                        <label htmlFor={id} className="min-w-0 flex-1 text-[11.5px] text-muted-foreground">
+                        <label htmlFor={id} className="min-w-0 flex-1 text-xs text-muted-foreground">
                           {f.k}
                         </label>
                         <ConfidenceChip level={level} c={f.c} />
@@ -146,7 +147,7 @@ export function ExtractionReview({
                         placeholder={f.k.includes("date") ? "dd/mm/yyyy" : "$0,000"}
                         onChange={(e) => edit(f.k, e.target.value)}
                         aria-invalid={level === "missing" ? true : undefined}
-                        className={cn("h-7 text-[12.5px] tabular-nums", INPUT_TONE[level])}
+                        className={cn("h-7 text-[13px] tabular-nums", INPUT_TONE[level])}
                       />
                     </div>
                   );
@@ -168,7 +169,7 @@ export function ExtractionReview({
                   <span
                     key={sheet}
                     className={cn(
-                      "rounded-t-md border border-b-0 px-2.5 py-1 text-[10.5px]",
+                      "rounded-t-md border border-b-0 px-2.5 py-1 text-xs",
                       i === 0 ? "border-border bg-muted text-foreground" : "border-transparent text-subtle-foreground",
                     )}
                   >
@@ -179,7 +180,7 @@ export function ExtractionReview({
             </CardHeader>
             <CardContent className="pb-4">
               <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full min-w-[420px] table-fixed border-collapse text-[11px] tabular-nums">
+                <table className="w-full min-w-[420px] table-fixed border-collapse text-xs tabular-nums">
                   <caption className="sr-only">Formatted price list, sheet “Price list”</caption>
                   <colgroup>
                     <col className="w-[28px]" />
@@ -188,7 +189,7 @@ export function ExtractionReview({
                     <col />
                   </colgroup>
                   <thead>
-                    <tr className="bg-muted text-[9.5px] text-subtle-foreground">
+                    <tr className="bg-muted text-xs text-subtle-foreground">
                       {["", "A", "B", "C"].map((h, i) => (
                         <th
                           key={h || "corner"}
@@ -218,7 +219,7 @@ export function ExtractionReview({
                         <tr key={row.n} className="border-t border-hairline">
                           <th
                             scope="row"
-                            className="border-r border-hairline bg-muted px-1.5 py-1 text-center text-[9.5px] font-normal text-subtle-foreground"
+                            className="border-r border-hairline bg-muted px-1.5 py-1 text-center text-xs font-normal text-subtle-foreground"
                           >
                             {row.n}
                           </th>
@@ -226,7 +227,7 @@ export function ExtractionReview({
                             className={cn(
                               "truncate border-r border-hairline px-2 py-1",
                               fill,
-                              row.kind === "hdr" && "text-[10.5px] font-semibold tracking-[0.08em]",
+                              row.kind === "hdr" && "text-xs font-semibold tracking-[0.08em]",
                             )}
                             colSpan={row.kind === "hdr" ? 3 : undefined}
                           >
@@ -244,7 +245,7 @@ export function ExtractionReview({
                   </tbody>
                 </table>
               </div>
-              <p className="mt-2 text-[10.5px] text-subtle-foreground">
+              <p className="mt-2 text-xs text-subtle-foreground">
                 Highlighted cells are filled from your upload. Edits on the left update here instantly.
               </p>
               <div className="mt-3 flex flex-wrap justify-end gap-2">
@@ -304,7 +305,7 @@ export function ExtractionReview({
 function ConfidenceChip({ level, c }: { level: Confidence; c: number }) {
   if (level === "high") {
     return (
-      <Pill tone="ok" className="px-2 py-px text-[10px]">
+      <Pill tone="ok" className="px-2 py-px text-xs">
         high
       </Pill>
     );
@@ -313,7 +314,7 @@ function ConfidenceChip({ level, c }: { level: Confidence; c: number }) {
     <Pill
       tone={level === "check" ? "pending" : "problem"}
       icon={TriangleAlert}
-      className="px-2 py-px text-[10px] tabular-nums"
+      className="px-2 py-px text-xs tabular-nums"
     >
       {level === "check" ? `${c}% — check` : "not found"}
     </Pill>

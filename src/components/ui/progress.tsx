@@ -9,12 +9,21 @@ import { DURATION, EASE_SWAP } from "@/lib/motion";
  * Bars animate TRANSFORM, never layout (HRIS performance-ui rule 4): a child
  * scales inside a fixed-size track, so nothing around it reflows.
  */
-export type BarTone = "haven" | "nectar" | "skyblue" | "charcoal" | "ok" | "pending" | "problem";
+/**
+ * `tone` (the default) is the dashboard's own accent; `neutral` is the quiet
+ * second series (spend beside deals, partial beside complete). Named sub-brand tones are
+ * for data that belongs to that brand (Wealth's book on a Leadership chart);
+ * ok / pending / problem carry status. Fills are flat — a gradient adds no
+ * information to a bar.
+ */
+export type BarTone = "tone" | "neutral" | "haven" | "nectar" | "skyblue" | "charcoal" | "ok" | "pending" | "problem";
 
 const FILL: Record<BarTone, string> = {
-  haven: "bg-gradient-to-r from-haven-400 to-haven-600 dark:from-haven-400 dark:to-haven-300",
-  nectar: "bg-gradient-to-r from-nectar-400 to-nectar-600",
-  skyblue: "bg-gradient-to-r from-skyblue-400 to-skyblue-600",
+  tone: "bg-tone-strong",
+  neutral: "bg-zinc-300 dark:bg-zinc-600",
+  haven: "bg-haven-500 dark:bg-haven-400",
+  nectar: "bg-nectar-500 dark:bg-nectar-400",
+  skyblue: "bg-skyblue-500 dark:bg-skyblue-400",
   charcoal: "bg-charcoal dark:bg-silver",
   ok: "bg-emerald-500 dark:bg-emerald-400",
   pending: "bg-amber-400",
@@ -22,10 +31,12 @@ const FILL: Record<BarTone, string> = {
 };
 
 const COLUMN: Record<BarTone, string> = {
-  haven: "bg-gradient-to-t from-haven-500 to-haven-300",
-  nectar: "bg-gradient-to-t from-nectar-500 to-nectar-300",
-  skyblue: "bg-gradient-to-t from-skyblue-500 to-skyblue-300",
-  charcoal: "bg-gradient-to-t from-charcoal to-granite dark:from-zinc-400 dark:to-zinc-200",
+  tone: "bg-tone-strong",
+  neutral: "bg-zinc-300 dark:bg-zinc-600",
+  haven: "bg-haven-500 dark:bg-haven-400",
+  nectar: "bg-nectar-500 dark:bg-nectar-400",
+  skyblue: "bg-skyblue-500 dark:bg-skyblue-400",
+  charcoal: "bg-charcoal dark:bg-zinc-300",
   ok: "bg-emerald-500",
   pending: "bg-amber-400",
   problem: "bg-rose-500",
@@ -37,7 +48,7 @@ const COLUMN: Record<BarTone, string> = {
  */
 export function RateBar({
   value,
-  tone = "haven",
+  tone = "tone",
   height = "h-1.5",
   delay = 0,
   className,
@@ -84,7 +95,7 @@ export function RateBar({
  */
 export function ColumnBars({
   data,
-  tone = "haven",
+  tone = "tone",
   height = 120,
   highlightLast = false,
   className,
@@ -148,19 +159,20 @@ export function RingGauge({
   value,
   size = 64,
   stroke = 7,
-  tone = "haven",
+  tone = "tone",
   children,
 }: {
   value: number;
   size?: number;
   stroke?: number;
-  tone?: "haven" | "nectar" | "skyblue" | "ok" | "pending" | "problem";
+  tone?: "tone" | "haven" | "nectar" | "skyblue" | "ok" | "pending" | "problem";
   children?: React.ReactNode;
 }) {
   const reduce = useReducedMotion();
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const color = {
+    tone: "stroke-tone-strong",
     haven: "stroke-haven-500 dark:stroke-haven-300",
     nectar: "stroke-nectar-500",
     skyblue: "stroke-skyblue-500",

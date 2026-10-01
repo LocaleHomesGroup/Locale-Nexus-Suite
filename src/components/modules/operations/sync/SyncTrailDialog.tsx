@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT } from "@/lib/motion";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { SyncStep, SyncSystem } from "./types";
+import { trailDone, trailTitle, type SyncRun, type SyncStep, type SyncSystem, type SyncTrail } from "./types";
 
 const SYSTEM_ICON: Record<SyncSystem, LucideIcon> = {
   Launchpad: Zap,
@@ -17,56 +17,76 @@ const SYSTEM_ICON: Record<SyncSystem, LucideIcon> = {
 };
 
 /**
- * The sync trail (mockup `rm`): each write lands in Launchpad first, then walks
- * the connected systems one node at a time. The dialog can't be dismissed
- * while a step is in flight (HRIS § 10.1) — Done unlocks when the last system
- * confirms.
+ * The sync trail (mockup `rm`), opened on demand from a sync toast or a job's
+ * "View sync trail". Each write lands in Launchpad first, then walks the
+ * connected systems one node at a time. The run carries on in the background
+ * whether or not this is open, so it can always be closed; if it is still open
+ * when the last system confirms, the provider closes it a moment later.
  */
 export function SyncTrailDialog({
   open,
-  title,
-  steps,
+  trail,
   onClose,
 }: {
   open: boolean;
-  title: string;
-  steps: SyncStep[];
+  trail: SyncTrail | null;
   onClose: () => void;
 }) {
-  const pending = steps.some((s) => s.state === "pending");
+  if (!trail) return null;
+  const done = trailDone(trail);
+  const batch = trail.runs.length > 1;
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      dismissible={!pending}
       size="md"
-      icon={RefreshCw}
-      title={
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {title}
-          {pending ? (
-            <span className="inline-flex items-center gap-1.5 font-sans text-[11px] font-semibold text-haven-700 dark:text-haven-300">
-              <span className="pulse-haven size-[7px] rounded-full bg-haven-400 dark:bg-haven-300" aria-hidden />
-              Live
-            </span>
-          ) : null}
-        </span>
+      icon={done ? Check : RefreshCw}
+      iconTone={done ? "ok" : "haven"}
+      title={trailTitle(trail)}
+      description={
+        done
+          ? "Saved to Launchpad first, then confirmed by each connected system."
+          : "Saved to Launchpad first, then pushed to each connected system. It carries on in the background if you close this."
       }
-      description="Saved to Launchpad first, then pushed to each connected system."
       footer={
-        <Button className="w-full" size="lg" onClick={onClose} disabled={pending}>
-          {pending ? "Syncing…" : "Done"}
+        <Button className="w-full" size="lg" variant={done ? "default" : "outline"} onClick={onClose}>
+          {done ? "Close" : "Keep working"}
         </Button>
       }
     >
-      {/* Focus lands on the trail itself: the Done button is disabled until the last step lands. */}
-      <ol aria-live="polite" aria-label="Sync steps" tabIndex={-1} data-autofocus className="flex flex-col outline-none">
-        {steps.map((step, i) => (
-          <TrailStep key={`${i}-${step.state}`} step={step} last={i === steps.length - 1} />
+      {/* Focus lands on the trail itself, so the live region is read as it fills. */}
+      <div aria-live="polite" tabIndex={-1} data-autofocus className="flex flex-col gap-4 outline-none">
+        {trail.runs.map((run) => (
+          <RunTrail key={run.id} run={run} showLabel={batch} />
+        ))}
+      </div>
+    </Dialog>
+  );
+}
+
+function RunTrail({ run, showLabel }: { run: SyncRun; showLabel: boolean }) {
+  return (
+    <section aria-label={run.label}>
+      {showLabel ? (
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold">
+          <span>{run.label}</span>
+          <span
+            className={cn(
+              "font-normal",
+              run.done ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300",
+            )}
+          >
+            {run.done ? "Synced" : "Syncing"}
+          </span>
+        </p>
+      ) : null}
+      <ol aria-label={`Sync steps for ${run.label}`} className="flex flex-col">
+        {run.steps.map((step, i) => (
+          <TrailStep key={`${i}-${step.state}`} step={step} last={i === run.steps.length - 1} />
         ))}
       </ol>
-    </Dialog>
+    </section>
   );
 }
 
@@ -87,8 +107,9 @@ function TrailStep({ step, last }: { step: SyncStep; last: boolean }) {
           className={cn(
             "flex size-[30px] shrink-0 items-center justify-center rounded-full",
             done
-              ? "bg-haven-300 text-charcoal"
-              : "pulse-haven border-[1.5px] border-haven-400 bg-card text-haven-700 dark:border-haven-300 dark:text-haven-300",
+              ? "bg-emerald-600 text-white dark:bg-emerald-500"
+              : // The one live indicator: this system is being written to right now.
+                "pulse-haven border-[1.5px] border-tone-strong bg-card text-tone-ink",
           )}
           // A landed step pops once (it remounts on pending → done); `initial` never reads reduce.
           initial={done ? { scale: 0.6 } : false}
@@ -104,24 +125,19 @@ function TrailStep({ step, last }: { step: SyncStep; last: boolean }) {
         </motion.span>
         {!last ? (
           <span
-            className={cn("min-h-3.5 w-0.5 flex-1 rounded-full", done ? "bg-haven-300" : "bg-hairline")}
+            className={cn("min-h-3.5 w-0.5 flex-1 rounded-full", done ? "bg-emerald-600/40 dark:bg-emerald-400/40" : "bg-hairline")}
             aria-hidden
           />
         ) : null}
       </div>
       <div className={cn("min-w-0 flex-1", !last && "pb-3.5")}>
-        <p
-          className={cn(
-            "flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] uppercase",
-            done ? "text-haven-700 dark:text-haven-300" : "text-subtle-foreground",
-          )}
-        >
+        <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
           <Icon className="size-3" aria-hidden />
           {step.sys}
         </p>
         <p
           className={cn(
-            "mt-0.5 text-[12.5px] leading-snug",
+            "mt-0.5 text-[13px] leading-snug",
             done ? "text-foreground" : "text-amber-700 dark:text-amber-300",
           )}
         >
@@ -129,7 +145,7 @@ function TrailStep({ step, last }: { step: SyncStep; last: boolean }) {
           {step.label}
         </p>
         {step.meta ? (
-          <p className="mt-0.5 font-mono text-[10.5px] text-subtle-foreground tabular-nums">{step.meta}</p>
+          <p className="mt-0.5 font-mono text-xs text-subtle-foreground tabular-nums">{step.meta}</p>
         ) : null}
       </div>
     </motion.li>

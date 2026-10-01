@@ -23,7 +23,8 @@ import type { Job, SubmissionDoc } from "@/data/jobs";
 import { BUILDER_CHECKLISTS } from "@/data/jobs";
 import type { AppNotification, PortalUpdate } from "@/data/seed";
 import { aud } from "@/lib/utils";
-import { ANNOUNCEMENTS, CELEBRATIONS, COMING_UP } from "@/components/modules/home/HomeScreen";
+import { ANNOUNCEMENTS, CELEBRATIONS, COMING_UP } from "@/components/modules/home/data";
+import { buildMyDay } from "@/components/modules/home/my-day";
 import { PRICE_LISTS, MODELS_TRACKED } from "@/components/modules/operations/pricing/data";
 import {
   SEED_DEALS,
@@ -43,21 +44,24 @@ import {
   NIGHTLY_CHECKS,
 } from "@/components/modules/marketing/data";
 import {
-  SEED_INVOICES,
-  SEED_CLAIMS,
-  INVOICED_THIS_MONTH,
+  invoicedThisMonth,
   FORECAST_NEXT_MONTH,
   CASHFLOW,
   EXPENSES_THIS_MONTH,
   AVG_APPROVAL_TIME,
+  type BuilderInvoice,
+  type ExpenseClaim,
 } from "@/components/modules/accounts/data";
 import { SUBURBS, SEED_PACKAGES } from "@/components/modules/wealth/data";
 import {
   HR_KPIS,
   DIVISIONS,
   ON_LEAVE_TODAY,
-  LEAVE_SEED,
   LEAVE_BALANCES,
+  balanceAfter,
+  formatDays,
+  othersOff,
+  type LeaveRequest,
   OPEN_ROLES,
   ONBOARDING,
   ASSETS,
@@ -88,13 +92,21 @@ export interface JarvisAnswer {
   source?: string;
 }
 
-/** Live store values a few answers read, so they track what's on screen. */
+/**
+ * Live values the answers read, so a figure Jarvis quotes stays true after the
+ * user acts on screen: the Launchpad store (jobs, portal inbox, submission,
+ * Accounts' invoices and claims) plus HR's shared leave queue. An item inside
+ * its undo window keeps its pending status until the window closes.
+ */
 export interface JarvisContext {
   jobs: Job[];
   notifications: AppNotification[];
   portalUpdates: PortalUpdate[];
   submissionDocs: SubmissionDoc[];
   submissionStatus: string;
+  leave: LeaveRequest[];
+  invoices: BuilderInvoice[];
+  claims: ExpenseClaim[];
 }
 
 export interface Faq {
@@ -199,23 +211,22 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         group: "Today",
         question: "What needs me today?",
         keys: ["today", "need", "my day", "to do", "todo", "waiting"],
+        // The same list as Home's My day card, built from the same live data.
         answer: (ctx) => {
-          const conflict = ctx.jobs.find((j) => j.sync === "conflict");
-          const items = [
-            ...(conflict ? [`Resolve the sync conflict on job ${conflict.jobNo} (${conflict.conflict?.field ?? "a milestone"}).`] : []),
-            "Approve leave — A. Mercer, 17–21 Aug.",
-            `${plural(SEED_CLAIMS.filter((c) => c.status === "Awaiting approval").length, "expense claim")} awaiting approval.`,
-            "Ops review — the Nguyen submission.",
-            `${plural(SEED_INVOICES.filter((i) => i.status === "Draft").length, "draft invoice")} awaiting approval for builder billing.`,
-          ];
+          const items = buildMyDay(ctx);
+          if (items.length === 0) {
+            return {
+              text: "Nothing needs you today. Conflicts, approvals and reviews land in My day as they arrive.",
+              source: "My day · live",
+            };
+          }
           return {
             text: `${plural(items.length, "thing")} ${items.length === 1 ? "needs" : "need"} you today:`,
-            bullets: items,
-            actions: [
-              ...(conflict ? [{ label: "Resolve conflict", href: `/operations/jobs/${conflict.id}` }] : []),
-              { label: "Approve leave", href: "/hr?tab=leave" },
-              { label: "Draft invoices", href: "/accounts" },
-            ],
+            bullets: items.map(
+              (i) => `${i.urgent ? "Due today: " : ""}${i.title}. ${i.detail}${i.figure ? ` (${i.figure})` : ""}.`,
+            ),
+            actions: items.slice(0, 3).map((i) => ({ label: i.action, href: i.href })),
+            source: "My day · live",
           };
         },
       },
@@ -571,14 +582,20 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         group: "Builder invoicing",
         question: "Which invoices are waiting for approval?",
         keys: ["invoice", "draft", "builder billing"],
-        answer: () => {
-          const drafts = SEED_INVOICES.filter((i) => i.status === "Draft");
+        answer: (ctx) => {
+          const drafts = ctx.invoices.filter((i) => i.status === "Draft");
+          if (drafts.length === 0) {
+            return {
+              text: "No draft invoices are waiting. Everything raised has been approved.",
+              actions: [{ label: "Open Builder invoicing", href: "/accounts" }],
+            };
+          }
           const total = drafts.reduce((s, i) => s + i.amount, 0);
           return {
             text: `${plural(drafts.length, "draft invoice")} worth ${aud(total)} + GST ${drafts.length === 1 ? "is" : "are"} waiting:`,
-            bullets: drafts.map((i) => `${i.id} · ${i.job} ${i.client} — ${i.builder}, ${i.stage}: ${aud(i.amount)} + GST.`),
+            bullets: drafts.map((i) => `${i.id} · ${i.job} ${i.client}: ${i.builder}, ${i.stage}, ${aud(i.amount)} + GST.`),
             actions: [{ label: "Open Builder invoicing", href: "/accounts" }],
-            source: "Opening figures · approvals made on screen aren't reflected here",
+            source: "Xero drafts",
           };
         },
       },
@@ -595,8 +612,8 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         group: "Builder invoicing",
         question: "How much have we invoiced this month?",
         keys: ["invoiced", "this month", "revenue", "forecast"],
-        answer: () => ({
-          text: `${aud(INVOICED_THIS_MONTH)} invoiced so far this month (excl GST), with ${aud(FORECAST_NEXT_MONTH)} forecast for next month.`,
+        answer: (ctx) => ({
+          text: `${aud(invoicedThisMonth(ctx.invoices))} invoiced so far this month (excl GST), with ${aud(FORECAST_NEXT_MONTH)} forecast for next month.`,
           actions: [{ label: "Open Builder invoicing", href: "/accounts" }],
         }),
       },
@@ -616,8 +633,14 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         group: "Expenses",
         question: "Any expense claims to approve?",
         keys: ["expense", "claim", "receipt", "reimburse"],
-        answer: () => {
-          const waiting = SEED_CLAIMS.filter((c) => c.status === "Awaiting approval");
+        answer: (ctx) => {
+          const waiting = ctx.claims.filter((c) => c.status === "Awaiting approval");
+          if (waiting.length === 0) {
+            return {
+              text: `No expense claims are waiting (${EXPENSES_THIS_MONTH} claimed this month).`,
+              actions: [{ label: "Open Expenses", href: "/accounts?tab=expenses" }],
+            };
+          }
           return {
             text: `${plural(waiting.length, "claim")} awaiting approval (${EXPENSES_THIS_MONTH} claimed this month):`,
             bullets: waiting.map((c) => `${c.claim} · ${c.staff} — ${aud(c.amount, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, coded ${c.code}.`),
@@ -721,13 +744,25 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         group: "Leave",
         question: "Which leave requests need approval?",
         keys: ["leave request", "approve", "pending leave", "leave"],
-        answer: () => {
-          const pending = LEAVE_SEED.filter((r) => r.status === "Pending");
+        // Reads the live queue HR › Leave decides from, so it changes the moment a decision lands.
+        answer: (ctx) => {
+          const pending = ctx.leave.filter((r) => r.status === "Pending");
+          if (pending.length === 0) {
+            return {
+              text: "No leave requests are waiting. You're all caught up.",
+              actions: [{ label: "Open Leave", href: "/hr?tab=leave" }],
+              source: "Horilla · live",
+            };
+          }
           return {
             text: `${plural(pending.length, "leave request")} waiting for approval:`,
-            bullets: pending.map((r) => `${r.name} — ${r.type}, ${r.when} (${r.length}).`),
+            bullets: pending.map((r) => {
+              const off = othersOff(r, ctx.leave);
+              const cover = off.length ? `${plural(off.length, "other")} off then` : "no one else off then";
+              return `${r.name}: ${r.type.toLowerCase()}, ${r.when} (${r.length}). Balance after: ${formatDays(balanceAfter(r))}; ${cover}.`;
+            }),
             actions: [{ label: "Open Leave", href: "/hr?tab=leave" }],
-            source: "Opening queue · decisions made on screen aren't reflected here",
+            source: "Horilla · live",
           };
         },
       },

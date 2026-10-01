@@ -17,7 +17,7 @@ import { BOARD, PROJECTS, type ProjectState } from "./data";
  * The mockup's `lh-tilt` hover becomes HRIS's -translate-y-0.5 card lift.
  */
 const STATE_TONE: Record<ProjectState, PillTone> = {
-  "In build": "skyblue",
+  "In build": "tone",
   Validation: "pending",
   Deploying: "haven",
 };
@@ -26,7 +26,6 @@ export function ProjectsScreen() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Projects"
         title="Projects"
         description="Every internal build, its owner and its state — one glance."
       />
@@ -37,7 +36,7 @@ export function ProjectsScreen() {
             <Reveal key={p.name} index={i}>
               <Card className="flex h-full flex-col px-4 py-3.5 transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0">
                 <h2 className="min-h-8 text-[13px] leading-snug font-medium">{p.name}</h2>
-                <div className="mt-1 mb-2.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="mt-1 mb-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Avatar name={p.owner} size="xs" />
                   <span>{p.owner}</span>
                   <Pill tone={STATE_TONE[p.state]} variant="caps" className="ml-auto">
@@ -52,7 +51,7 @@ export function ProjectsScreen() {
                   label={`${p.name}: ${p.progress}% complete`}
                   className="mt-auto"
                 />
-                <p className="mt-1 text-[11px] text-subtle-foreground tabular-nums">
+                <p className="mt-1 text-xs text-subtle-foreground tabular-nums">
                   <CountUp value={`${p.progress}%`} />
                 </p>
               </Card>

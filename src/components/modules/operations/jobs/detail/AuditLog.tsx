@@ -18,8 +18,8 @@ const FILTERS: { value: "all" | ActivityType; label: string }[] = [
 ];
 
 const DOT: Record<ActivityType, string> = {
-  milestone: "bg-haven-400 dark:bg-haven-300",
-  details: "bg-skyblue-400 dark:bg-skyblue-300",
+  milestone: "bg-tone-strong",
+  details: "bg-zinc-400 dark:bg-zinc-500",
   invoice: "bg-emerald-500 dark:bg-emerald-400",
   import: "bg-amber-400",
   conflict: "bg-rose-500 dark:bg-rose-400",
@@ -40,9 +40,11 @@ export function AuditLog({ entries }: { entries: ActivityEntry[] }) {
   return (
     <Card>
       <CardHeader>
-        <Clock className="size-4 text-haven-700 dark:text-haven-300" aria-hidden />
+        <Clock className="size-4 text-tone-ink" aria-hidden />
         <CardTitle>Audit log</CardTitle>
-        <CardMeta>{entries.length} events</CardMeta>
+        <CardMeta>
+          {entries.length} {entries.length === 1 ? "event" : "events"}
+        </CardMeta>
         <CardDescription>Every write to this job, what it changed and where it landed.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -54,10 +56,10 @@ export function AuditLog({ entries }: { entries: ActivityEntry[] }) {
               aria-pressed={filter === f.value}
               onClick={() => setFilter(f.value)}
               className={cn(
-                "rounded-full border px-2.5 py-0.5 text-[10.5px] font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
+                "rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                 filter === f.value
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:border-haven-300 hover:text-foreground dark:bg-white/[0.03] dark:hover:border-haven-800",
+                  : "border-border bg-card text-muted-foreground hover:border-tone-line hover:text-foreground dark:bg-white/[0.03]",
               )}
             >
               {f.label}
@@ -66,7 +68,11 @@ export function AuditLog({ entries }: { entries: ActivityEntry[] }) {
         </div>
         <div className="max-h-[340px] overflow-y-auto pr-1">
           {rows.length === 0 ? (
-            <p className="py-2.5 text-[11.5px] text-subtle-foreground">No events of this type yet.</p>
+            <p className="py-2.5 text-xs text-subtle-foreground">
+              {entries.length === 0
+                ? "Nothing written to this job from Launchpad yet. Edits made here, from a portal update or a CSV land in this log."
+                : "No events of this type yet."}
+            </p>
           ) : (
             <ul>
               <AnimatePresence initial={false}>
@@ -82,12 +88,12 @@ export function AuditLog({ entries }: { entries: ActivityEntry[] }) {
                     <span className={cn("mt-[5px] size-1.5 shrink-0 rounded-full", DOT[e.type])} aria-hidden />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-foreground">{e.action}</p>
-                      {e.detail ? <p className="text-[11.5px] leading-snug text-muted-foreground">{e.detail}</p> : null}
+                      {e.detail ? <p className="text-xs leading-snug text-muted-foreground">{e.detail}</p> : null}
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         {e.targets.map((t) => (
                           <SystemTag key={t}>{t}</SystemTag>
                         ))}
-                        <span className="ml-auto text-[10.5px] whitespace-nowrap text-subtle-foreground tabular-nums">
+                        <span className="ml-auto text-xs whitespace-nowrap text-subtle-foreground tabular-nums">
                           {e.who} · {e.when}
                         </span>
                       </div>

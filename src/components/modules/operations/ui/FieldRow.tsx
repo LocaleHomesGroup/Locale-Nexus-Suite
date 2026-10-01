@@ -46,7 +46,7 @@ export const InlineInput = React.forwardRef<HTMLInputElement, React.InputHTMLAtt
         ref={ref}
         type="text"
         className={cn(
-          "h-7 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-right text-[13px] font-medium text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-subtle-foreground hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-haven-300/60 dark:focus-visible:ring-haven-700/60",
+          "h-7 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-right text-[13px] font-medium text-foreground outline-none transition-colors placeholder:font-normal placeholder:text-subtle-foreground hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring/45",
           className,
         )}
         {...props}

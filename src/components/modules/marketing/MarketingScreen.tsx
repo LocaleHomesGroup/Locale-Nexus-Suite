@@ -52,6 +52,8 @@ const k1 = (n: number) => `$${(n / 1e3).toFixed(1)}k`;
 const dollars = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`;
 /** Commission returned, "$104k". */
 const commission = (won: number) => `$${((won * COMMISSION_PER_DEAL) / 1e3).toFixed(0)}k`;
+/** Above this a channel's cost per deal is flagged amber on the Channels table. */
+const COST_PER_DEAL_CEILING = 2000;
 
 export function MarketingScreen() {
   // The three sections are listed in the Marketing rail, not as a strip in the page.
@@ -76,7 +78,6 @@ function PerformanceTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Marketing"
         title="Marketing performance"
         description="Spend against deals won, sourced from ad platforms and the HubSpot deal mirror. Revenue is commission payable, not contract value."
         actions={<Pill tone="neutral">Kellie · month to date</Pill>}
@@ -88,10 +89,9 @@ function PerformanceTab() {
             label="Total spend"
             value={k1(TOTAL_SPEND)}
             icon={DollarSign}
-            tone="skyblue"
             sub={`across ${CHANNELS.length} channels`}
           />
-          <KpiCard label="Deals won" value={TOTAL_WON} icon={Trophy} tone="haven" sub={`from ${TOTAL_LEADS} leads`} />
+          <KpiCard label="Deals won" value={TOTAL_WON} icon={Trophy} sub={`from ${TOTAL_LEADS} leads`} />
           <KpiCard
             label="Cost per deal"
             value={dollars(costPerDeal)}
@@ -103,7 +103,6 @@ function PerformanceTab() {
             label="Return on spend"
             value={`${returnOnSpend.toFixed(1)}x`}
             icon={TrendingUp}
-            tone="nectar"
             sub={`at $${(COMMISSION_PER_DEAL / 1e3).toFixed(1)}k commission a deal`}
           />
         </KpiGrid>
@@ -112,20 +111,20 @@ function PerformanceTab() {
       <Reveal index={1}>
         <Card>
           <CardHeader>
-            <BarChart3 className="size-4 text-haven-700 dark:text-haven-300" aria-hidden />
+            <BarChart3 className="size-4 text-tone-ink" aria-hidden />
             <CardTitle>Spend versus deals won</CardTitle>
             <CardMeta>Last six months</CardMeta>
           </CardHeader>
           <CardContent>
             <SpendDealsChart />
-            <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 border-t border-hairline pt-2 text-[10.5px] text-muted-foreground">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 border-t border-hairline pt-2 text-xs text-muted-foreground">
               {/* On sm+ the strip gutter labels the series; the legend covers phones. */}
               <span className="inline-flex items-center gap-1.5 sm:hidden">
-                <span className="inline-block size-2 rounded-[2px] bg-skyblue-500" aria-hidden />
+                <span className="inline-block size-2 rounded-[2px] bg-zinc-300 dark:bg-zinc-600" aria-hidden />
                 Marketing spend
               </span>
               <span className="inline-flex items-center gap-1.5 sm:hidden">
-                <span className="inline-block size-2 rounded-[2px] bg-haven-500" aria-hidden />
+                <span className="inline-block size-2 rounded-[2px] bg-tone-strong" aria-hidden />
                 Deals won
               </span>
               <span className="text-subtle-foreground sm:ml-auto">
@@ -139,7 +138,7 @@ function PerformanceTab() {
       <Reveal index={2}>
         <Card>
           <CardHeader>
-            <Target className="size-4 text-haven-700 dark:text-haven-300" aria-hidden />
+            <Target className="size-4 text-tone-ink" aria-hidden />
             <CardTitle>Ad spend versus leads converted</CardTitle>
           </CardHeader>
           <CardContent>
@@ -155,17 +154,17 @@ function PerformanceTab() {
                     transition={{ duration: 0.24, ease: EASE_OUT, delay: rowDelay(i, reduce, 0.06, 0.3) }}
                     className="border-t border-hairline py-2.5 first:border-t-0"
                   >
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px]">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px]">
                       <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
                       <span className="font-medium">{c.name}</span>
                       {/* Phones: the figures drop under the name so "% convert" keeps its line. */}
-                      <span className="order-last w-full pl-[22px] text-[11.5px] text-muted-foreground tabular-nums sm:order-none sm:w-auto sm:pl-0">
+                      <span className="order-last w-full pl-[22px] text-xs text-muted-foreground tabular-nums sm:order-none sm:w-auto sm:pl-0">
                         {k1(c.spend)} · {c.leads} leads · {c.won} won
                       </span>
                       <span
                         className={cn(
                           "ml-auto font-medium tabular-nums",
-                          convert >= 10 ? "text-haven-700 dark:text-haven-300" : "text-foreground",
+                          convert >= 10 ? "text-tone-ink" : "text-foreground",
                         )}
                       >
                         {convert.toFixed(1)}% convert
@@ -174,14 +173,13 @@ function PerformanceTab() {
                     <div className="mt-1.5 flex gap-1">
                       <RateBar
                         value={c.spend / MAX_SPEND}
-                        tone="skyblue"
+                        tone="neutral"
                         height="h-[7px]"
                         delay={Math.min(i * 0.08, 0.3)}
                         label={`Spend ${k1(c.spend)}`}
                       />
                       <RateBar
                         value={c.won / WON_BAR_SCALE}
-                        tone="haven"
                         height="h-[7px]"
                         delay={Math.min(i * 0.08 + 0.04, 0.34)}
                         label={`${c.won} deals won`}
@@ -191,7 +189,7 @@ function PerformanceTab() {
                 );
               })}
             </ul>
-            <p className="mt-2 text-[10.5px] text-subtle-foreground">
+            <p className="mt-2 text-xs text-subtle-foreground">
               Left bar is spend, right bar is deals won. Referral costs least per deal; Meta costs most.
             </p>
           </CardContent>
@@ -212,14 +210,13 @@ function ChannelsTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Marketing"
         title="Channel economics"
         description="Full funnel by channel, with cost per lead, cost per deal and commission returned."
       />
 
       <Reveal index={0} className="flex min-w-0 flex-col gap-2">
         <Card className="min-w-0 overflow-hidden">
-          <Table className="text-[12.5px]">
+          <Table className="text-[13px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent dark:hover:bg-transparent">
                 {CHANNEL_HEADS.map((h, i) => (
@@ -250,12 +247,16 @@ function ChannelsTab() {
                     <TableCell
                       className={cn(
                         "text-right tabular-nums",
-                        costPerDeal > 2000 ? "font-medium text-amber-700 dark:text-amber-300" : "text-foreground",
+                        costPerDeal > COST_PER_DEAL_CEILING ? "font-medium text-amber-700 dark:text-amber-300" : "text-foreground",
                       )}
                     >
+                      {/* Amber is never the only signal: the mark and the footnote say why. */}
+                      {costPerDeal > COST_PER_DEAL_CEILING ? (
+                        <AlertTriangle className="mr-1 inline size-3 -translate-y-px" aria-label="Over the cost-per-deal ceiling" />
+                      ) : null}
                       {dollars(costPerDeal)}
                     </TableCell>
-                    <TableCell className="pr-5 text-right font-medium text-haven-700 tabular-nums dark:text-haven-300">
+                    <TableCell className="pr-5 text-right font-medium tabular-nums">
                       {commission(c.won)}
                     </TableCell>
                   </MotionRow>
@@ -271,16 +272,18 @@ function ChannelsTab() {
                   {dollars(TOTAL_SPEND / TOTAL_LEADS)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{dollars(TOTAL_SPEND / TOTAL_WON)}</TableCell>
-                <TableCell className="pr-5 text-right text-haven-700 tabular-nums dark:text-haven-300">
+                <TableCell className="pr-5 text-right tabular-nums">
                   {commission(TOTAL_WON)}
                 </TableCell>
               </TableRow>
             </TableBody>
           </Table>
         </Card>
-        <p className="text-[11px] text-subtle-foreground">
-          Commission uses the blended average of $11.5k per deal from the P and L. Display home costs are apportioned
-          monthly.
+        <p className="max-w-[70ch] text-xs leading-relaxed text-subtle-foreground">
+          <AlertTriangle className="mr-1 inline size-3 -translate-y-px text-amber-700 dark:text-amber-300" aria-hidden />
+          <span className="font-medium text-amber-700 dark:text-amber-300">Amber</span> marks a channel costing more than{" "}
+          {dollars(COST_PER_DEAL_CEILING)} a deal. Commission uses the blended average of $11.5k per deal from the P and
+          L. Display home costs are apportioned monthly.
         </p>
       </Reveal>
     </div>
@@ -293,7 +296,6 @@ function AttributionTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Marketing"
         title="Attribution health"
         description="Whether the numbers above can be trusted. Attribution breaks quietly, so it is monitored rather than assumed."
       />
@@ -319,7 +321,7 @@ function AttributionTab() {
         <Reveal index={1}>
           <Card>
             <CardHeader>
-              <CardTitle as="h3" className="text-[14px]">
+              <CardTitle as="h3" className="text-sm">
                 Tag coverage by source
               </CardTitle>
             </CardHeader>
@@ -363,7 +365,7 @@ function AttributionTab() {
         <Reveal index={2}>
           <Card>
             <CardHeader>
-              <CardTitle as="h3" className="text-[14px]">
+              <CardTitle as="h3" className="text-sm">
                 What Launchpad checks nightly
               </CardTitle>
             </CardHeader>
@@ -380,7 +382,7 @@ function AttributionTab() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-[10.5px] text-subtle-foreground">
+              <p className="mt-2 text-xs text-subtle-foreground">
                 Anything found here is raised with Kellie before the monthly report goes out.
               </p>
             </CardContent>

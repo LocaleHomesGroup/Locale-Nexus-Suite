@@ -79,7 +79,6 @@ export function WealthScreen() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow={<span className="text-skyblue-700 dark:text-skyblue-300">Wealth</span>}
         title="Wealth package generator"
         description="Suburb and property data loads automatically; no more hand-typed brochures."
       />
@@ -168,8 +167,8 @@ export function WealthScreen() {
                       <span
                         className={
                           p.when === "Generated just now"
-                            ? "text-[11px] font-medium whitespace-nowrap text-skyblue-700 dark:text-skyblue-300"
-                            : "text-[11px] whitespace-nowrap text-muted-foreground"
+                            ? "text-xs font-medium whitespace-nowrap text-skyblue-700 dark:text-skyblue-300"
+                            : "text-xs whitespace-nowrap text-muted-foreground"
                         }
                       >
                         {p.when}

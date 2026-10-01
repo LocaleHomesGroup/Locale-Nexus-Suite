@@ -17,14 +17,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CASHFLOW, CASHFLOW_SEGMENTS, COMMISSION_BY_STAGE, PACK_FILE } from "./data";
 
 /**
- * Segment fills, in split order: Finance Approval (seafoam → Haven), Land
- * Settlement (mist → Sky Blue), Slab and later (charcoal). Literal strings so
- * Tailwind sees every class.
+ * Segment fills, in split order: Finance Approval (the dashboard's accent),
+ * Land Settlement (neutral), Slab and later (charcoal). Stages aren't brands,
+ * so no sub-brand colours here. Flat fills; literal strings so Tailwind sees
+ * every class.
  */
 const SEGMENT_FILL = [
-  "bg-haven-300 dark:bg-haven-400",
-  "bg-skyblue-300 dark:bg-skyblue-400",
-  "bg-charcoal dark:bg-zinc-300",
+  "bg-tone-strong",
+  "bg-zinc-300 dark:bg-zinc-500",
+  "bg-charcoal dark:bg-zinc-200",
 ] as const;
 
 /** Accounts › Reports — the monthly management pack, built live. */
@@ -32,11 +33,10 @@ export function ReportsTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Accounts"
         title="Management reporting"
         description="The monthly pack, built live from pipeline and Xero data instead of spreadsheets."
         actions={
-          <Pill tone="haven" icon={Mail}>
+          <Pill tone="tone" icon={Mail}>
             Auto-generated · sent to Adam and Yaz monthly
           </Pill>
         }
@@ -105,7 +105,7 @@ function CashflowCard() {
           ))}
         </div>
 
-        <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-[10.5px] text-muted-foreground" aria-label="Legend">
+        <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground" aria-label="Legend">
           {CASHFLOW_SEGMENTS.map((s, k) => (
             <li key={s.title} className="inline-flex items-center gap-1.5">
               <span className={cn("size-2 shrink-0 rounded-[2px]", SEGMENT_FILL[k])} aria-hidden />
@@ -174,7 +174,7 @@ function CommissionByStageCard() {
               </div>
               <RateBar
                 value={s.pct / 100}
-                tone={i === 0 ? "haven" : "skyblue"}
+                tone={i === 0 ? "tone" : "neutral"}
                 className="mt-1.5"
                 delay={Math.min(i * 0.09, 0.3)}
                 label={`${s.stage}: ${s.pct}% of YTD commission, ${s.amount}`}
@@ -211,20 +211,16 @@ function NextPackCard() {
   };
 
   return (
-    <Card className="border-skyblue-300 bg-skyblue-100 px-5 py-4 dark:border-skyblue-800/50 dark:bg-skyblue-950/40">
-      <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-skyblue-950 dark:text-skyblue-100">
-        <CalendarClock className="size-3.5" aria-hidden />
+    <Card tone="accent" className="px-5 py-4">
+      <p className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+        <CalendarClock className="size-3.5 text-tone-ink" aria-hidden />
         Next pack: 1 September
       </p>
-      <p className="mt-1 text-[11.5px] leading-relaxed text-skyblue-900 dark:text-skyblue-200/85">
+      <p className="mt-1 max-w-[70ch] text-xs leading-relaxed text-muted-foreground">
         Compiled automatically on the first business day and emailed to Adam and Yaz. Down adjustments and cancellations
         included from Xero actuals.
       </p>
-      <Button
-        size="sm"
-        onClick={onDownload}
-        className="mt-3 bg-charcoal text-skyblue-300 hover:bg-charcoal/90 dark:bg-skyblue-300 dark:text-skyblue-950 dark:hover:bg-skyblue-200"
-      >
+      <Button size="sm" onClick={onDownload} className="mt-3">
         <Download /> Download this month&apos;s pack
       </Button>
     </Card>

@@ -61,7 +61,6 @@ export function BusinessDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Leadership"
         title="Business dashboard"
         description="Real-time, fed by Launchpad — not month-old exports."
       />
@@ -72,7 +71,6 @@ export function BusinessDashboard() {
             label="Sales this month"
             value={OVERVIEW_KPIS.salesThisMonth}
             icon={Handshake}
-            tone="haven"
             sub="August, month to date"
           />
           <KpiCard
@@ -86,14 +84,12 @@ export function BusinessDashboard() {
             label="Handovers YTD"
             value={OVERVIEW_KPIS.handoversYtd}
             icon={KeyRound}
-            tone="nectar"
             sub="since 1 January"
           />
           <KpiCard
             label="Avg days, site to keys"
             value={OVERVIEW_KPIS.avgDaysSiteToKeys}
             icon={Timer}
-            tone="skyblue"
             sub="Date to Site → Key Handover"
           />
         </KpiGrid>
@@ -113,13 +109,13 @@ export function BusinessDashboard() {
                 data={SALES_BY_MONTH.map((m) => ({
                   key: m.month,
                   value: m.value,
-                  tone: m.partial ? "skyblue" : "haven",
+                  tone: m.partial ? "base" : "emphasis",
                   top: <CountUp value={m.value} />,
                   bottom: m.month,
                 }))}
               />
-              <p className="mt-3 flex items-center gap-1.5 text-[11px] text-subtle-foreground">
-                <span className="inline-block size-2 rounded-[2px] bg-skyblue-400" aria-hidden />
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-subtle-foreground">
+                <span className="inline-block size-2 rounded-[2px] bg-zinc-300 dark:bg-zinc-600" aria-hidden />
                 August is month to date
               </p>
             </CardContent>
@@ -193,7 +189,6 @@ export function BusinessDashboard() {
                   </div>
                   <RateBar
                     value={s.share / 100}
-                    tone="skyblue"
                     className="mt-1"
                     delay={i * 0.06}
                     label={`${s.stage}: ${s.value}, ${s.share}% of pipeline`}
@@ -244,7 +239,7 @@ export function BusinessDashboard() {
                   )}
                 </li>
               </ul>
-              <p className="mt-3 text-[11px] text-subtle-foreground">
+              <p className="mt-3 text-xs text-subtle-foreground">
                 Numbers Ailid can trust — same data the reps and ops see.
               </p>
             </CardContent>

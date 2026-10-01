@@ -14,7 +14,7 @@ export function ProcessingStep({ step }: { step: number }) {
   return (
     <Card className="w-full px-6 py-10 text-center">
       <RefreshCw
-        className="mx-auto size-6 animate-spin text-haven-700 [animation-duration:1.1s] motion-reduce:animate-none dark:text-haven-300"
+        className="mx-auto size-6 animate-spin text-tone-ink [animation-duration:1.1s] motion-reduce:animate-none"
         aria-hidden
       />
       <h2 className="mt-3 mb-3.5 font-heading text-base font-bold">Formatting your file</h2>
@@ -25,7 +25,7 @@ export function ProcessingStep({ step }: { step: number }) {
             <li
               key={label}
               className={cn(
-                "flex items-center gap-2 py-0.5 text-[12.5px] transition-colors",
+                "flex items-center gap-2 py-0.5 text-[13px] transition-colors",
                 done ? "text-foreground" : "text-subtle-foreground",
               )}
             >

@@ -14,7 +14,7 @@ import { ATTENDANCE, ATTENDANCE_FOOTNOTE, personTone, type AttendanceStatus } fr
 /** Status carries a verdict: here is emerald, not yet in is amber, home and leave are neutral information. */
 const STATUS_TONE: Record<AttendanceStatus, PillTone> = {
   Present: "ok",
-  WFH: "skyblue",
+  WFH: "neutral",
   "On leave": "neutral",
   "Not yet in": "pending",
 };
@@ -26,7 +26,6 @@ export function HrAttendanceTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="HR"
         title="Attendance"
         description="Today's check-ins from Horilla · validate exceptions before payroll."
       />
@@ -50,7 +49,7 @@ export function HrAttendanceTab() {
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: reduce ? 0 : 0.2, ease: EASE_OUT, delay: rowDelay(i, reduce, 0.04) }}
-                  className="border-b border-hairline transition-colors hover:bg-haven-50/60 dark:hover:bg-haven-950/25"
+                  className="border-b border-hairline transition-colors hover:bg-tone-soft/70"
                 >
                   <TableCell className="pl-5">
                     <span className="flex items-center gap-2.5">
@@ -70,7 +69,7 @@ export function HrAttendanceTab() {
               ))}
             </TableBody>
           </Table>
-          <CardFooter className="text-[11px] text-muted-foreground">
+          <CardFooter className="text-xs text-muted-foreground">
             <AlertTriangle className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
             {ATTENDANCE_FOOTNOTE}
           </CardFooter>

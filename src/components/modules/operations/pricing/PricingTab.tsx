@@ -29,7 +29,6 @@ export function PricingTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Operations"
         title="Pricing"
         description="Every list here was extracted and checked in Doc formatter, then published. Publishing writes the Monday Models board, generates the branded PDF, updates Rapid costing and emails the change report to Sean."
         actions={
@@ -46,14 +45,12 @@ export function PricingTab() {
             value={`${published.length} of ${PRICE_LISTS.length}`}
             sub={published.map((p) => p.builder).join(" · ")}
             icon={FileCheck2}
-            tone="haven"
           />
           <KpiCard
             label="Price changes this month"
             value={changesThisMonth}
             sub={`across ${listsWithChanges} lists`}
             icon={TrendingUp}
-            tone="skyblue"
           />
           <KpiCard
             label="Models tracked"

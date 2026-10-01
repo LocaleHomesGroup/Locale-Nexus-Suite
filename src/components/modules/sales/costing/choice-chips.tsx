@@ -22,12 +22,12 @@ const CHIP_BASE =
   "relative isolate inline-flex items-center gap-1 rounded-full border whitespace-nowrap transition-colors duration-150 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none";
 
 const CHIP_SIZE = {
-  sm: "px-3 py-1 text-[11.5px]",
+  sm: "px-3 py-1 text-xs",
   md: "px-3.5 py-1.5 text-xs",
 } as const;
 
 const CHIP_OFF =
-  "border-border bg-card text-foreground hover:border-haven-300 hover:bg-haven-50/70 dark:bg-white/[0.03] dark:hover:border-haven-800 dark:hover:bg-haven-950/40";
+  "border-border bg-card text-foreground hover:border-tone-line hover:bg-tone-soft/70 dark:bg-white/[0.03] dark:hover:bg-tone-soft";
 
 export function ChoiceGroup<T extends string>({
   label,
@@ -50,7 +50,7 @@ export function ChoiceGroup<T extends string>({
   const id = React.useId();
   return (
     <div className={className}>
-      <p id={`${id}-label`} className={cn("mb-1.5 text-[11px] text-muted-foreground", labelClassName)}>
+      <p id={`${id}-label`} className={cn("mb-1.5 text-xs text-muted-foreground", labelClassName)}>
         {label}
       </p>
       <div role="group" aria-labelledby={`${id}-label`} className="flex flex-wrap gap-1.5">
@@ -65,14 +65,14 @@ export function ChoiceGroup<T extends string>({
               className={cn(
                 CHIP_BASE,
                 CHIP_SIZE[size],
-                on ? "border-transparent font-medium text-haven-950" : CHIP_OFF,
+                on ? "border-transparent font-medium text-tone-on-fill" : CHIP_OFF,
               )}
             >
               {on ? (
                 <motion.span
                   layoutId={`${id}-fill`}
                   aria-hidden
-                  className="absolute -inset-px -z-10 rounded-full bg-haven-300 shadow-sm shadow-haven-600/15"
+                  className="absolute -inset-px -z-10 rounded-full bg-tone-fill shadow-sm shadow-black/10"
                   transition={{ duration: reduce ? 0 : DURATION.indicator, ease: EASE_SWAP }}
                 />
               ) : null}
@@ -106,7 +106,7 @@ export function ToggleChip({
         CHIP_BASE,
         CHIP_SIZE[size],
         on
-          ? "border-haven-300 bg-haven-300 font-medium text-haven-950 shadow-sm shadow-haven-600/15 hover:bg-haven-200 dark:border-haven-300"
+          ? "border-tone-fill bg-tone-fill font-medium text-tone-on-fill shadow-sm shadow-black/10 hover:brightness-[1.04]"
           : CHIP_OFF,
       )}
     >

@@ -50,8 +50,8 @@ export function TemplateLibrary({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Pill tone="skyblue">Admin only</Pill>
-        <p className="min-w-0 flex-1 text-[11.5px] text-muted-foreground">
+        <Pill tone="neutral">Admin only</Pill>
+        <p className="min-w-0 flex-1 text-xs text-muted-foreground">
           Jobs pin the version they used, so old versions stay readable but only the active one is offered.
         </p>
         <Button
@@ -79,10 +79,10 @@ export function TemplateLibrary({
                     key={t.name + t.version}
                     className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-hairline py-2"
                   >
-                    <span className={cn("text-[12.5px]", t.active ? "text-foreground" : "text-subtle-foreground")}>
+                    <span className={cn("text-[13px]", t.active ? "text-foreground" : "text-subtle-foreground")}>
                       {t.name}
                     </span>
-                    <span className="text-[11px] text-muted-foreground tabular-nums">
+                    <span className="text-xs text-muted-foreground tabular-nums">
                       {t.version} · created {t.created}
                     </span>
                     <span className="ml-auto flex items-center gap-2">
@@ -92,7 +92,7 @@ export function TemplateLibrary({
                       <Button
                         variant="link"
                         size="xs"
-                        className="w-[68px] justify-end text-[11px] font-semibold"
+                        className="w-[68px] justify-end text-xs font-semibold"
                         aria-label={`${t.active ? "Deactivate" : "Activate"} ${t.name} ${t.version}`}
                         onClick={() => toggle(g.group, t.name, t.version, !t.active)}
                       >

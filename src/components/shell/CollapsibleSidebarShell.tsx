@@ -21,6 +21,8 @@ export function CollapsibleSidebarShell({
   accentClassName,
   id,
   ariaLabel,
+  inert,
+  style,
   children,
 }: {
   collapsed: boolean;
@@ -31,6 +33,9 @@ export function CollapsibleSidebarShell({
   accentClassName?: string;
   id?: string;
   ariaLabel?: string;
+  /** The closed mobile drawer: off-screen, so out of the tab order and the a11y tree too. */
+  inert?: boolean;
+  style?: React.CSSProperties;
   children: React.ReactNode;
 }) {
   return (
@@ -38,6 +43,8 @@ export function CollapsibleSidebarShell({
       id={id}
       role="navigation"
       aria-label={ariaLabel}
+      inert={inert || undefined}
+      style={style}
       data-collapsible-rail=""
       data-collapsed={collapsed ? "true" : "false"}
       className={cn(className, "overflow-visible md:relative md:z-30", collapsed && "md:w-16")}
@@ -116,8 +123,37 @@ export function SidebarCollapsedDot({
         collapsed && "md:opacity-100",
       )}
     >
-      <span className={cn("absolute inset-0 animate-ping rounded-full opacity-70 motion-reduce:animate-none", tone)} />
+      {/* Pings three times when the rail collapses (the moment the badge
+          count disappears behind the dot), then rests: never a forever-loop. */}
+      <span
+        className={cn(
+          "absolute inset-0 rounded-full opacity-70 motion-reduce:animate-none",
+          collapsed && "md:[animation:ping_1s_cubic-bezier(0,0,0.2,1)_3]",
+          tone,
+        )}
+      />
       <span className={cn("absolute inset-0 rounded-full ring-2 ring-white dark:ring-[#111113]", tone)} />
     </span>
+  );
+}
+
+/**
+ * Focus (and optional hover) for a row on the collapsed rail. Each row is
+ * clipped to a 36px tile there (`.sb-row`), which cuts a full-row focus ring
+ * down to three sides; this draws the ring on the tile itself. The row needs
+ * `group/row relative`, and drops its own ring while collapsed (`md:ring-0!`).
+ * Desktop + collapsed only; the drawer keeps the row's own ring.
+ */
+export function SidebarFocusTile({ collapsed, hover = false }: { collapsed: boolean; hover?: boolean }) {
+  if (!collapsed) return null;
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "pointer-events-none absolute inset-y-0 left-0 hidden w-9 rounded-md ring-inset md:block",
+        "group-focus-visible/row:ring-2 group-focus-visible/row:ring-ring",
+        hover && "group-hover/row:bg-black/[0.04] dark:group-hover/row:bg-white/[0.06]",
+      )}
+    />
   );
 }

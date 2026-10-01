@@ -114,7 +114,6 @@ export function DocFormatter() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Operations"
         title="Doc formatter"
         description="Upload a raw price list or data export and choose the template to format it into. Every extracted value is scored, so you only check what the app was unsure about."
         actions={

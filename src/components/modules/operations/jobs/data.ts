@@ -8,8 +8,8 @@ export type SourceHealth = "connected" | "building" | "manual";
 
 /** Builder portal adapters shown on the Automated sources card. */
 export const AUTOMATED_SOURCES: { builder: string; status: string; health: SourceHealth }[] = [
-  { builder: "Forma", status: "Connected · polled 6:04am · 3 updates", health: "connected" },
-  { builder: "Move Homes", status: "Connected · polled 6:10am · no changes", health: "connected" },
+  { builder: "Forma", status: "Connected · polled 6:04am · 2 updates", health: "connected" },
+  { builder: "Move Homes", status: "Connected · polled 6:10am · 1 update", health: "connected" },
   { builder: "La Vida", status: "Adapter in build", health: "building" },
   { builder: "New Choice", status: "Manual · email and CSV", health: "manual" },
   { builder: "New Era", status: "Manual · email and CSV", health: "manual" },
@@ -17,11 +17,12 @@ export const AUTOMATED_SOURCES: { builder: string; status: string; health: Sourc
 
 /** The recent-runs log under the sources. */
 export const SOURCE_LOG: { when: string; text: string }[] = [
+  { when: "6:10am", text: "Move Homes portal · 18 jobs checked, 1 change found, waiting for review" },
   {
     when: "6:04am",
-    text: "Forma portal · job 25431: Lock Up confirmed 24 Jul — applied, synced to Monday and HubSpot",
+    text: "Forma portal · job 25431: Lock Up confirmed 24 Jul, applied and synced to Monday and HubSpot",
   },
-  { when: "6:04am", text: "Forma portal · 42 jobs checked, 3 changes found, 0 conflicts" },
+  { when: "6:04am", text: "Forma portal · 42 jobs checked, 2 changes found, 0 conflicts" },
   { when: "Yesterday", text: "CSV import · 11 block titled dates applied via bulk update" },
 ];
 

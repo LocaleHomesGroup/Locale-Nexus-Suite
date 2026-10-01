@@ -26,7 +26,6 @@ export function NotificationsScreen() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Inbox"
         title="Notifications"
         description="Everything Launchpad raised for you — sync results, submissions waiting, approvals. Items in red need an action."
         actions={
@@ -39,7 +38,7 @@ export function NotificationsScreen() {
       />
 
       <KpiGrid cols={3}>
-        <KpiCard label="Unread" value={notifications.length} icon={MonitorSmartphone} tone="haven" sub="in app" />
+        <KpiCard label="Unread" value={notifications.length} icon={MonitorSmartphone} sub="in app" />
         <KpiCard
           label="Need action"
           value={urgent}
@@ -48,7 +47,7 @@ export function NotificationsScreen() {
           tone="ok"
           sub={urgent > 0 ? "waiting on you" : "nothing blocked"}
         />
-        <KpiCard label="Weekly digest" value="Mon" icon={Mail} tone="skyblue" sub="next email · 7:00am" />
+        <KpiCard label="Weekly digest" value="Mon" icon={Mail} sub="next email · 7:00am" />
       </KpiGrid>
 
       <Card>
@@ -80,7 +79,7 @@ export function NotificationsScreen() {
                         "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full",
                         n.kind === "red"
                           ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
-                          : "bg-haven-100 text-haven-800 dark:bg-haven-500/15 dark:text-haven-200",
+                          : "bg-tone-tint text-tone-ink",
                       )}
                       aria-hidden
                     >
@@ -90,7 +89,7 @@ export function NotificationsScreen() {
                       <p className={cn("text-[13px] leading-snug", n.kind === "red" && "font-semibold text-rose-700 dark:text-rose-300")}>
                         {n.msg}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-subtle-foreground">{n.when}</p>
+                      <p className="mt-0.5 text-xs text-subtle-foreground">{n.when}</p>
                     </div>
                     {n.kind === "red" ? (
                       <Pill tone="problem" variant="caps">
@@ -120,10 +119,10 @@ export function NotificationsScreen() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-1.5">
-            <Pill tone="haven" icon={MonitorSmartphone}>
+            <Pill tone="tone" icon={MonitorSmartphone}>
               In app ✓
             </Pill>
-            <Pill tone="haven" icon={Mail}>
+            <Pill tone="tone" icon={Mail}>
               Weekly email ✓
             </Pill>
             <Pill tone="neutral" icon={MessageSquare}>

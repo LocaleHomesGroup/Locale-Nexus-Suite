@@ -122,16 +122,15 @@ export function SubmissionDetail({
         </Button>
         <PageHeader
           className="w-full"
-          eyebrow="Sales"
           title={client}
           description="Each step must be complete before the next unlocks. Required documents block submission until uploaded."
           actions={
             <>
-              <Pill tone="skyblue">{builder}</Pill>
+              <Pill tone="neutral">{builder}</Pill>
               <Pill variant="caps" tone={statusTone(status)}>
                 {statusLabel(status)}
               </Pill>
-              <span className="text-[11.5px] text-subtle-foreground">Rep: {SUBMISSION_REP}</span>
+              <span className="text-xs text-subtle-foreground">Rep: {SUBMISSION_REP}</span>
             </>
           }
         />
@@ -145,12 +144,12 @@ export function SubmissionDetail({
             role="status"
             className="pulse-rose rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-500/30 dark:bg-rose-500/10"
           >
-            <p className="flex items-center gap-2 text-[12.5px] font-semibold text-rose-700 dark:text-rose-300">
+            <p className="flex items-center gap-2 text-[13px] font-semibold text-rose-700 dark:text-rose-300">
               <TriangleAlert className="size-3.5" aria-hidden /> Ops requested changes on {plural(fixes.length, "document")}
             </p>
             <ul className="mt-1">
               {fixes.map((d) => (
-                <li key={d.ref} className="py-0.5 text-[11.5px] text-foreground">
+                <li key={d.ref} className="py-0.5 text-xs text-foreground">
                   · {d.name} — {d.fixNote}
                 </li>
               ))}
@@ -162,10 +161,10 @@ export function SubmissionDetail({
             key="approved"
             {...fade}
             role="status"
-            className="flex items-center gap-2 rounded-xl border border-haven-300 bg-haven-50 px-4 py-3 dark:border-haven-800 dark:bg-haven-950/40"
+            className="flex items-center gap-2 rounded-xl border border-tone-line bg-tone-soft px-4 py-3"
           >
             <Check className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-            <span className="text-[12.5px]">
+            <span className="text-[13px]">
               Approved by Ops · {builder} pack generated and delivered. Job number follows on builder acceptance.
             </span>
           </motion.div>
@@ -192,12 +191,12 @@ export function SubmissionDetail({
                   className={cn(
                     "relative isolate inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-colors duration-150 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                     current
-                      ? "border-transparent font-semibold text-haven-300 dark:text-charcoal"
+                      ? "border-transparent font-semibold text-primary-foreground"
                       : done
-                        ? "border-haven-300 bg-haven-50 text-foreground hover:bg-haven-100 dark:border-haven-800 dark:bg-haven-950/40 dark:hover:bg-haven-950/70"
+                        ? "border-tone-line bg-tone-soft text-foreground hover:bg-tone-tint"
                         : locked
                           ? "cursor-not-allowed border-border bg-card text-subtle-foreground"
-                          : "border-border bg-card text-foreground hover:border-haven-300 hover:bg-haven-50/70 dark:hover:border-haven-800 dark:hover:bg-haven-950/40",
+                          : "border-border bg-card text-foreground hover:border-tone-line hover:bg-tone-soft/70",
                   )}
                 >
                   {current ? (
@@ -211,7 +210,7 @@ export function SubmissionDetail({
                   <span
                     className={cn(
                       "flex size-[17px] items-center justify-center rounded-full text-[10px] font-semibold tabular-nums",
-                      done || current ? "bg-haven-300 text-haven-950" : "bg-muted text-muted-foreground",
+                      done || current ? "bg-tone-fill text-tone-on-fill" : "bg-muted text-muted-foreground",
                     )}
                     aria-hidden
                   >
@@ -240,23 +239,23 @@ export function SubmissionDetail({
             {step <= 3 ? (
               <StepFacts step={step as 1 | 2 | 3} onContinue={() => goTo(step + 1)} />
             ) : step === 4 ? (
-              <Card className="border-haven-300 dark:border-haven-800">
+              <Card className="border-tone-line">
                 <CardHeader>
-                  <Folder className="size-4 text-haven-700 dark:text-haven-300" aria-hidden />
+                  <Folder className="size-4 text-tone-ink" aria-hidden />
                   <CardTitle as="h3" className="text-sm">
                     Documents
                   </CardTitle>
                   <CardMeta
                     className={cn(
-                      "text-[11.5px] font-semibold",
+                      "text-xs font-semibold",
                       ready ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300",
                     )}
                   >
                     Required: {requiredUploaded} of {requiredTotal} uploaded
                   </CardMeta>
-                  <CardDescription className="text-[11px] text-subtle-foreground">
+                  <CardDescription className="text-xs text-subtle-foreground">
                     Red rows are non-negotiable and block submission. Files are renamed on upload:{" "}
-                    <span className="font-mono text-[11px]">Surname_Ref.pdf</span>
+                    <span className="font-mono text-xs">Surname_Ref.pdf</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
@@ -294,9 +293,9 @@ export function SubmissionDetail({
                 </CardContent>
               </Card>
             ) : (
-              <Card className="border-haven-300 dark:border-haven-800">
+              <Card className="border-tone-line">
                 <CardHeader>
-                  <Send className="size-4 text-haven-700 dark:text-haven-300" aria-hidden />
+                  <Send className="size-4 text-tone-ink" aria-hidden />
                   <CardTitle as="h3" className="text-sm">
                     Review and submit
                   </CardTitle>
@@ -312,7 +311,7 @@ export function SubmissionDetail({
                   ).map(([label, value]) => (
                     <FactRow key={label} label={label} value={value} />
                   ))}
-                  <p className="mt-2.5 rounded-lg bg-skyblue-100 px-3 py-2.5 text-[11.5px] leading-relaxed text-skyblue-950 dark:bg-skyblue-950/50 dark:text-skyblue-100">
+                  <p className="mt-2.5 rounded-lg bg-muted px-3 py-2.5 text-xs leading-relaxed text-foreground/85">
                     Submitting sends this to Ops review. Once approved, Launchpad fills {builder}&apos;s checklist from
                     this form and delivers it the way {builder} expects.
                   </p>
@@ -323,7 +322,7 @@ export function SubmissionDetail({
                           key="sent"
                           {...fade}
                           role="status"
-                          className="flex min-h-9 items-center justify-center gap-2 text-[12.5px] font-semibold text-haven-700 dark:text-haven-300"
+                          className="flex min-h-9 items-center justify-center gap-2 text-[13px] font-semibold text-tone-ink"
                         >
                           <Check className="size-3.5" aria-hidden />
                           {isApproved(status) ? "Approved by Ops" : "Submitted · now in the Ops review queue"}
@@ -353,7 +352,7 @@ function StepFacts({ step, onContinue }: { step: 1 | 2 | 3; onContinue: () => vo
   return (
     <Card>
       <CardHeader>
-        <Icon className="size-4 text-haven-700 dark:text-haven-300" aria-hidden />
+        <Icon className="size-4 text-tone-ink" aria-hidden />
         <CardTitle as="h3" className="text-sm">
           {SUBMISSION_STEPS[step - 1]} · complete
         </CardTitle>
@@ -363,8 +362,8 @@ function StepFacts({ step, onContinue }: { step: 1 | 2 | 3; onContinue: () => vo
           <FactRow key={label} label={label} value={value} />
         ))}
         {step === 2 ? (
-          <p className="mt-2.5 flex gap-2 rounded-lg border border-haven-300 bg-haven-50 px-3 py-2.5 text-[11.5px] leading-relaxed dark:border-haven-800 dark:bg-haven-950/40">
-            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+          <p className="mt-2.5 flex gap-2 rounded-lg border border-tone-line bg-tone-soft px-3 py-2.5 text-xs leading-relaxed">
+            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-tone-ink" aria-hidden />
             <span>
               Smart check: titles are more than 9 months out, so a{" "}
               <strong className="font-semibold">Delayed Title Agreement</strong> was added to required documents
@@ -385,8 +384,8 @@ function FactRow({ label, value }: { label: string; value: string }) {
     <CardRow className="flex items-baseline gap-2.5 py-2">
       <Check className="size-3 shrink-0 translate-y-0.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
       <div className="min-w-0">
-        <p className="text-[12.5px] font-medium">{label}</p>
-        <p className="text-[11.5px] text-muted-foreground">{value}</p>
+        <p className="text-[13px] font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{value}</p>
       </div>
     </CardRow>
   );
@@ -409,7 +408,7 @@ function DocRow({ doc, onUpload }: { doc: SubmissionDoc; onUpload: () => void })
         blocking
           ? "border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10"
           : verified
-            ? "border-haven-200 bg-haven-50 dark:border-haven-800/60 dark:bg-haven-950/40"
+            ? "border-tone-line bg-tone-soft"
             : doc.file
               ? "border-hairline bg-card"
               : "border-hairline bg-muted/60 dark:bg-white/[0.03]",
@@ -430,9 +429,9 @@ function DocRow({ doc, onUpload }: { doc: SubmissionDoc; onUpload: () => void })
           )}
         >
           {doc.name}{" "}
-          {!doc.req ? <span className="text-[10.5px] font-normal text-subtle-foreground">· if applicable</span> : null}
+          {!doc.req ? <span className="text-xs font-normal text-subtle-foreground">· if applicable</span> : null}
         </p>
-        <p className="truncate text-[11px] text-muted-foreground">
+        <p className="truncate text-xs text-muted-foreground">
           {fix ? (
             <span className="text-rose-700 dark:text-rose-300">Ops: {doc.fixNote}</span>
           ) : verified ? (
@@ -448,7 +447,7 @@ function DocRow({ doc, onUpload }: { doc: SubmissionDoc; onUpload: () => void })
         <Button
           size="xs"
           variant={blocking ? "default" : "outline"}
-          className={cn(!blocking && "text-haven-700 dark:text-haven-300")}
+          className={cn(!blocking && "text-tone-ink")}
           aria-label={`${fix ? "Re-upload" : "Upload"} ${doc.name}`}
           onClick={onUpload}
         >

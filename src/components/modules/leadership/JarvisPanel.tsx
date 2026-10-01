@@ -32,9 +32,9 @@ export function JarvisPanel({ state }: { state: CustomDashboardState }) {
   return (
     <Card>
       <CardHeader className="gap-y-1.5">
-        <Sparkles className="size-4 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+        <Sparkles className="size-4 shrink-0 text-tone-ink" aria-hidden />
         <CardTitle>Ask Jarvis</CardTitle>
-        <Pill tone="skyblue">Jarvis · reads mirrored data only</Pill>
+        <Pill tone="neutral">Jarvis · reads mirrored data only</Pill>
         <CardDescription>
           Ask Jarvis in plain English. Answers come from the same figures on this page, and anything it references gets
           added to your view.
@@ -48,7 +48,7 @@ export function JarvisPanel({ state }: { state: CustomDashboardState }) {
                 key={q}
                 type="button"
                 onClick={() => ask(q)}
-                className="rounded-full border border-hairline bg-muted px-3 py-1.5 text-[11px] text-foreground transition-colors hover:border-haven-300 hover:bg-haven-50 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none dark:hover:border-haven-800 dark:hover:bg-haven-950/40"
+                className="rounded-full border border-hairline bg-muted px-3 py-1.5 text-xs text-foreground transition-colors hover:border-tone-line hover:bg-tone-soft focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none"
               >
                 {q}
               </button>
@@ -74,8 +74,8 @@ export function JarvisPanel({ state }: { state: CustomDashboardState }) {
                 >
                   <span
                     className={cn(
-                      "flex size-[22px] shrink-0 items-center justify-center rounded-full text-[9.5px] font-semibold",
-                      m.role === "ai" ? "bg-haven-300 text-haven-950" : "bg-muted text-muted-foreground",
+                      "flex size-[22px] shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
+                      m.role === "ai" ? "bg-tone-fill text-tone-on-fill" : "bg-muted text-muted-foreground",
                     )}
                     aria-hidden
                   >
@@ -87,7 +87,7 @@ export function JarvisPanel({ state }: { state: CustomDashboardState }) {
                       {m.text}
                     </p>
                     {m.added ? (
-                      <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-haven-700 dark:text-haven-300">
+                      <p className="mt-1 flex items-center gap-1 text-xs font-medium text-tone-ink">
                         <Check className="size-3" aria-hidden />
                         Added {METRIC_BY_ID[m.added].label} to your dashboard
                       </p>

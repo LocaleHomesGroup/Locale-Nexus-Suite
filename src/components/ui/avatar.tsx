@@ -37,10 +37,10 @@ export function Avatar({
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full font-semibold",
         TONES[resolved],
-        size === "xs" && "size-5 text-[9px]",
-        size === "sm" && "size-7 text-[11px]",
-        size === "md" && "size-9 text-[12px]",
-        size === "lg" && "size-11 text-[14px]",
+        size === "xs" && "size-5 text-[10px]",
+        size === "sm" && "size-7 text-xs",
+        size === "md" && "size-9 text-xs",
+        size === "lg" && "size-11 text-sm",
         className,
       )}
     >

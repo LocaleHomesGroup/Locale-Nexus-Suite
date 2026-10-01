@@ -2,9 +2,21 @@
 
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { AlertTriangle, ClipboardList, HardHat, Lock, ShieldCheck, Trophy, UserRoundCog, Wallet, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ClipboardList,
+  HardHat,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  Trophy,
+  UserRoundCog,
+  Wallet,
+  X,
+} from "lucide-react";
 import { useLaunchpad, confirm } from "@/state/launchpad-store";
 import { cn } from "@/lib/utils";
+import { undoable } from "@/lib/undoable";
 import { EASE_OUT, rowDelay } from "@/lib/motion";
 import { PageHeader } from "@/components/ui/page";
 import { Card, CardContent, CardHeader, CardMeta, CardTitle } from "@/components/ui/card";
@@ -50,23 +62,62 @@ export function Team() {
   const [reassigning, setReassigning] = React.useState<TeamTask | null>(null);
   const [reassignOpen, setReassignOpen] = React.useState(false);
   const [reassignTo, setReassignTo] = React.useState<string>("");
+  // Decisions inside their undo window: the row shows what's happening, nothing is logged yet.
+  const [deciding, setDeciding] = React.useState<Record<string, "approve" | "decline">>({});
+  const setDecision = React.useCallback((id: string, d: "approve" | "decline" | null) => {
+    setDeciding((prev) => {
+      const next = { ...prev };
+      if (d) next[id] = d;
+      else delete next[id];
+      return next;
+    });
+  }, []);
 
   const overdue = tasks.filter((t) => t.flag).length;
   const shownTasks = overdueOnly ? tasks.filter((t) => t.flag) : tasks;
 
+  /**
+   * Approve and decline both tell the rep and log against the deal, so each
+   * waits out an undo window first. Only the commit removes the request.
+   */
   const approve = (d: DiscountApproval) => {
-    setDiscounts((prev) => prev.filter((x) => x.id !== d.id));
-    confirm(`Discount approved · ${d.client}`, `${d.rep} can submit the deal. Approval logged against it.`);
-    notify(`Discount approved — ${d.client} (${d.plan}) · ${d.rep} can submit`);
+    if (deciding[d.id]) return;
+    setDecision(d.id, "approve");
+    undoable({
+      message: `Approving ${aud(d.discount)} discount for ${d.client}`,
+      description: `${d.plan} · ${d.rep} can submit once it's approved`,
+      commit: () => {
+        setDiscounts((prev) => prev.filter((x) => x.id !== d.id));
+        setDecision(d.id, null);
+        notify(`Discount approved — ${d.client} (${d.plan}) · ${d.rep} can submit`);
+      },
+      undo: () => setDecision(d.id, null),
+      done: {
+        message: `Discount approved · ${d.client}`,
+        description: `${d.rep} can submit the deal. Approval logged against it.`,
+      },
+    });
   };
 
   const decline = () => {
-    if (!declining) return;
+    if (!declining || deciding[declining.id]) return;
     const d = declining;
-    setDiscounts((prev) => prev.filter((x) => x.id !== d.id));
     setDeclineOpen(false);
-    confirm(`Discount declined · ${d.client}`, `${d.rep} has been told. Decision logged against the deal.`);
-    notify(`Discount declined — ${d.client} (${d.plan}) · ${d.rep} notified`, "red");
+    setDecision(d.id, "decline");
+    undoable({
+      message: `Declining ${aud(d.discount)} discount for ${d.client}`,
+      description: `${d.plan} · ${d.rep} is told when it goes through`,
+      commit: () => {
+        setDiscounts((prev) => prev.filter((x) => x.id !== d.id));
+        setDecision(d.id, null);
+        notify(`Discount declined — ${d.client} (${d.plan}) · ${d.rep} notified`, "red");
+      },
+      undo: () => setDecision(d.id, null),
+      done: {
+        message: `Discount declined · ${d.client}`,
+        description: `${d.rep} has been told. Decision logged against the deal.`,
+      },
+    });
   };
 
   const openReassign = (t: TeamTask) => {
@@ -87,23 +138,22 @@ export function Team() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Sales"
-        title={
-          <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            Team overview
-            <Pill tone="neutral" icon={Lock} className="font-sans tracking-normal">
+        title="Team overview"
+        description="Every rep's pipeline, jobs and tasks in one place — no chasing spreadsheets."
+        actions={
+          <>
+            <Pill tone="neutral" icon={Lock}>
               Manager role
             </Pill>
-          </span>
+            <span className="text-xs text-subtle-foreground">All reps · live from Launchpad</span>
+          </>
         }
-        description="Every rep's pipeline, jobs and tasks in one place — no chasing spreadsheets."
-        actions={<span className="text-xs text-subtle-foreground">All reps · live from Launchpad</span>}
       />
 
       <Reveal index={0}>
         <KpiGrid cols={4}>
-          <KpiCard label="Team sales MTD" value={4} icon={Trophy} tone="haven" />
-          <KpiCard label="Pipeline value" value="$2.98m" icon={Wallet} tone="skyblue" />
+          <KpiCard label="Team sales MTD" value={4} icon={Trophy} />
+          <KpiCard label="Pipeline value" value="$2.98m" icon={Wallet} />
           <KpiCard label="Active client builds" value={223} icon={HardHat} tone="charcoal" />
           <KpiCard
             label="Overdue tasks"
@@ -157,7 +207,7 @@ export function Team() {
                 <li key={rep}>
                   <div className="flex text-xs">
                     <span className="font-semibold">{rep}</span>
-                    <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
+                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                       {precon + construction + handed} jobs
                     </span>
                   </div>
@@ -166,8 +216,16 @@ export function Team() {
                     delay={Math.min(i * 0.06, 0.3)}
                     label={`${rep}: ${precon} preconstruction, ${construction} construction, ${handed} handed over`}
                     segments={[
-                      { value: precon, tone: "skyblue", title: "Preconstruction" },
-                      { value: construction, tone: "haven", title: "Construction" },
+                      {
+                        value: precon,
+                        tone: "mist",
+                        title: "Preconstruction",
+                      },
+                      {
+                        value: construction,
+                        tone: "haven",
+                        title: "Construction",
+                      },
                       { value: handed, tone: "charcoal", title: "Handed over" },
                     ]}
                   />
@@ -177,7 +235,7 @@ export function Team() {
             <Legend
               className="mt-3"
               items={[
-                { label: "Precon", tone: "skyblue" },
+                { label: "Precon", tone: "mist" },
                 { label: "Construction", tone: "haven" },
                 { label: "Handed over", tone: "charcoal" },
               ]}
@@ -191,11 +249,7 @@ export function Team() {
       </Reveal>
 
       <Reveal index={3}>
-        <Card
-          className={cn(
-            discounts.length > 0 ? "pulse-rose border-rose-200 dark:border-rose-500/30" : undefined,
-          )}
-        >
+        <Card className={cn(discounts.length > 0 ? "pulse-rose border-rose-200 dark:border-rose-500/30" : undefined)}>
           <CardHeader>
             <AlertTriangle
               className={cn(
@@ -219,45 +273,79 @@ export function Team() {
             ) : (
               <ul>
                 <AnimatePresence initial={false}>
-                  {discounts.map((d, i) => (
-                    <motion.li
-                      key={d.id}
-                      layout="position"
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: EASE_OUT, delay: rowDelay(i, reduce) } }}
-                      exit={{ opacity: 0, x: -14, transition: { duration: 0.14 } }}
-                      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-hairline py-2.5"
-                    >
-                      <div className="min-w-[190px]">
-                        <p className="text-[12.5px] font-semibold">
-                          {d.client} <span className="font-normal text-muted-foreground">· {d.rep}</span>
+                  {discounts.map((d, i) => {
+                    const decision = deciding[d.id];
+                    return (
+                      <motion.li
+                        key={d.id}
+                        aria-busy={decision ? true : undefined}
+                        layout="position"
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          transition: {
+                            duration: 0.2,
+                            ease: EASE_OUT,
+                            delay: rowDelay(i, reduce),
+                          },
+                        }}
+                        exit={{
+                          opacity: 0,
+                          x: -14,
+                          transition: { duration: 0.14 },
+                        }}
+                        className={cn(
+                          "flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-hairline py-2.5 transition-opacity duration-200",
+                          decision && "opacity-70",
+                        )}
+                      >
+                        <div className="min-w-[190px]">
+                          <p className="text-[13px] font-semibold">
+                            {d.client} <span className="font-normal text-muted-foreground">· {d.rep}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">{d.plan}</p>
+                        </div>
+                        <p className="text-xs tabular-nums">
+                          Discount <strong className="font-semibold">{aud(d.discount)}</strong>
+                          <span className="text-rose-700 dark:text-rose-300">
+                            {" "}
+                            · {aud(d.contribution)} company contribution
+                          </span>
                         </p>
-                        <p className="text-[11px] text-muted-foreground">{d.plan}</p>
-                      </div>
-                      <p className="text-[11.5px] tabular-nums">
-                        Discount <strong className="font-semibold">{aud(d.discount)}</strong>
-                        <span className="text-rose-700 dark:text-rose-300">
-                          {" "}
-                          · {aud(d.contribution)} company contribution
-                        </span>
-                      </p>
-                      <span className="flex gap-1.5 sm:ml-auto">
-                        <Button size="sm" onClick={() => approve(d)}>
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setDeclining(d);
-                            setDeclineOpen(true);
-                          }}
-                        >
-                          Decline
-                        </Button>
-                      </span>
-                    </motion.li>
-                  ))}
+                        {decision ? (
+                          <span
+                            role="status"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 sm:ml-auto dark:text-amber-300"
+                          >
+                            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
+                            {decision === "approve" ? "Approving…" : "Declining…"}
+                          </span>
+                        ) : (
+                          <span className="flex gap-1.5 sm:ml-auto">
+                            <Button
+                              size="sm"
+                              onClick={() => approve(d)}
+                              aria-label={`Approve ${aud(d.discount)} discount for ${d.client}`}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              aria-label={`Decline ${aud(d.discount)} discount for ${d.client}`}
+                              onClick={() => {
+                                setDeclining(d);
+                                setDeclineOpen(true);
+                              }}
+                            >
+                              Decline
+                            </Button>
+                          </span>
+                        )}
+                      </motion.li>
+                    );
+                  })}
                 </AnimatePresence>
               </ul>
             )}
@@ -296,7 +384,7 @@ export function Team() {
                         {n || <Dash />}
                       </TableCell>
                     ))}
-                    <TableCell className="py-2 pr-0 text-right font-semibold text-haven-700 tabular-nums dark:text-haven-300">
+                    <TableCell className="py-2 pr-0 text-right font-semibold text-foreground tabular-nums">
                       {pipeline}
                     </TableCell>
                   </TableRow>
@@ -309,7 +397,7 @@ export function Team() {
                 <span
                   key={label}
                   className={cn(
-                    "text-[11px] tabular-nums",
+                    "text-xs tabular-nums",
                     warn ? "text-rose-700 dark:text-rose-300" : "text-muted-foreground",
                   )}
                 >
@@ -375,15 +463,23 @@ export function Team() {
                   key={t.id}
                   layout="position"
                   initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: EASE_OUT, delay: rowDelay(i, reduce) } }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    transition: {
+                      duration: 0.2,
+                      ease: EASE_OUT,
+                      delay: rowDelay(i, reduce),
+                    },
+                  }}
                   exit={{ opacity: 0, x: -14, transition: { duration: 0.14 } }}
-                  className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-hairline px-5 py-2.5 first:border-t-0 hover:bg-haven-50/60 dark:hover:bg-haven-950/25"
+                  className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-hairline px-5 py-2.5 first:border-t-0 hover:bg-tone-soft/60"
                 >
                   <span className="min-w-0 basis-full text-[13px] sm:basis-auto">{t.task}</span>
-                  <span className="text-[11px] text-muted-foreground sm:ml-auto">{t.rep}</span>
+                  <span className="text-xs text-muted-foreground sm:ml-auto">{t.rep}</span>
                   <span
                     className={cn(
-                      "min-w-[90px] text-[11px] sm:text-right",
+                      "min-w-[90px] text-xs sm:text-right",
                       t.flag ? "font-semibold text-rose-700 dark:text-rose-300" : "text-muted-foreground",
                     )}
                   >
@@ -416,7 +512,7 @@ export function Team() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={decline}>
-              Decline discount
+              {declining ? `Decline ${aud(declining.discount)} discount` : "Decline discount"}
             </Button>
           </>
         }
@@ -429,7 +525,10 @@ export function Team() {
             <p className="mt-0.5 text-muted-foreground">{declining.plan}</p>
             <p className="mt-1.5 tabular-nums">
               Discount <strong className="font-semibold">{aud(declining.discount)}</strong>
-              <span className="text-rose-700 dark:text-rose-300"> · {aud(declining.contribution)} company contribution</span>
+              <span className="text-rose-700 dark:text-rose-300">
+                {" "}
+                · {aud(declining.contribution)} company contribution
+              </span>
             </p>
           </div>
         ) : null}
@@ -451,7 +550,7 @@ export function Team() {
               Cancel
             </Button>
             <Button onClick={reassign} disabled={!reassignTo}>
-              Reassign
+              {reassignTo ? `Reassign to ${reassignTo}` : "Reassign"}
             </Button>
           </>
         }
@@ -469,7 +568,10 @@ export function Team() {
                 ariaLabel="Reassign to"
                 value={reassignTo}
                 onChange={setReassignTo}
-                options={REPS.filter((r) => r !== reassigning.rep).map((r) => ({ value: r, label: r }))}
+                options={REPS.filter((r) => r !== reassigning.rep).map((r) => ({
+                  value: r,
+                  label: r,
+                }))}
               />
             </Field>
           </div>

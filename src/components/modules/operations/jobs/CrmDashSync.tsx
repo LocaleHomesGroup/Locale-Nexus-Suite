@@ -37,7 +37,6 @@ export function CrmDashSync() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Operations"
         title="CRM Dash Sync"
         description="Every job, served from Launchpad. Mirrored from HubSpot and Monday, refreshed within minutes."
         actions={
@@ -63,12 +62,11 @@ export function CrmDashSync() {
             label="Active jobs"
             value={jobs.length}
             icon={House}
-            tone="haven"
             onClick={() => setFilter("all")}
             active={false}
             hint={filter !== "all" ? "Show all" : "All jobs"}
           />
-          <KpiCard label="Updates today" value={3} icon={Activity} tone="skyblue" />
+          <KpiCard label="Updates today" value={3} icon={Activity} />
           <KpiCard
             label="Pending sync"
             value={pending}

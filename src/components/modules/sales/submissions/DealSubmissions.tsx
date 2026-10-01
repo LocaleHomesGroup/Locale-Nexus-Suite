@@ -133,7 +133,7 @@ export function DealSubmissions() {
           <button
             type="button"
             onClick={() => openJob(barberJob.id)}
-            className="font-mono text-[11px] text-haven-700 underline-offset-2 hover:underline dark:text-haven-300"
+            className="font-mono text-xs text-tone-ink underline-offset-2 hover:underline"
             aria-label={`Open job ${barberJob.jobNo}`}
           >
             {barberJob.jobNo}
@@ -186,7 +186,6 @@ export function DealSubmissions() {
             ) : (
               <div className="flex flex-col gap-6">
                 <PageHeader
-                  eyebrow="Sales"
                   title="My deal submissions"
                   description="Your deal submissions and what each one is waiting on. Ops reviews everything before it reaches the builder."
                   actions={
@@ -284,7 +283,7 @@ function SubmissionRow({ row }: { row: ListRow }) {
         </span>
         <span
           className={cn(
-            "block text-[11.5px]",
+            "block text-xs",
             row.hot ? "text-rose-700 dark:text-rose-300" : "text-muted-foreground",
           )}
         >
@@ -295,7 +294,7 @@ function SubmissionRow({ row }: { row: ListRow }) {
         {row.status}
       </Pill>
       {row.action ? (
-        <span className="inline-flex w-[88px] items-center justify-end gap-1 text-xs font-semibold whitespace-nowrap text-haven-700 dark:text-haven-300">
+        <span className="inline-flex w-[88px] items-center justify-end gap-1 text-xs font-semibold whitespace-nowrap text-tone-ink">
           {row.action}
           <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
         </span>
@@ -318,7 +317,7 @@ function SubmissionRow({ row }: { row: ListRow }) {
       onClick={row.onOpen}
       className={cn(
         shell,
-        "group cursor-pointer transition-colors hover:bg-haven-50/60 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none dark:hover:bg-haven-950/25",
+        "group cursor-pointer transition-colors hover:bg-tone-soft/60 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
       )}
     >
       {body}

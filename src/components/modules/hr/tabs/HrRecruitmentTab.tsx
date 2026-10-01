@@ -6,14 +6,13 @@ import { CountUp } from "@/components/ui/count-up";
 import { RateBar } from "@/components/ui/progress";
 import { Avatar } from "@/components/ui/avatar";
 import { Reveal } from "@/components/ui/reveal";
-import { ONBOARDING, OPEN_ROLES } from "../data";
+import { ONBOARDING, OPEN_ROLES, personTone } from "../data";
 
 /** HR › Recruitment — open roles with their candidate funnel, and the onboarding in flight. */
 export function HrRecruitmentTab() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="HR"
         title="Recruitment"
         description="Open positions and candidate pipeline · onboarding tasks tracked per hire."
       />
@@ -52,22 +51,22 @@ export function HrRecruitmentTab() {
             <CardMeta>1 new starter</CardMeta>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px]">
-              <Avatar name={ONBOARDING.name} tone="skyblue" size="sm" />
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
+              <Avatar name={ONBOARDING.name} tone={personTone(ONBOARDING.name)} size="sm" />
               <span className="font-semibold">{ONBOARDING.name}</span>
-              <span className="text-[11.5px] text-muted-foreground">{ONBOARDING.detail}</span>
-              <span className="ml-auto text-[11.5px] font-semibold text-haven-700 tabular-nums dark:text-haven-300">
+              <span className="text-xs text-muted-foreground">{ONBOARDING.detail}</span>
+              <span className="ml-auto text-xs font-semibold text-tone-ink tabular-nums">
                 {ONBOARDING.done} of {ONBOARDING.total} tasks done
               </span>
             </div>
             <RateBar
               value={ONBOARDING.done / ONBOARDING.total}
-              tone="haven"
+              tone="tone"
               height="h-[7px]"
               className="mt-2.5"
               label={`${ONBOARDING.done} of ${ONBOARDING.total} onboarding tasks done`}
             />
-            <p className="mt-2 text-[11px] text-subtle-foreground">{ONBOARDING.remaining}</p>
+            <p className="mt-2 text-xs text-subtle-foreground">{ONBOARDING.remaining}</p>
           </CardContent>
         </Card>
       </Reveal>

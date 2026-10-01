@@ -109,7 +109,6 @@ export function KnowledgeScreen() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Knowledge"
         title="Knowledge base"
         description="Everything the team needs in one place: procedures, builder requirements, training videos and systems reference. Replaces the documents scattered across email and SharePoint."
         actions={
@@ -141,10 +140,10 @@ export function KnowledgeScreen() {
                   aria-pressed={on}
                   onClick={() => setQuery(on ? "" : p.query)}
                   className={cn(
-                    "rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
+                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                     on
-                      ? "border-haven-400 bg-haven-50 text-haven-900 dark:border-haven-600 dark:bg-haven-950/50 dark:text-haven-100"
-                      : "border-border bg-card text-haven-700 hover:border-haven-300 hover:bg-haven-50/70 dark:bg-white/[0.03] dark:text-haven-300 dark:hover:border-haven-800 dark:hover:bg-haven-950/40",
+                      ? "border-tone-strong bg-tone-soft text-tone-ink"
+                      : "border-border bg-card text-tone-ink hover:border-tone-line hover:bg-tone-soft/70 dark:bg-white/[0.03] dark:hover:bg-tone-soft",
                   )}
                 >
                   {p.label}
@@ -159,7 +158,7 @@ export function KnowledgeScreen() {
           <Card className="overflow-hidden">
             {searching ? (
               <CardHeader className="border-b border-hairline pb-3">
-                <CardTitle as="h2" className="text-[14px]">
+                <CardTitle as="h2" className="text-sm">
                   Results across all categories
                 </CardTitle>
                 <CardMeta>
@@ -170,10 +169,13 @@ export function KnowledgeScreen() {
               // The category comes from the rail, so the list says which one it is.
               <CardHeader className="border-b border-hairline pb-3">
                 <CurrentIcon className="size-4 text-subtle-foreground" aria-hidden />
-                <CardTitle as="h2" className="text-[14px]">
+                <CardTitle as="h2" className="text-sm">
                   {current.name}
                 </CardTitle>
-                <CardMeta>{counts[CATEGORIES.indexOf(current)]} materials · latest first</CardMeta>
+                {/* The library holds more than this list shows: say so, and point at search. */}
+                <CardMeta>
+                  Latest {rows.length} of {counts[CATEGORIES.indexOf(current)]} · search finds the rest
+                </CardMeta>
               </CardHeader>
             )}
             {rows.length === 0 ? (
@@ -191,21 +193,21 @@ export function KnowledgeScreen() {
                     <button
                       type="button"
                       onClick={() => openMaterial(r)}
-                      className="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-haven-50/70 focus-visible:bg-haven-50/70 focus-visible:outline-none sm:px-5 dark:hover:bg-haven-950/30 dark:focus-visible:bg-haven-950/30"
+                      className="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-tone-soft/70 focus-visible:bg-tone-soft/70 focus-visible:outline-none sm:px-5"
                     >
                       {r.kind === "video" ? (
-                        <PlayCircle className="size-4 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+                        <PlayCircle className="size-4 shrink-0 text-tone-ink" aria-hidden />
                       ) : (
-                        <FileText className="size-4 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+                        <FileText className="size-4 shrink-0 text-tone-ink" aria-hidden />
                       )}
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[12.5px] font-medium">
+                        <span className="block text-[13px] font-medium">
                           <Highlight text={r.title} query={q} />
                         </span>
-                        <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                           {searching ? <span>{r.category} ·</span> : null}
                           {r.meta === "New" ? (
-                            <Pill tone="haven" className="px-2 py-0 text-[10.5px]">
+                            <Pill tone="tone" className="px-2 py-0 text-xs">
                               New
                             </Pill>
                           ) : (
@@ -226,9 +228,9 @@ export function KnowledgeScreen() {
         </Reveal>
 
         <Reveal index={2}>
-          <div className="flex items-center gap-2.5 rounded-xl border border-haven-300 bg-haven-50 px-3.5 py-3 dark:border-haven-800 dark:bg-haven-950/40">
-            <Sparkles className="size-3.5 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
-            <span className="text-[11.5px] text-foreground">
+          <div className="flex items-center gap-2.5 rounded-xl border border-tone-line bg-tone-soft px-3.5 py-3">
+            <Sparkles className="size-3.5 shrink-0 text-tone-ink" aria-hidden />
+            <span className="text-xs text-foreground">
               Ask Jarvis a question and it answers from these documents, citing which one it used.
             </span>
           </div>
@@ -253,7 +255,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, at)}
-      <mark className="rounded-[3px] bg-haven-200/80 px-0.5 text-inherit dark:bg-haven-700/40">
+      <mark className="rounded-[3px] bg-tone-tint px-0.5 text-inherit">
         {text.slice(at, at + query.length)}
       </mark>
       {text.slice(at + query.length)}

@@ -5,7 +5,11 @@
  * Static prototype data: nothing here is fetched.
  */
 
-/** "pendingDate" = marked done by the builder, date not yet supplied (job 25517). */
+/**
+ * "pendingDate" = the builder says it's done but no completion date is on file
+ * (job 25501). It is not Completed: nothing advances in HubSpot or
+ * raises an invoice until a date is recorded.
+ */
 export type MilestoneStatus = "done" | "prog" | "open" | "na" | "pendingDate";
 export type SyncState = "ok" | "pending" | "conflict";
 export type Board = "sales" | "construction";
@@ -17,10 +21,19 @@ export interface Milestone {
   due?: string;
 }
 
+/**
+ * Monday and CRM Dash disagree about one field. `hub` / `monday` are the
+ * sentences shown to people; `milestone` + the two dates are what a resolution
+ * writes. An empty date means that system has none recorded.
+ */
 export interface SyncConflict {
   field: string;
   hub: string;
   monday: string;
+  /** The milestone whose date is in dispute. */
+  milestone?: string;
+  hubDate?: string;
+  mondayDate?: string;
 }
 
 export interface Job {
@@ -506,7 +519,10 @@ export const JOBS: Job[] = [
     "conflict": {
       "field": "Slab Down date",
       "hub": "No date recorded",
-      "monday": "28 Jul 2026 (edited directly in Monday by S. Hart)"
+      "monday": "28 Jul 2026 (edited directly in Monday by S. Hart)",
+      "milestone": "Slab Down",
+      "hubDate": "",
+      "mondayDate": "28 Jul 2026"
     },
     "lastSource": "Monday edit, Mon",
     "precon": [

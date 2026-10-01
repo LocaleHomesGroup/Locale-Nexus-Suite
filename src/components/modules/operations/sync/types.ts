@@ -12,6 +12,38 @@ export interface SyncStep {
   meta: string;
 }
 
+/** One write's walk through the systems: Launchpad first, then each connected system in turn. */
+export interface SyncRun {
+  id: string;
+  jobId: number;
+  /** "25501 · Slab Down" — names the run inside a batch trail. */
+  label: string;
+  steps: SyncStep[];
+  /** Every system has confirmed. */
+  done: boolean;
+}
+
+/**
+ * What the sync trail dialog shows: one run, or a batch of them accepted
+ * together ("3 portal updates"). Trails run in the background; the dialog
+ * only opens when someone asks to see one.
+ */
+export interface SyncTrail {
+  id: string;
+  /** "25501 · Slab Down" or "3 portal updates". */
+  subject: string;
+  runs: SyncRun[];
+}
+
+export function trailDone(trail: SyncTrail): boolean {
+  return trail.runs.length > 0 && trail.runs.every((r) => r.done);
+}
+
+/** The trail's title says where it is: "Syncing 25501 · Slab Down…", then "25501 · Slab Down synced". */
+export function trailTitle(trail: SyncTrail): string {
+  return trailDone(trail) ? `${trail.subject} synced` : `Syncing ${trail.subject}…`;
+}
+
 export type MilestoneKind = "construction" | "precon";
 
 /**

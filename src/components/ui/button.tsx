@@ -21,14 +21,14 @@ export const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
         brand:
-          "bg-gradient-to-br from-haven-300 to-haven-400 text-haven-950 shadow-sm shadow-haven-500/25 hover:from-haven-200 hover:to-haven-300 dark:from-haven-300 dark:to-haven-400 dark:text-haven-950",
+          "bg-tone-fill text-tone-on-fill shadow-sm shadow-black/10 hover:brightness-[1.04] active:brightness-95",
         outline:
-          "border-border bg-card text-foreground shadow-xs hover:border-haven-300 hover:bg-haven-50/70 dark:bg-white/[0.03] dark:hover:border-haven-800 dark:hover:bg-haven-950/40",
+          "border-border bg-card text-foreground shadow-xs hover:border-tone-line hover:bg-tone-soft/70 dark:bg-white/[0.03] dark:hover:bg-tone-soft",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/75",
         ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
         destructive:
           "bg-rose-50 text-rose-700 hover:bg-rose-100 focus-visible:ring-rose-300/50 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25",
-        link: "h-auto px-0 text-haven-700 underline-offset-4 hover:underline dark:text-haven-300",
+        link: "h-auto px-0 text-tone-ink underline-offset-4 hover:underline",
       },
       size: {
         default: "h-8 px-3",

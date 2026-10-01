@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * A row of mutually exclusive pill toggles — the mockup's status / source /
- * buyer-type pickers. Selected = Haven fill with deep ink (never haven-300
- * text on white); the rest are outline pills. Each is an `aria-pressed`
+ * buyer-type pickers. Selected = the dashboard's brand fill with its deep ink
+ * (never the light fill as text on white); the rest are outline pills. Each is an `aria-pressed`
  * button inside a labelled group.
  */
 export function ChoiceChips<T extends string>({
@@ -37,10 +37,10 @@ export function ChoiceChips<T extends string>({
             onClick={() => onChange(o.value)}
             className={cn(
               "rounded-full border font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-150 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none active:scale-[0.97]",
-              size === "sm" ? "px-3 py-1 text-[11.5px]" : "px-3 py-1.5 text-xs",
+              size === "sm" ? "px-3 py-1 text-xs" : "px-3 py-1.5 text-xs",
               on
-                ? "border-haven-300 bg-haven-300 text-haven-950 shadow-xs dark:border-haven-300 dark:bg-haven-300 dark:text-haven-950"
-                : "border-border bg-card text-foreground hover:border-haven-300 hover:bg-haven-50/70 dark:bg-white/[0.03] dark:hover:border-haven-800 dark:hover:bg-haven-950/40",
+                ? "border-tone-fill bg-tone-fill text-tone-on-fill shadow-xs"
+                : "border-border bg-card text-foreground hover:border-tone-line hover:bg-tone-soft/70 dark:bg-white/[0.03] dark:hover:bg-tone-soft",
             )}
           >
             {o.label}

@@ -12,17 +12,19 @@ import { cn } from "@/lib/utils";
  *     <CardContent>…</CardContent>
  *   </Card>
  *
- * `tone="accent"` gives the Haven Green rim used for "needs you" panels
- * (the mockup's My day card). `tone="inverse"` is the charcoal feature card.
+ * `tone="accent"` gives the dashboard-tone rim used for "needs you" panels
+ * (the mockup's My day card) — Haven on Homes dashboards, Nectar on Financial,
+ * and so on. `tone="inverse"` is the charcoal feature card. Flat fills: depth
+ * comes from the border and the shadow, not a gradient.
  */
 type CardTone = "default" | "accent" | "inverse" | "muted";
 
 const TONE: Record<CardTone, string> = {
   default: "border-border bg-card text-card-foreground",
-  accent:
-    "border-haven-300 bg-gradient-to-br from-haven-50 via-card to-card text-card-foreground dark:border-haven-800 dark:from-haven-950/60 dark:via-card dark:to-card",
-  inverse:
-    "border-charcoal bg-gradient-to-br from-charcoal to-[#232326] text-silver dark:border-white/10 dark:from-[#26262a] dark:to-[#1a1a1d]",
+  accent: "border-tone-line bg-tone-soft/60 text-card-foreground dark:bg-tone-soft/50",
+  // Dark: a raised charcoal a clear step above the page, so the feature card
+  // still reads as the inverse of its neighbours rather than one more panel.
+  inverse: "border-charcoal bg-charcoal text-silver dark:border-white/15 dark:bg-[#2b2b30] dark:shadow-black/40",
   // Quieter than default: barely-there fill, so it still reads as secondary.
   muted: "border-border bg-white/40 text-card-foreground dark:bg-transparent",
 };
@@ -74,7 +76,7 @@ export function CardDescription({ className, ...props }: React.HTMLAttributes<HT
 export function CardMeta({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("ml-auto flex items-center gap-2 text-[11px] text-subtle-foreground tabular-nums", className)}
+      className={cn("ml-auto flex items-center gap-2 text-xs text-subtle-foreground tabular-nums", className)}
       {...props}
     />
   );

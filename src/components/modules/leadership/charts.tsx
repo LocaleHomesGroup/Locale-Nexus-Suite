@@ -20,11 +20,13 @@ import { EASE_SWAP } from "@/lib/motion";
 
 const REVEAL_S = 0.9;
 
-export type ColumnTone = "haven" | "skyblue";
+/** `emphasis` is the dashboard accent (the figure the chart is about); `base`
+ *  is a quiet neutral for the rest. Flat fills: the height is the data. */
+export type ColumnTone = "emphasis" | "base";
 
 const COLUMN_TONE: Record<ColumnTone, string> = {
-  haven: "bg-gradient-to-t from-haven-500 to-haven-300",
-  skyblue: "bg-gradient-to-t from-skyblue-500 to-skyblue-300",
+  emphasis: "bg-tone-strong",
+  base: "bg-zinc-300 dark:bg-zinc-600",
 };
 
 export interface ColumnDatum {
@@ -81,7 +83,7 @@ export function ColumnChart({
               )}
             >
               {d.top != null ? (
-                <span className="text-[11px] leading-none font-medium text-muted-foreground tabular-nums">{d.top}</span>
+                <span className="text-xs leading-none font-medium text-muted-foreground tabular-nums">{d.top}</span>
               ) : null}
               <motion.div
                 className={cn("w-full origin-bottom rounded-t-[5px]", barClassName, COLUMN_TONE[d.tone])}
@@ -103,7 +105,7 @@ export function ColumnChart({
           <span
             key={d.key}
             className={cn(
-              "min-w-0 flex-1 truncate text-center text-[11px] text-subtle-foreground tabular-nums transition-colors",
+              "min-w-0 flex-1 truncate text-center text-xs text-subtle-foreground tabular-nums transition-colors",
               hover === d.key && "text-foreground",
             )}
           >

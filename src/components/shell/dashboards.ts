@@ -47,7 +47,8 @@ import type { DashboardTone } from "./dashboard-tones";
 
 /**
  * The Launchpad's dashboards, HRIS-style: each module is its own dashboard with
- * its own sidebar, and the rail's "Switch view" card moves between them.
+ * its own sidebar, and the rail's "Switch view" card and the command palette
+ * (Ctrl+K) move between them.
  *
  * A dashboard's sections are nav items in the rail (never a tab strip in the
  * page). Each item is a URL — `/sales?tab=team` — so Home's shortcuts, the back
@@ -262,6 +263,20 @@ export const DASHBOARDS: Dashboard[] = [
     items: [only("it", "Help desk", LifeBuoy)],
   },
 ];
+
+/**
+ * Each Locale sub-brand with its dashboards (the command palette lists
+ * dashboards in this order). Derived from each dashboard's `tone`, so a group
+ * can never disagree with the accent its dashboards wear.
+ */
+export const DASHBOARD_GROUPS: { tone: DashboardTone; label: string; dashboards: Dashboard[] }[] = (
+  [
+    ["haven", "Locale Homes"],
+    ["nectar", "Locale Financial"],
+    ["skyblue", "Locale Wealth"],
+    ["charcoal", "Company"],
+  ] as const
+).map(([tone, label]) => ({ tone, label, dashboards: DASHBOARDS.filter((d) => d.tone === tone) }));
 
 /** The inbox is shared by every dashboard — it sits under each rail's nav. */
 export const NOTIFICATIONS_HREF = "/notifications";

@@ -31,17 +31,20 @@ export function DocumentsCard({ job }: { job: Job }) {
     const file = `${prefix}_${slug}.pdf`;
     setUploaded((u) => ({ ...u, [slug]: true }));
     setJustUploaded(slug);
-    logActivity("details", `${label} uploaded`, `Renamed to ${file} · filed to HubSpot and the Monday item`, [
-      "Monday",
-      "HubSpot",
-    ]);
+    logActivity(
+      "details",
+      `${label} uploaded`,
+      `Renamed to ${file} · filed to HubSpot and the Monday item`,
+      ["Monday", "HubSpot"],
+      job.id,
+    );
     confirm(`${label} uploaded`, `Renamed to ${file} and filed in HubSpot and Monday`);
   };
 
   return (
     <Card>
       <CardHeader>
-        <FolderOpen className="size-4 text-haven-700 dark:text-haven-300" aria-hidden />
+        <FolderOpen className="size-4 text-tone-ink" aria-hidden />
         <CardTitle>Documents</CardTitle>
         <CardMeta>Renamed automatically on upload</CardMeta>
         <CardDescription>
@@ -76,7 +79,7 @@ export function DocumentsCard({ job }: { job: Job }) {
                 </motion.span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-foreground">{d.label}</p>
-                  <p className="text-[10.5px] break-words text-subtle-foreground">
+                  <p className="text-xs break-words text-subtle-foreground">
                     {has ? (
                       <span className="font-mono">{file}</span>
                     ) : (
@@ -90,7 +93,7 @@ export function DocumentsCard({ job }: { job: Job }) {
                   <Button
                     variant="outline"
                     size="xs"
-                    className="text-haven-700 dark:text-haven-300"
+                    className="text-tone-ink"
                     onClick={() => upload(d.label, d.slug)}
                     aria-label={`Upload ${d.label}`}
                   >
@@ -101,7 +104,7 @@ export function DocumentsCard({ job }: { job: Job }) {
             );
           })}
         </ul>
-        <p className="mt-2.5 text-[10.5px] text-subtle-foreground">
+        <p className="mt-2.5 text-xs text-subtle-foreground">
           Slots follow Alison&apos;s naming requirements. Files sync to HubSpot and the Monday item.
         </p>
       </CardContent>

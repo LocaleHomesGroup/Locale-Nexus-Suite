@@ -101,7 +101,7 @@ export function SmoothSelect<T extends string>({
         onClick={() => (open ? setOpen(false) : openMenu())}
         onKeyDown={onKeyDown}
         className={cn(
-          "flex w-full items-center gap-2 rounded-lg border border-input bg-card text-left text-foreground shadow-xs outline-none hover:border-haven-300 focus-visible:border-haven-400 focus-visible:ring-3 focus-visible:ring-haven-300/40 dark:bg-white/[0.03] dark:hover:border-haven-800",
+          "flex w-full items-center gap-2 rounded-lg border border-input bg-card text-left text-foreground shadow-xs outline-none hover:border-tone-line focus-visible:border-tone-strong focus-visible:ring-3 focus-visible:ring-tone-line/45 dark:bg-white/[0.03] dark:hover:border-tone-line",
           size === "sm" ? "h-[26px] px-2 text-xs" : "h-8 px-2.5 text-sm",
         )}
       >
@@ -142,14 +142,14 @@ export function SmoothSelect<T extends string>({
                   }}
                   className={cn(
                     "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] whitespace-nowrap",
-                    i === active ? "bg-haven-50 text-haven-950 dark:bg-haven-950/50 dark:text-haven-100" : "text-foreground",
+                    i === active ? "bg-tone-soft text-foreground" : "text-foreground",
                   )}
                 >
                   <span className="min-w-0 flex-1">
                     {o.label}
-                    {o.hint ? <span className="ml-2 text-[11px] text-subtle-foreground">{o.hint}</span> : null}
+                    {o.hint ? <span className="ml-2 text-xs text-subtle-foreground">{o.hint}</span> : null}
                   </span>
-                  {selected ? <Check className="size-3.5 text-haven-700 dark:text-haven-300" aria-hidden /> : null}
+                  {selected ? <Check className="size-3.5 text-tone-ink" aria-hidden /> : null}
                 </li>
               );
             })}

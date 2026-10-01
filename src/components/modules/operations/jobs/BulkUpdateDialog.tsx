@@ -84,7 +84,7 @@ export function useBulkUpdate() {
       logActivity("import", "Bulk update applied", `2 rows matched by job number, 1 skipped · ${BULK_FILE}`, [
         "Monday",
         "HubSpot",
-      ]);
+      ], [1, 2]);
       setPhase("done");
       confirm("2 updates synced · 1 skipped row reported");
     }, 2400);
@@ -128,16 +128,16 @@ export function BulkUpdateDialog({ bulk }: { bulk: BulkUpdate }) {
         <div className="rounded-xl border-[1.5px] border-dashed border-border px-4 py-4 text-center">
           <p className="text-[13px]">
             <Upload className="mr-1 inline size-3.5 -translate-y-px text-muted-foreground" aria-hidden />
-            Drop a CSV here, or <span className="font-semibold text-haven-700 dark:text-haven-300">browse</span>
+            Drop a CSV here, or <span className="font-semibold text-tone-ink">browse</span>
           </p>
-          <p className="mt-1 text-[11px] text-subtle-foreground">
+          <p className="mt-1 text-xs text-subtle-foreground">
             Columns: job number, milestone, builder date · template available
           </p>
         </div>
 
         <div className="min-w-0">
           <p className="mb-1.5 text-xs font-semibold">
-            Preview · <span className="font-mono text-[11px] font-medium">{BULK_FILE}</span>
+            Preview · <span className="font-mono text-xs font-medium">{BULK_FILE}</span>
           </p>
           <div className="overflow-hidden rounded-lg border border-hairline">
             <Table className="text-xs">
@@ -152,7 +152,7 @@ export function BulkUpdateDialog({ bulk }: { bulk: BulkUpdate }) {
               <TableBody>
                 {BULK_ROWS.map((r) => (
                   <TableRow key={r.jobNo} className="hover:bg-transparent dark:hover:bg-transparent">
-                    <TableCell className="py-2 font-mono text-[11px] font-semibold">{r.jobNo}</TableCell>
+                    <TableCell className="py-2 font-mono text-xs font-semibold">{r.jobNo}</TableCell>
                     <TableCell className="py-2">{r.milestone}</TableCell>
                     <TableCell className="py-2 whitespace-nowrap tabular-nums">{r.date}</TableCell>
                     <TableCell className="py-2">
@@ -174,7 +174,7 @@ export function BulkUpdateDialog({ bulk }: { bulk: BulkUpdate }) {
         </div>
 
         {phase === "preview" ? (
-          <p className="rounded-lg bg-skyblue-100 px-3 py-2.5 text-xs leading-relaxed text-skyblue-950 dark:bg-skyblue-950/50 dark:text-skyblue-100">
+          <p className="rounded-lg bg-muted px-3 py-2.5 text-xs leading-relaxed text-foreground/85">
             2 of 3 rows ready. Applying writes each update to Launchpad, then Monday and HubSpot — every row appears in
             the sync trail. Skipped rows are reported for follow-up.
           </p>
@@ -187,7 +187,7 @@ export function BulkUpdateDialog({ bulk }: { bulk: BulkUpdate }) {
                   initial={{ opacity: 0, y: 3 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: reduce ? 0 : DURATION.fade, ease: EASE_OUT }}
-                  className="flex items-center gap-2 py-1 text-[12.5px]"
+                  className="flex items-center gap-2 py-1 text-[13px]"
                 >
                   {s.state === "done" ? (
                     <Check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Done" />
@@ -198,7 +198,7 @@ export function BulkUpdateDialog({ bulk }: { bulk: BulkUpdate }) {
                     />
                   )}
                   <span className="min-w-0 flex-1">{s.label}</span>
-                  <span className="shrink-0 font-mono text-[10.5px] text-subtle-foreground tabular-nums">{s.meta}</span>
+                  <span className="shrink-0 font-mono text-xs text-subtle-foreground tabular-nums">{s.meta}</span>
                 </motion.li>
               ))}
             </ul>
@@ -207,7 +207,7 @@ export function BulkUpdateDialog({ bulk }: { bulk: BulkUpdate }) {
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: reduce ? 0 : DURATION.fade, ease: EASE_OUT }}
-                className="mt-1.5 flex items-center gap-2 border-t border-hairline pt-2 text-[12.5px] font-semibold text-haven-700 dark:text-haven-300"
+                className="mt-1.5 flex items-center gap-2 border-t border-hairline pt-2 text-[13px] font-semibold text-emerald-700 dark:text-emerald-300"
               >
                 <Check className="size-3.5" aria-hidden /> 2 updates synced · 1 skipped row reported to sync health
               </motion.p>

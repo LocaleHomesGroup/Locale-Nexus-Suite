@@ -95,6 +95,18 @@
   --color-hairline: var(--hairline);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Dashboard tone roles (see "Dashboard tone" below). */
+  --color-tone-ink: var(--tone-ink);
+  --color-tone-soft: var(--tone-soft);
+  --color-tone-tint: var(--tone-tint);
+  --color-tone-line: var(--tone-line);
+  --color-tone-fill: var(--tone-fill);
+  --color-tone-strong: var(--tone-strong);
+  --color-tone-on-fill: var(--tone-on-fill);
+  /* KPI / dialog icon chips: white glyph on a 400→700 ramp, same in both themes. */
+  --color-tone-chip-a: var(--tone-chip-a);
+  --color-tone-chip-b: var(--tone-chip-b);
 }
 
 @layer base {
@@ -118,8 +130,10 @@
     --muted: #f2f2f2;
     /* #5f5e5a on white = 6.6:1, on silver = 6.0:1 — safe for small text. */
     --muted-foreground: #5f5e5a;
-    /* Tertiary ink (captions, timestamps). #737373 Granite = 4.7:1 on white. */
-    --subtle-foreground: #737373;
+    /* Tertiary ink (captions, timestamps). One step under Granite so it clears
+       4.5:1 on every 50/100 tint the panels use too (4.9:1 worst case), not
+       just on white. */
+    --subtle-foreground: #686868;
     --accent: #9ce3db;
     --accent-foreground: #1c2b29;
     --destructive: #be123c;
@@ -127,7 +141,6 @@
     --border: #e4e4e7;
     --hairline: #ededee;
     --input: #dcdcdf;
-    --ring: #3db3a7;
   }
 
   /* Dark — charcoal family (not HRIS navy) so the brand stays Locale's. */
@@ -147,7 +160,8 @@
     --secondary-foreground: #ececee;
     --muted: #26262a;
     --muted-foreground: #a8a8b0;
-    --subtle-foreground: #8b8b94;
+    /* 5.1:1+ on the dark tints (950 steps), not only on the page. */
+    --subtle-foreground: #9a9aa3;
     --accent: #9ce3db;
     --accent-foreground: #142321;
     --destructive: #fb7185;
@@ -155,7 +169,132 @@
     --border: #2e2e33;
     --hairline: #26262b;
     --input: #37373d;
-    --ring: #6acfc4;
+  }
+
+  /* ── Dashboard tone ──
+     The dashboard's sub-brand runs through the whole page, not only the rail:
+     the shell root (and <html>, for portalled dialogs) carries
+     data-tone="haven|nectar|skyblue|charcoal", and these roles remap. Use the
+     `tone-*` utilities for anything that means "this dashboard's accent" —
+     selection, active filters, focus, links, highlight rims. Semantic colour
+     (ok / pending / problem) stays emerald / amber / rose everywhere.
+
+       tone-ink      accent text & icons        (≥4.9:1 on white and the tints)
+       tone-soft     selected / highlight wash
+       tone-tint     a step stronger than soft  (chips, hover on soft)
+       tone-line     accent borders & rims
+       tone-fill     the brand colour itself    (active pill, primary ink)
+       tone-strong   bars, dots, focus ring
+       tone-on-fill  text on tone-fill                                       */
+  :root,
+  [data-tone="haven"] {
+    --tone-ink: var(--color-haven-700);
+    --tone-soft: var(--color-haven-50);
+    --tone-tint: var(--color-haven-100);
+    --tone-line: var(--color-haven-300);
+    --tone-fill: var(--color-haven-300);
+    --tone-strong: var(--color-haven-500);
+    --tone-on-fill: var(--color-haven-950);
+    --tone-pair: var(--color-haven-300);
+    --tone-chip-a: var(--color-haven-400);
+    --tone-chip-b: var(--color-haven-700);
+  }
+  [data-tone="nectar"] {
+    /* Nectar 700 dips to 4.3:1 on its own tints — ink steps down to 800. */
+    --tone-ink: var(--color-nectar-800);
+    --tone-soft: var(--color-nectar-50);
+    --tone-tint: var(--color-nectar-100);
+    --tone-line: var(--color-nectar-300);
+    --tone-fill: var(--color-nectar-300);
+    --tone-strong: var(--color-nectar-500);
+    --tone-on-fill: var(--color-nectar-950);
+    --tone-pair: var(--color-nectar-300);
+    --tone-chip-a: var(--color-nectar-400);
+    --tone-chip-b: var(--color-nectar-700);
+  }
+  [data-tone="skyblue"] {
+    --tone-ink: var(--color-skyblue-700);
+    --tone-soft: var(--color-skyblue-50);
+    --tone-tint: var(--color-skyblue-100);
+    --tone-line: var(--color-skyblue-300);
+    --tone-fill: var(--color-skyblue-300);
+    --tone-strong: var(--color-skyblue-500);
+    --tone-on-fill: var(--color-skyblue-950);
+    --tone-pair: var(--color-skyblue-300);
+    --tone-chip-a: var(--color-skyblue-400);
+    --tone-chip-b: var(--color-skyblue-700);
+  }
+  [data-tone="charcoal"] {
+    /* The master brand: charcoal ink on silver, Haven stays the primary's ink. */
+    --tone-ink: var(--color-charcoal);
+    --tone-soft: #f4f4f5;
+    --tone-tint: #e9e9eb;
+    --tone-line: #a1a1aa;
+    --tone-fill: var(--color-charcoal);
+    --tone-strong: #52525b;
+    --tone-on-fill: var(--color-silver);
+    --tone-pair: var(--color-haven-300);
+    --tone-chip-a: var(--color-granite);
+    --tone-chip-b: var(--color-charcoal);
+  }
+
+  .dark,
+  .dark [data-tone="haven"] {
+    --tone-ink: var(--color-haven-300);
+    --tone-soft: rgb(6 44 42 / 0.55);
+    --tone-tint: rgb(21 92 86 / 0.45);
+    --tone-line: var(--color-haven-800);
+    --tone-fill: var(--color-haven-300);
+    --tone-strong: var(--color-haven-400);
+    --tone-on-fill: var(--color-haven-950);
+  }
+  .dark[data-tone="nectar"],
+  .dark [data-tone="nectar"] {
+    --tone-ink: var(--color-nectar-300);
+    --tone-soft: rgb(61 28 18 / 0.55);
+    --tone-tint: rgb(140 71 45 / 0.4);
+    --tone-line: var(--color-nectar-800);
+    --tone-fill: var(--color-nectar-300);
+    --tone-strong: var(--color-nectar-400);
+    --tone-on-fill: var(--color-nectar-950);
+  }
+  .dark[data-tone="skyblue"],
+  .dark [data-tone="skyblue"] {
+    --tone-ink: var(--color-skyblue-300);
+    --tone-soft: rgb(35 40 72 / 0.6);
+    --tone-tint: rgb(62 73 155 / 0.4);
+    --tone-line: var(--color-skyblue-800);
+    --tone-fill: var(--color-skyblue-300);
+    --tone-strong: var(--color-skyblue-400);
+    --tone-on-fill: var(--color-skyblue-950);
+  }
+  .dark[data-tone="charcoal"],
+  .dark [data-tone="charcoal"] {
+    --tone-ink: #e4e4e7;
+    --tone-soft: rgb(255 255 255 / 0.06);
+    --tone-tint: rgb(255 255 255 / 0.1);
+    --tone-line: #52525b;
+    --tone-fill: var(--color-silver);
+    --tone-strong: #d4d4d8;
+    --tone-on-fill: var(--color-charcoal);
+    --tone-chip-a: #71717a;
+    --tone-chip-b: #3f3f46;
+  }
+
+  /* Roles derived from the tone. Declared on every toned element, not only
+     :root — a custom property that references another resolves where it is
+     declared, so a :root-only declaration would freeze the Haven values. */
+  :root,
+  [data-tone] {
+    /* Primary action: charcoal carrying the sub-brand ink — the Locale
+       pairing (Haven 8.8:1, Nectar 9.2:1, Sky Blue 8.7:1 on charcoal). */
+    --primary-foreground: var(--tone-pair);
+    --ring: var(--tone-strong);
+  }
+  .dark,
+  .dark [data-tone] {
+    --primary: var(--tone-fill);
+    --primary-foreground: var(--tone-on-fill);
   }
 
   * {
@@ -180,8 +319,8 @@
   }
 
   ::selection {
-    background: rgb(156 227 219 / 0.55);
-    color: #1c2b29;
+    background: color-mix(in oklab, var(--tone-pair) 60%, transparent);
+    color: #1c1c1e;
   }
 
   ::-webkit-scrollbar {
@@ -196,7 +335,7 @@
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(22 116 107 / 0.55);
+    background: color-mix(in oklab, var(--tone-strong) 60%, transparent);
   }
 
   /* Theme swap cross-fade via the View Transitions API (HRIS § 14.6). */
@@ -222,13 +361,19 @@
   to { opacity: 1; }
 }
 
-/* Smooth theme transitions — colours only, never layout (HRIS index.css). */
-*,
-*::before,
-*::after {
-  transition-property: background-color, color, border-color, box-shadow, fill, stroke, filter;
-  transition-duration: 260ms;
-  transition-timing-function: ease;
+/* Smooth theme transitions — colours only, never layout (HRIS index.css).
+   In the base layer, so any Tailwind `transition-*` / `duration-*` utility on
+   an element wins over it. Unlayered, this rule outranked every utility and
+   silently stopped the mobile drawer (and anything else with its own
+   transition) from animating. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, color, border-color, box-shadow, fill, stroke, filter;
+    transition-duration: 260ms;
+    transition-timing-function: ease;
+  }
 }
 
 /* ── Collapsible sidebar rail — one source of truth for the collapse feel ── */
@@ -378,14 +523,15 @@
   border-radius: 6px;
 }
 
+/* The wordmark glides in and settles, with no overshoot: an exponential
+   ease-out decelerates like a real object, where a bounce reads as a toy. */
 @keyframes logo-word-slide {
   0% { transform: translateX(-115%); opacity: 0; }
-  65% { transform: translateX(5%); opacity: 1; }
-  82% { transform: translateX(-2%); }
+  60% { opacity: 1; }
   100% { transform: translateX(0); opacity: 1; }
 }
 .logo-heartbeat {
-  animation: logo-word-slide 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  animation: logo-word-slide 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes brand-mark-beat {
@@ -394,13 +540,19 @@
   38% { transform: scale(1.04); }
 }
 .brand-mark-beating {
-  animation: brand-mark-beat 3.2s ease-in-out 800ms infinite;
+  /* Three beats on arrival, then the mark rests: a greeting, not a metronome
+     in the corner of every working minute. */
+  animation: brand-mark-beat 3.2s ease-in-out 800ms 3;
   transform-origin: center;
 }
 
 /* ── Attention rings (from the Launchpad mockup's lh-pulse) ──
    A soft ring that radiates from something that needs a decision. Paired with
-   visible text every time — the ring is decoration, never the only signal. */
+   visible text every time — the ring is decoration, never the only signal.
+   The rose alarm rings three times as it arrives, then rests: an alarm that
+   never stops teaches people to stop seeing it. The Haven ring is only for
+   live, transient state (a sync step in flight), so it may loop while that
+   state lasts. */
 @keyframes pulse-ring-haven {
   0% { box-shadow: 0 0 0 0 rgb(22 116 107 / 0.45); }
   100% { box-shadow: 0 0 0 14px rgb(22 116 107 / 0); }
@@ -418,7 +570,7 @@
   100% { box-shadow: 0 0 0 16px rgb(251 113 133 / 0); }
 }
 .pulse-haven { animation: pulse-ring-haven 2.2s ease-out infinite; }
-.pulse-rose { animation: pulse-ring-rose 1.8s ease-out infinite; }
+.pulse-rose { animation: pulse-ring-rose 1.8s ease-out 3; }
 .dark .pulse-haven { animation-name: pulse-ring-haven-dark; }
 .dark .pulse-rose { animation-name: pulse-ring-rose-dark; }
 
@@ -443,21 +595,8 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── Jarvis bubble — HRIS Penny AI's beating chat head, with the Locale "L" ──
-   A soft halo ripples out (two staggered rings) and the mark beats lub-dub.
-   Ambient loops: both stop under reduced motion (the bubble stays put). */
-@keyframes jarvis-halo {
-  0% { transform: scale(0.85); opacity: 0.55; }
-  100% { transform: scale(1.65); opacity: 0; }
-}
-@keyframes jarvis-beat {
-  0%, 30%, 60%, 100% { transform: scale(1); }
-  12% { transform: scale(1.09); }
-  42% { transform: scale(1.04); }
-}
-.jarvis-halo { animation: jarvis-halo 1.6s ease-out infinite; }
-.jarvis-halo-late { animation: jarvis-halo 1.6s ease-out 0.4s infinite; }
-.jarvis-beat { animation: jarvis-beat 1.4s ease-in-out infinite; transform-origin: center; }
+/* Jarvis's "Reading your data…" dots. The chat head's beat and halo live in
+   JarvisBubble (Penny's keyframes, arrival-only), not here. */
 @keyframes jarvis-dot {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
@@ -493,9 +632,6 @@
   .pulse-rose,
   .logo-heartbeat,
   .brand-mark-beating,
-  .jarvis-halo,
-  .jarvis-halo-late,
-  .jarvis-beat,
   .jarvis-dot,
   .logo-neon:hover::before {
     animation: none !important;

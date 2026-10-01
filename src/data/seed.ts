@@ -14,6 +14,8 @@ export interface ActivityEntry {
   targets: string[];
   who: string;
   when: string;
+  /** The job ids this write touched. An entry without any shows on every job. */
+  jobs?: number[];
 }
 
 export type NotificationKind = "ok" | "red";
@@ -38,72 +40,120 @@ export interface PortalUpdate {
   source: string;
 }
 
+/**
+ * The audit log, newest first. Every entry names the job(s) it wrote to, so a
+ * job page only shows its own history. Dates follow each job's data in
+ * `jobs.ts` (Home's "today" is Wednesday 5 August 2026).
+ */
 export const SEED_ACTIVITY: ActivityEntry[] = [
   {
-    "type": "milestone",
-    "action": "Slab Down marked Completed",
-    "detail": "Builder date 18 Jul 2026 · stage advanced to Slab Down",
-    "targets": [
-      "Monday",
-      "HubSpot",
-      "Xero"
-    ],
-    "who": "S. Hart",
-    "when": "18 Jul, 09:14"
+    type: "import",
+    action: "Portal update applied",
+    detail: "Lock Up 24 Jul 2026 from the Constructive portal · stage advanced to Lock Up",
+    targets: ["Monday", "HubSpot"],
+    who: "System",
+    when: "Today, 06:04",
+    jobs: [1],
   },
   {
-    "type": "invoice",
-    "action": "Draft invoice created",
-    "detail": "Forma · approved in Accounts",
-    "targets": [
-      "Xero"
-    ],
-    "who": "System",
-    "when": "18 Jul, 09:14"
+    type: "conflict",
+    action: "Sync conflict flagged",
+    detail: "Slab Down date: Monday has 28 Jul 2026, CRM Dash has no date. HubSpot and Xero wait until it's resolved",
+    targets: [],
+    who: "System",
+    when: "3 Aug, 16:05",
+    jobs: [3],
   },
   {
-    "type": "details",
-    "action": "Site address corrected",
-    "detail": "Lot 361 Camperdown Way · typo fixed from builder pack",
-    "targets": [
-      "Monday",
-      "HubSpot"
-    ],
-    "who": "A. Carter",
-    "when": "2 Jul, 15:22"
+    type: "milestone",
+    action: "Slab Down date edited in Monday",
+    detail: "28 Jul 2026 typed into the Monday subitem directly, not through Launchpad",
+    targets: ["Monday"],
+    who: "S. Hart",
+    when: "3 Aug, 16:02",
+    jobs: [3],
   },
   {
-    "type": "import",
-    "action": "Portal update accepted",
-    "detail": "Plate Height 12 Jun 2026 from Constructive portal",
-    "targets": [
-      "Monday",
-      "HubSpot"
-    ],
-    "who": "S. Hart",
-    "when": "12 Jun, 08:03"
+    type: "milestone",
+    action: "Slab Down marked complete by the builder",
+    detail: "Move Homes confirmed the slab by phone, no completion date supplied · status Awaiting date",
+    targets: ["Monday"],
+    who: "S. Hart",
+    when: "29 Jul, 10:41",
+    jobs: [3],
   },
   {
-    "type": "milestone",
-    "action": "Moved to construction",
-    "detail": "8 construction subitems seeded on the Monday board",
-    "targets": [
-      "Monday"
-    ],
-    "who": "S. Hart",
-    "when": "2 May, 11:47"
+    type: "details",
+    action: "Site address corrected",
+    detail: "Lot 361 Camperdown Way · typo fixed from builder pack",
+    targets: ["Monday", "HubSpot"],
+    who: "A. Carter",
+    when: "2 Jul, 15:22",
+    jobs: [1],
   },
   {
-    "type": "details",
-    "action": "Job number entered",
-    "detail": "25431 · deal renamed, Builder Acceptance ticked",
-    "targets": [
-      "Monday",
-      "HubSpot"
-    ],
-    "who": "S. Hart",
-    "when": "18 Apr, 16:30"
-  }
+    type: "milestone",
+    action: "Moved to construction",
+    detail: "Site start 30 Jun 2026 · 8 construction subitems seeded on the Monday board",
+    targets: ["Monday", "HubSpot"],
+    who: "S. Hart",
+    when: "30 Jun, 11:47",
+    jobs: [3],
+  },
+  {
+    type: "milestone",
+    action: "Slab Down marked Completed",
+    detail: "Builder date 22 Jun 2026 · stage advanced to Slab Down",
+    targets: ["Monday", "HubSpot", "Xero"],
+    who: "S. Hart",
+    when: "22 Jun, 09:14",
+    jobs: [2],
+  },
+  {
+    type: "invoice",
+    action: "Draft invoice created",
+    detail: "INV-D-1042 · Forma · $17,500 + GST · awaiting approval in Accounts",
+    targets: ["Xero"],
+    who: "System",
+    when: "22 Jun, 09:14",
+    jobs: [2],
+  },
+  {
+    type: "import",
+    action: "Portal update accepted",
+    detail: "Roof Cover 12 Jun 2026 from the Constructive portal",
+    targets: ["Monday", "HubSpot"],
+    who: "S. Hart",
+    when: "12 Jun, 08:03",
+    jobs: [1],
+  },
+  {
+    type: "milestone",
+    action: "Moved to construction",
+    detail: "Site start 05 May 2026 · 8 construction subitems seeded on the Monday board",
+    targets: ["Monday", "HubSpot"],
+    who: "S. Hart",
+    when: "5 May, 11:47",
+    jobs: [2],
+  },
+  {
+    type: "details",
+    action: "Job number entered",
+    detail: "25501 · deal renamed, Builder Acceptance ticked",
+    targets: ["Monday", "HubSpot"],
+    who: "S. Hart",
+    when: "19 Mar, 16:30",
+    jobs: [3],
+  },
+  {
+    type: "details",
+    action: "Job number entered",
+    detail: "25431 · deal renamed, Builder Acceptance ticked",
+    targets: ["Monday", "HubSpot"],
+    who: "S. Hart",
+    when: "14 Nov 2025, 16:30",
+    jobs: [1],
+  },
 ];
 
 export const SEED_SUBMISSION_DOCS: SubmissionDoc[] = [
@@ -250,11 +300,11 @@ export const SEED_PORTAL_UPDATES: PortalUpdate[] = [
     "jobId": 6,
     "jobNo": "25478",
     "client": "S. and P. Nakamura",
-    "builder": "Forma",
+    "builder": "Move Homes",
     "kind": "construction",
     "milestone": "Lock Up",
     "date": "05 Aug 2026",
-    "source": "Constructive portal, 6:04am"
+    "source": "Move Homes portal, 6:10am"
   },
   {
     "id": "PU-312",
@@ -271,7 +321,7 @@ export const SEED_PORTAL_UPDATES: PortalUpdate[] = [
     "id": "PU-313",
     "jobId": 12,
     "jobNo": "",
-    "client": "L. Tan",
+    "client": "W. and K. Tan",
     "builder": "Forma",
     "kind": "move",
     "milestone": "Site start date detected in builder portal",

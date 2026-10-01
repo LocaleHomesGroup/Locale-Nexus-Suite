@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
  * Page chrome for a module screen.
  *
  *   <PageContainer>
- *     <PageHeader eyebrow="Operations" title="CRM Dash Sync" description="…" actions={<Button/>} />
+ *     <PageHeader title="CRM Dash Sync" description="…" actions={<Button/>} />
  *     …sections, gap-6 apart…
  *   </PageContainer>
  *
@@ -15,24 +15,26 @@ import { cn } from "@/lib/utils";
  *
  * The heading follows HRIS's shipped "work-surface heading" (§ 3.2.2 As shipped)
  * — no gradient hero — set in Libre Baskerville Bold per the Locale stylesheet.
+ * No eyebrow above it: the rail already names the dashboard, and a heading
+ * carries its own weight. Descriptions cap at ~70ch — running text never
+ * spans the full-width page.
  */
 export function PageContainer({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex w-full min-w-0 flex-col gap-6 px-4 pt-6 pb-12 sm:px-6 lg:px-8 lg:pt-8", className)}
+      // pb-28 below md: the last row clears Jarvis's floating button.
+      className={cn("flex w-full min-w-0 flex-col gap-6 px-4 pt-6 pb-28 sm:px-6 md:pb-12 lg:px-8 lg:pt-8", className)}
       {...props}
     />
   );
 }
 
 export function PageHeader({
-  eyebrow,
   title,
   description,
   actions,
   className,
 }: {
-  eyebrow?: React.ReactNode;
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
@@ -41,14 +43,9 @@ export function PageHeader({
   return (
     <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
       <div className="min-w-0">
-        {eyebrow ? (
-          <p className="mb-1 text-[10.5px] font-semibold tracking-[0.18em] text-haven-700 uppercase dark:text-haven-300">
-            {eyebrow}
-          </p>
-        ) : null}
         <h1 className="font-heading text-xl font-bold tracking-tight text-balance sm:text-2xl">{title}</h1>
         {description ? (
-          <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">{description}</p>
+          <p className="mt-1.5 max-w-[70ch] text-[13px] leading-relaxed text-pretty text-muted-foreground">{description}</p>
         ) : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}

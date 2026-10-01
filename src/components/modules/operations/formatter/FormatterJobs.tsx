@@ -14,7 +14,7 @@ export function FormatterJobs() {
   return (
     <Reveal index={0}>
       <Card className="min-w-0 overflow-hidden">
-        <Table className="min-w-[640px] text-[12.5px]">
+        <Table className="min-w-[640px] text-[13px]">
           <caption className="sr-only">Doc formatter jobs</caption>
           <TableHeader>
             <TableRow className="hover:bg-transparent dark:hover:bg-transparent">
@@ -32,7 +32,7 @@ export function FormatterJobs() {
               const complete = job.status === "Complete";
               return (
                 <TableRow key={job.file}>
-                  <TableCell className="pl-4 font-mono text-[11.5px] font-semibold">{job.file}</TableCell>
+                  <TableCell className="pl-4 font-mono text-xs font-semibold">{job.file}</TableCell>
                   <TableCell className="text-muted-foreground">{job.template}</TableCell>
                   <TableCell>
                     <Pill tone={complete ? "ok" : "neutral"} variant="caps" icon={complete ? CircleCheck : Clock}>
@@ -46,16 +46,16 @@ export function FormatterJobs() {
                         <Button
                           variant="outline"
                           size="xs"
-                          className="font-semibold text-haven-700 dark:text-haven-300"
+                          className="font-semibold text-tone-ink"
                           aria-label={`Download ${job.file}`}
                           onClick={() => confirm("Download started", `${job.file} · ${job.template}`)}
                         >
                           <Download aria-hidden /> Download
                         </Button>
-                        <span className="mt-1 text-[10px] whitespace-nowrap text-subtle-foreground">{job.note}</span>
+                        <span className="mt-1 text-xs whitespace-nowrap text-subtle-foreground">{job.note}</span>
                       </span>
                     ) : (
-                      <span className="text-[11px] text-subtle-foreground">expired</span>
+                      <span className="text-xs text-subtle-foreground">expired</span>
                     )}
                   </TableCell>
                 </TableRow>

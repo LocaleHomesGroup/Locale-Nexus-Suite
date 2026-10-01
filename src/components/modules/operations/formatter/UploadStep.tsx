@@ -5,13 +5,16 @@ import { Check, Circle, FileText, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pill } from "@/components/ui/pill";
-import { OUTPUT_TEMPLATES, SAMPLE_FILE } from "./data";
+import { Pill, type PillTone } from "@/components/ui/pill";
+import { OUTPUT_TEMPLATES, SAMPLE_FILE, type TemplateBrand } from "./data";
 
 export interface PickedFile {
   name: string;
   size: string;
 }
+
+/** A template's sub-brand: Homes is Haven, Wealth is Sky Blue, Group (the master brand) stays neutral. */
+const BRAND_TONE: Record<TemplateBrand, PillTone> = { Homes: "haven", Wealth: "skyblue", Group: "neutral" };
 
 /**
  * New job → upload. The drop zone is simulated: clicking it (or dropping any
@@ -53,26 +56,26 @@ export function UploadStep({
         className={cn(
           "flex w-full cursor-pointer flex-col items-center rounded-xl border-[1.5px] border-dashed px-5 py-7 text-center transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
           file || dragging
-            ? "border-haven-400 bg-haven-50 dark:border-haven-600 dark:bg-haven-950/40"
-            : "border-border bg-canvas hover:border-haven-300 hover:bg-haven-50/50 dark:bg-white/[0.02] dark:hover:border-haven-800 dark:hover:bg-haven-950/25",
+            ? "border-tone-strong bg-tone-soft"
+            : "border-border bg-canvas hover:border-tone-line hover:bg-tone-soft/50 dark:bg-white/[0.02]",
         )}
       >
         {file ? (
           <>
-            <FileText className="size-6.5 text-haven-700 dark:text-haven-300" aria-hidden />
+            <FileText className="size-6.5 text-tone-ink" aria-hidden />
             <span className="mt-2 font-mono text-[13px] font-semibold">{file.name}</span>
-            <span className="mt-0.5 text-[11.5px] text-muted-foreground">{file.size} · click to remove</span>
+            <span className="mt-0.5 text-xs text-muted-foreground">{file.size} · click to remove</span>
           </>
         ) : (
           <>
             <Upload className="size-6.5 text-muted-foreground" aria-hidden />
             <span className="mt-2 text-[13px]">
               Drop a file here, or{" "}
-              <span className="font-semibold text-haven-700 underline-offset-2 hover:underline dark:text-haven-300">
+              <span className="font-semibold text-tone-ink underline-offset-2 hover:underline">
                 browse
               </span>
             </span>
-            <span className="mt-0.5 text-[11.5px] text-subtle-foreground">PDF, XLSX, XLS or CSV · up to 25 MB</span>
+            <span className="mt-0.5 text-xs text-subtle-foreground">PDF, XLSX, XLS or CSV · up to 25 MB</span>
           </>
         )}
       </button>
@@ -92,8 +95,8 @@ export function UploadStep({
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                 on
-                  ? "border-haven-300 bg-haven-50 dark:border-haven-800 dark:bg-haven-950/40"
-                  : "border-hairline bg-card hover:border-haven-300 dark:hover:border-haven-800",
+                  ? "border-tone-line bg-tone-soft"
+                  : "border-hairline bg-card hover:border-tone-line",
               )}
             >
               {on ? (
@@ -101,8 +104,8 @@ export function UploadStep({
               ) : (
                 <Circle className="size-3.5 shrink-0 text-subtle-foreground" aria-hidden />
               )}
-              <span className="min-w-0 flex-1 text-[12.5px]">{t.name}</span>
-              <Pill tone={t.brand === "Wealth" ? "skyblue" : "haven"} className="px-2 py-px text-[11px]">
+              <span className="min-w-0 flex-1 text-[13px]">{t.name}</span>
+              <Pill tone={BRAND_TONE[t.brand]} className="px-2 py-px text-xs">
                 {t.brand}
               </Pill>
             </button>

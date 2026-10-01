@@ -2,13 +2,16 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun } from "lucide-react";
+import { Moon } from "lucide-react";
 import { withViewTransition } from "@/lib/with-view-transition";
 import { cn } from "@/lib/utils";
+import { SidebarFocusTile } from "./CollapsibleSidebarShell";
 
 /**
- * Light / dark toggle — HRIS § 4.2. Wrapped in a View Transition so the swap
- * cross-fades. The trailing glyph shows what tapping will switch TO.
+ * Light / dark — HRIS § 4.2, as a switch row in the rail's pinned footer.
+ * Wrapped in a View Transition so the swap cross-fades. The knob's position
+ * comes from the `dark` class (set before first paint), not from JS state, so
+ * it never jumps after hydration.
  */
 export function ThemeToggle({ collapsed, className }: { collapsed: boolean; className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -19,20 +22,23 @@ export function ThemeToggle({ collapsed, className }: { collapsed: boolean; clas
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={isDark}
       onClick={() => withViewTransition(() => setTheme(isDark ? "light" : "dark"))}
-      title={collapsed ? (isDark ? "Dark mode" : "Light mode") : undefined}
-      aria-label="Toggle dark mode"
+      data-rail-tip={isDark ? "Dark theme: on" : "Dark theme: off"}
       className={cn(
-        "sb-row mt-3 mb-1 flex w-full items-center justify-between rounded-md border px-2.5 py-2 text-left",
+        "group/row sb-row relative flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] font-medium text-zinc-600 dark:text-zinc-400",
+        "hover:bg-black/[0.04] hover:text-zinc-900 dark:hover:bg-white/[0.06] dark:hover:text-zinc-100",
+        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+        collapsed && "md:ring-0!",
         className,
       )}
     >
-      <span className="flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-        {isDark ? <Moon className="size-4 shrink-0" /> : <Sun className="size-4 shrink-0" />}
-        <span className="sb-collapse-fade">{isDark ? "Dark" : "Light"}</span>
-      </span>
-      <span className="sb-collapse-fade text-zinc-400" aria-hidden>
-        {isDark ? "☀" : "☾"}
+      <SidebarFocusTile collapsed={collapsed} />
+      <Moon className="relative size-[15px] shrink-0" aria-hidden />
+      <span className="sb-collapse-fade min-w-0 flex-1 truncate">Dark theme</span>
+      <span aria-hidden className="sb-collapse-fade relative mr-0.5 h-4 w-7 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-200">
+        <span className="absolute top-0.5 left-0.5 size-3 rounded-full bg-white shadow-sm dark:translate-x-3 dark:bg-charcoal" />
       </span>
     </button>
   );

@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { JOBS, LOT_DETAILS, type Job, type LotDetail, type SubmissionDoc } from "@/data/jobs";
 import {
+  SEED_CLAIMS,
+  SEED_INVOICES,
+  cents,
+  type BuilderInvoice,
+  type ClaimDecision,
+  type ExpenseClaim,
+} from "@/data/accounts";
+import { undoable } from "@/lib/undoable";
+import { aud } from "@/lib/utils";
+import {
   SEED_ACTIVITY,
   SEED_NOTIFICATIONS,
   SEED_PORTAL_UPDATES,
@@ -57,7 +67,8 @@ interface LaunchpadStore {
 
   /** Audit log shown on the job detail page, newest first. */
   activity: ActivityEntry[];
-  logActivity: (type: ActivityType, action: string, detail: string, targets: string[]) => void;
+  /** Record a write. `jobs` scopes it to the job(s) it touched, so each job page shows only its own. */
+  logActivity: (type: ActivityType, action: string, detail: string, targets: string[], jobs?: number | number[]) => void;
 
   notifications: AppNotification[];
   /** Add a notification (newest first). `kind: "red"` marks it as needing action. */
@@ -68,6 +79,26 @@ interface LaunchpadStore {
   /** Builder-portal and email updates waiting for a human in Operations. */
   portalUpdates: PortalUpdate[];
   setPortalUpdates: React.Dispatch<React.SetStateAction<PortalUpdate[]>>;
+
+  /**
+   * Builder invoices, approved in Accounts and read by Home and Jarvis. An
+   * invoice inside its undo window is still "Draft": nothing has gone to Xero
+   * or the builder yet, so it still counts as waiting everywhere.
+   */
+  invoices: BuilderInvoice[];
+  setInvoices: React.Dispatch<React.SetStateAction<BuilderInvoice[]>>;
+  /** Invoice ids inside their undo window. Accounts shows these as "Sending". */
+  sendingInvoices: ReadonlySet<string>;
+  /** Approve one or more drafts behind a single 6s undo window. Only the commit approves. */
+  approveInvoices: (ids: string[]) => void;
+
+  /** Expense claims, decided in Accounts. A claim inside its undo window is still "Awaiting approval". */
+  claims: ExpenseClaim[];
+  setClaims: React.Dispatch<React.SetStateAction<ExpenseClaim[]>>;
+  /** Decisions inside their undo window, keyed by claim name (`ExpenseClaim.claim`). */
+  decidingClaims: Readonly<Record<string, ClaimDecision>>;
+  /** Approve or decline a claim behind a 6s undo window. Only the commit changes its status. */
+  decideClaim: (claim: string, decision: ClaimDecision) => void;
 
   /** The Nguyen deal submission — edited by the rep in Sales, reviewed by Ops. */
   submissionDocs: SubmissionDoc[];
@@ -98,6 +129,10 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
   const [portalUpdates, setPortalUpdates] = useState<PortalUpdate[]>(SEED_PORTAL_UPDATES);
   const [submissionDocs, setSubmissionDocs] = useState<SubmissionDoc[]>(SEED_SUBMISSION_DOCS);
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>("draft");
+  const [invoices, setInvoices] = useState<BuilderInvoice[]>(SEED_INVOICES);
+  const [sendingInvoices, setSendingInvoices] = useState<ReadonlySet<string>>(() => new Set());
+  const [claims, setClaims] = useState<ExpenseClaim[]>(SEED_CLAIMS);
+  const [decidingClaims, setDecidingClaims] = useState<Readonly<Record<string, ClaimDecision>>>({});
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -115,13 +150,97 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
     setLotDetails((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }, []);
 
-  const logActivity = useCallback<LaunchpadStore["logActivity"]>((type, action, detail, targets) => {
-    setActivity((prev) => [{ type, action, detail, targets, who: "S. Hart", when: "Just now" }, ...prev]);
+  const logActivity = useCallback<LaunchpadStore["logActivity"]>((type, action, detail, targets, jobs) => {
+    const scope = jobs === undefined ? undefined : Array.isArray(jobs) ? jobs : [jobs];
+    setActivity((prev) => [{ type, action, detail, targets, who: "S. Hart", when: "Just now", jobs: scope }, ...prev]);
   }, []);
 
   const notify = useCallback<LaunchpadStore["notify"]>((msg, kind = "ok") => {
     setNotifications((prev) => [{ msg, when: "Just now", kind }, ...prev]);
   }, []);
+
+  // Accounts writes. Refs hold the latest lists and the in-window ids, so a
+  // double click can't start two windows for one invoice before a re-render.
+  const invoicesRef = useRef(invoices);
+  invoicesRef.current = invoices;
+  const claimsRef = useRef(claims);
+  claimsRef.current = claims;
+  const sendingRef = useRef(new Set<string>());
+  const decidingRef = useRef(new Map<string, ClaimDecision>());
+
+  const markSending = useCallback((ids: string[], on: boolean) => {
+    ids.forEach((id) => (on ? sendingRef.current.add(id) : sendingRef.current.delete(id)));
+    setSendingInvoices(new Set(sendingRef.current));
+  }, []);
+
+  const approveInvoices = useCallback<LaunchpadStore["approveInvoices"]>(
+    (ids) => {
+      const list = invoicesRef.current.filter(
+        (i) => ids.includes(i.id) && i.status === "Draft" && !sendingRef.current.has(i.id),
+      );
+      if (list.length === 0) return;
+      const listIds = list.map((i) => i.id);
+      const total = list.reduce((sum, i) => sum + i.amount, 0);
+      const builders = [...new Set(list.map((i) => i.builder))];
+      const one = list.length === 1 ? list[0] : null;
+      markSending(listIds, true);
+      undoable({
+        message: one
+          ? `Sending ${one.id} to ${one.builder}`
+          : `Sending ${list.length} invoices to ${builders.length === 1 ? builders[0] : `${builders.length} builders`}`,
+        description: `${aud(total)} + GST · approves in Xero`,
+        commit: () => {
+          setInvoices((prev) =>
+            prev.map((u) =>
+              listIds.includes(u.id) && u.status === "Draft" ? { ...u, status: "Approved", approvedNow: true } : u,
+            ),
+          );
+          markSending(listIds, false);
+          list.forEach((inv) => notify(`Invoice approved — ${inv.job} ${inv.stage}`));
+        },
+        undo: () => markSending(listIds, false),
+        done: one
+          ? { message: `${one.id} sent to ${one.builder}`, description: `Approved in Xero · ${one.job} ${one.stage}` }
+          : { message: `${list.length} invoices sent`, description: `Approved in Xero · ${listIds.join(", ")}` },
+      });
+    },
+    [markSending, notify],
+  );
+
+  const markDeciding = useCallback((claim: string, decision: ClaimDecision | null) => {
+    if (decision) decidingRef.current.set(claim, decision);
+    else decidingRef.current.delete(claim);
+    setDecidingClaims(Object.fromEntries(decidingRef.current));
+  }, []);
+
+  const decideClaim = useCallback<LaunchpadStore["decideClaim"]>(
+    (claim, decision) => {
+      const c = claimsRef.current.find((x) => x.claim === claim);
+      if (!c || c.status !== "Awaiting approval" || decidingRef.current.has(claim)) return;
+      const approving = decision === "Approved";
+      markDeciding(claim, decision);
+      undoable({
+        message: `${approving ? "Approving" : "Declining"} ${c.claim} for ${c.staff}`,
+        description: approving
+          ? `${cents(c.amount)} · codes to ${c.code} · ${c.account} in Xero`
+          : `${cents(c.amount)} · ${c.staff} is told`,
+        commit: () => {
+          setClaims((prev) =>
+            prev.map((x) => (x.claim === claim && x.status === "Awaiting approval" ? { ...x, status: decision } : x)),
+          );
+          markDeciding(claim, null);
+        },
+        undo: () => markDeciding(claim, null),
+        done: approving
+          ? {
+              message: "Expense claim approved",
+              description: `${c.claim} · ${c.staff} · ${cents(c.amount)} · coded ${c.code} · ${c.account} in Xero`,
+            }
+          : { message: "Expense claim declined", description: `${c.claim} · ${c.staff} · ${cents(c.amount)}` },
+      });
+    },
+    [markDeciding],
+  );
 
   const dismissNotification = useCallback((index: number) => {
     setNotifications((prev) => prev.filter((_, i) => i !== index));
@@ -155,6 +274,14 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
       setSubmissionDocs,
       submissionStatus,
       setSubmissionStatus,
+      invoices,
+      setInvoices,
+      sendingInvoices,
+      approveInvoices,
+      claims,
+      setClaims,
+      decidingClaims,
+      decideClaim,
       go,
       openJob,
       later,
@@ -173,6 +300,12 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
       portalUpdates,
       submissionDocs,
       submissionStatus,
+      invoices,
+      sendingInvoices,
+      approveInvoices,
+      claims,
+      decidingClaims,
+      decideClaim,
       go,
       openJob,
       later,

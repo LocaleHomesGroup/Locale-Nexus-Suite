@@ -26,7 +26,7 @@ export function MyClients() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Sales" title="My clients" description="You only see clients assigned to you." />
+      <PageHeader title="My clients" description="You only see clients assigned to you." />
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {mine.map((j, i) => {
@@ -39,13 +39,13 @@ export function MyClients() {
               <button
                 type="button"
                 onClick={() => openJob(j.id)}
-                className="group flex h-full w-full flex-col rounded-xl border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-haven-300 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:hover:border-haven-800"
+                className="group flex h-full w-full flex-col rounded-xl border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-tone-line hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="text-[13px] font-semibold">{j.client}</span>
                   <span
                     className={cn(
-                      "shrink-0 text-[11px] text-muted-foreground",
+                      "shrink-0 text-xs text-muted-foreground",
                       j.jobNo ? "font-mono tabular-nums" : "italic",
                     )}
                   >
@@ -62,7 +62,7 @@ export function MyClients() {
                   label={building ? `${complete} of ${total} milestones` : "Awaiting site start"}
                   className="mt-auto"
                 />
-                <span className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                <span className="mt-1.5 text-xs text-muted-foreground tabular-nums">
                   {building ? `${complete} of ${total} milestones` : "Awaiting site start"}
                 </span>
               </button>
@@ -110,7 +110,7 @@ export function MyClients() {
                             animate={{ opacity: 1, transition: { duration: 0.18 } }}
                             exit={{ opacity: 0, transition: { duration: 0.1 } }}
                           >
-                            <Circle className="size-3.5 text-subtle-foreground group-hover:text-haven-600 dark:group-hover:text-haven-300" />
+                            <Circle className="size-3.5 text-subtle-foreground group-hover:text-tone-ink" />
                           </motion.span>
                         )}
                       </AnimatePresence>

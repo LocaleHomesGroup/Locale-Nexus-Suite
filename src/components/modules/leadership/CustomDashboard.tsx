@@ -42,7 +42,6 @@ export function CustomDashboard({ state }: { state: CustomDashboardState }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Leadership"
         title={
           <>
             Custom dashboard{" "}
@@ -80,7 +79,7 @@ export function CustomDashboard({ state }: { state: CustomDashboardState }) {
                       className="flex items-center gap-2 border-t border-hairline py-1.5 text-xs first:border-t-0"
                     >
                       {v.active ? (
-                        <Check className="size-3 shrink-0 text-haven-700 dark:text-haven-300" aria-hidden />
+                        <Check className="size-3 shrink-0 text-tone-ink" aria-hidden />
                       ) : (
                         <span className="size-3 shrink-0 rounded-full border border-granite/50 dark:border-zinc-500" aria-hidden />
                       )}
@@ -111,10 +110,10 @@ export function CustomDashboard({ state }: { state: CustomDashboardState }) {
 
         <div className="flex min-w-0 flex-col gap-5">
           <Reveal index={1}>
-            <Card className="border-haven-300 dark:border-haven-800">
+            <Card className="border-tone-line">
               <CardHeader className="pb-3">
                 <CardTitle>Preview</CardTitle>
-                <Pill tone="skyblue">{period}</Pill>
+                <Pill tone="neutral">{period}</Pill>
                 <CardMeta>
                   {selected.length} widget{selected.length !== 1 ? "s" : ""}
                 </CardMeta>
@@ -189,7 +188,7 @@ export function CustomDashboard({ state }: { state: CustomDashboardState }) {
 /** Tiny-caps panel label — the mockup's builder side panels use caps, not the serif title. */
 function PanelLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[10.5px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">{children}</h2>
+    <h2 className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">{children}</h2>
   );
 }
 
@@ -208,7 +207,7 @@ function MetricLibrary({
       <CardContent className="flex flex-col gap-3">
         {METRIC_GROUPS.map((g) => (
           <div key={g} role="group" aria-labelledby={`metric-group-${g}`}>
-            <p id={`metric-group-${g}`} className="mb-1 text-[11px] text-subtle-foreground">
+            <p id={`metric-group-${g}`} className="mb-1 text-xs text-subtle-foreground">
               {g}
             </p>
             <div className="flex flex-col gap-0.5">
@@ -223,7 +222,7 @@ function MetricLibrary({
                     className={cn(
                       "flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                       on
-                        ? "border-haven-300 bg-haven-50 text-foreground dark:border-haven-800 dark:bg-haven-950/40"
+                        ? "border-tone-line bg-tone-soft text-foreground"
                         : "border-transparent text-foreground hover:bg-muted",
                     )}
                   >
@@ -231,7 +230,7 @@ function MetricLibrary({
                       className={cn(
                         "flex size-3.5 shrink-0 items-center justify-center rounded-full transition-colors",
                         on
-                          ? "bg-haven-600 text-white dark:bg-haven-300 dark:text-haven-950"
+                          ? "bg-tone-fill text-tone-on-fill"
                           : "border border-granite/50 dark:border-zinc-500",
                       )}
                       aria-hidden
@@ -240,7 +239,7 @@ function MetricLibrary({
                     </span>
                     <span className="min-w-0 flex-1">{m.label}</span>
                     {m.type !== "kpi" ? (
-                      <span className="text-[9px] font-semibold tracking-[0.1em] text-subtle-foreground uppercase">
+                      <span className="text-[10px] font-semibold tracking-[0.1em] text-subtle-foreground uppercase">
                         {m.type}
                       </span>
                     ) : null}
@@ -316,7 +315,7 @@ function ForecastBars() {
       data={FORECAST.map((f) => ({
         key: f.month,
         value: f.value,
-        tone: f.value === peak ? "haven" : "skyblue",
+        tone: f.value === peak ? "emphasis" : "base",
         bottom: `${f.month} · $${f.value}k`,
       }))}
     />
