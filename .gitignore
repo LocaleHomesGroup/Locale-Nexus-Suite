@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.env*.local
+.DS_Store
+
+# Brand source assets — kept locally, not published (repo is public)
+Reference/
+
+# Local design-tool cache
+.impeccable/

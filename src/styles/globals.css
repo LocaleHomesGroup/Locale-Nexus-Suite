@@ -1,0 +1,510 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+/* ==========================================================================
+   Locale Launchpad — design tokens
+   Structure, motion and density follow Simple HRIS (docs/design/ui-standards.md
+   in that repo). Colour, type and logo come from the Locale brand kit
+   (Reference/Logos & Fonts/LOCALE STYLESHEET_NOV25.pdf):
+
+     Master brand   Charcoal #323232 · Granite #737373 · Silver #F2F2F2
+     Sub-brands     Haven Green #9CE3DB (Homes) · Nectar #F7D4B7 (Financial)
+                    Sky Blue #C8D5F5 (Wealth)
+     Type           Headings Libre Baskerville Bold · Sub-headings Manrope Medium
+                    Body Manrope Regular · Accent Libre Baskerville Italic
+
+   Each sub-brand colour sits at the 300 step of its ramp — they are light
+   tints, so none of them can carry small text on white. Text accents use the
+   700 step (4.5:1+ on white) or charcoal.
+   ========================================================================== */
+
+@theme {
+  --color-charcoal: #323232;
+  --color-granite: #737373;
+  --color-silver: #f2f2f2;
+
+  /* Haven Green — Homes. The Launchpad's primary accent. */
+  --color-haven-50: #f0fbf9;
+  --color-haven-100: #ddf6f2;
+  --color-haven-200: #c0eee8;
+  --color-haven-300: #9ce3db;
+  --color-haven-400: #6acfc4;
+  --color-haven-500: #3db3a7;
+  --color-haven-600: #1f9185;
+  --color-haven-700: #16746b;
+  --color-haven-800: #155c56;
+  --color-haven-900: #144b47;
+  --color-haven-950: #062c2a;
+
+  /* Nectar — Financial. */
+  --color-nectar-50: #fef7f1;
+  --color-nectar-100: #fcede0;
+  --color-nectar-200: #f9dfca;
+  --color-nectar-300: #f7d4b7;
+  --color-nectar-400: #f0b386;
+  --color-nectar-500: #e69059;
+  --color-nectar-600: #d2703a;
+  --color-nectar-700: #af5730;
+  --color-nectar-800: #8c472d;
+  --color-nectar-900: #713c28;
+  --color-nectar-950: #3d1c12;
+
+  /* Sky Blue — Wealth. Named `skyblue` so it never collides with Tailwind's `sky`. */
+  --color-skyblue-50: #f5f7fe;
+  --color-skyblue-100: #ebf0fc;
+  --color-skyblue-200: #dae3f9;
+  --color-skyblue-300: #c8d5f5;
+  --color-skyblue-400: #a3b6ee;
+  --color-skyblue-500: #7b92e4;
+  --color-skyblue-600: #5b6fd6;
+  --color-skyblue-700: #4957bf;
+  --color-skyblue-800: #3e499b;
+  --color-skyblue-900: #36407b;
+  --color-skyblue-950: #232848;
+
+  --radius: 0.75rem;
+}
+
+/* Fonts are loaded by next/font in app/layout.tsx, which sets these variables
+   on <html>. `inline` so the utilities resolve the runtime variable. */
+@theme inline {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-libre), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-hairline: var(--hairline);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  /* Light — white surfaces, charcoal ink, Haven Green accent. */
+  :root {
+    --background: #ffffff;
+    --foreground: #28282a;
+    --canvas: #f7f7f8;
+    /* Panels are translucent, HRIS-style (`bg-white/80`): the page's own tint
+       shows through, so a table reads as part of the dashboard rather than a
+       slab laid on top. Pop-ups keep the opaque --popover. */
+    --card: rgb(255 255 255 / 0.7);
+    --card-foreground: #28282a;
+    --popover: #ffffff;
+    --popover-foreground: #28282a;
+    /* Primary action = charcoal with Haven Green ink, the Locale pairing (9.5:1). */
+    --primary: #323232;
+    --primary-foreground: #9ce3db;
+    --secondary: #f2f2f2;
+    --secondary-foreground: #323232;
+    --muted: #f2f2f2;
+    /* #5f5e5a on white = 6.6:1, on silver = 6.0:1 — safe for small text. */
+    --muted-foreground: #5f5e5a;
+    /* Tertiary ink (captions, timestamps). #737373 Granite = 4.7:1 on white. */
+    --subtle-foreground: #737373;
+    --accent: #9ce3db;
+    --accent-foreground: #1c2b29;
+    --destructive: #be123c;
+    --destructive-foreground: #ffffff;
+    --border: #e4e4e7;
+    --hairline: #ededee;
+    --input: #dcdcdf;
+    --ring: #3db3a7;
+  }
+
+  /* Dark — charcoal family (not HRIS navy) so the brand stays Locale's. */
+  .dark {
+    --background: #141416;
+    --foreground: #ececee;
+    --canvas: #111113;
+    /* Near-transparent: the dark page shows through and hairlines do the
+       separating — no grey slab under tables (KPI tiles stay pure black). */
+    --card: rgb(255 255 255 / 0.025);
+    --card-foreground: #ececee;
+    --popover: #1f1f23;
+    --popover-foreground: #ececee;
+    --primary: #9ce3db;
+    --primary-foreground: #142321;
+    --secondary: #26262a;
+    --secondary-foreground: #ececee;
+    --muted: #26262a;
+    --muted-foreground: #a8a8b0;
+    --subtle-foreground: #8b8b94;
+    --accent: #9ce3db;
+    --accent-foreground: #142321;
+    --destructive: #fb7185;
+    --destructive-foreground: #1c0a0e;
+    --border: #2e2e33;
+    --hairline: #26262b;
+    --input: #37373d;
+    --ring: #6acfc4;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  ::selection {
+    background: rgb(156 227 219 / 0.55);
+    color: #1c2b29;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(115 115 115 / 0.28);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(22 116 107 / 0.55);
+  }
+
+  /* Theme swap cross-fade via the View Transitions API (HRIS § 14.6). */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  ::view-transition-old(root) {
+    animation-name: theme-fade-out;
+  }
+  ::view-transition-new(root) {
+    animation-name: theme-fade-in;
+  }
+}
+
+@keyframes theme-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes theme-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Smooth theme transitions — colours only, never layout (HRIS index.css). */
+*,
+*::before,
+*::after {
+  transition-property: background-color, color, border-color, box-shadow, fill, stroke, filter;
+  transition-duration: 260ms;
+  transition-timing-function: ease;
+}
+
+/* ── Collapsible sidebar rail — one source of truth for the collapse feel ── */
+:root {
+  --sb-collapse-ms: 700ms;
+  --sb-collapse-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (min-width: 768px) {
+  [data-collapsible-rail] {
+    transition-property: width, transform !important;
+    transition-duration: var(--sb-collapse-ms) !important;
+    transition-timing-function: var(--sb-collapse-ease) !important;
+  }
+}
+
+.sb-collapse-fade {
+  transition-property: opacity, transform;
+  transition-duration: var(--sb-collapse-ms);
+  transition-timing-function: var(--sb-collapse-ease);
+}
+@media (min-width: 768px) {
+  .sb-collapse-fade {
+    transition-duration: calc(var(--sb-collapse-ms) * 0.7);
+    transition-delay: calc(var(--sb-collapse-ms) * 0.3);
+  }
+  [data-collapsed="true"] .sb-collapse-fade {
+    opacity: 0;
+    transform: translateX(-0.5rem);
+    transition-duration: calc(var(--sb-collapse-ms) * 0.55);
+    transition-delay: 0s;
+  }
+  /* View switcher / user card: when the rail collapses, shed the card chrome so
+     only the icons remain (HRIS .vs-collapse-box). Colours only — the padding
+     stays put, so nothing re-lays-out while the rail animates. */
+  .vs-collapse-box {
+    transition-property: border-color, background-color;
+    transition-duration: var(--sb-collapse-ms);
+    transition-timing-function: var(--sb-collapse-ease);
+  }
+  [data-collapsed="true"] .vs-collapse-box {
+    border-color: transparent;
+    background-color: transparent;
+    background-image: none;
+  }
+  /* …and the switcher's rows slide 6px left (transform) so their icons line up
+     with the nav icons above, as the shed padding used to do. */
+  .vs-collapse-nudge {
+    transition-property: transform;
+    transition-duration: var(--sb-collapse-ms);
+    transition-timing-function: var(--sb-collapse-ease);
+  }
+  [data-collapsed="true"] .vs-collapse-nudge {
+    transform: translateX(-6px);
+  }
+  /* Collapsed rail geometry. The panel keeps its full width (nothing re-flows);
+     three compositor-only moves make the 64px strip read as a clean icon column:
+     1. `.sb-collapse-shift` slides each column 6px left so icons sit centred in
+        the strip instead of 5px right of it;
+     2. `.sb-row` clips every row to a 36px rounded tile with clip-path, so the
+        selected row reads as an icon tile rather than a pill cut off by the edge;
+     3. `.vs-collapse-box` (above) sheds the card chrome. */
+  .sb-collapse-shift {
+    transition-property: transform;
+    transition-duration: var(--sb-collapse-ms);
+    transition-timing-function: var(--sb-collapse-ease);
+  }
+  [data-collapsed="true"] .sb-collapse-shift {
+    transform: translateX(-6px);
+  }
+  .sb-row {
+    /* Expanded: the clip sits 6px OUTSIDE the row, so shadows and focus rings
+       are never trimmed; it only bites as the rail collapses. */
+    clip-path: inset(-6px -6px -6px -6px round 0.5rem);
+    transition-property: clip-path, color, background-color, box-shadow, transform, opacity;
+    transition-duration: var(--sb-collapse-ms), 300ms, 300ms, 300ms, 300ms, 300ms;
+    transition-timing-function: var(--sb-collapse-ease);
+  }
+  [data-collapsed="true"] .sb-row {
+    clip-path: inset(0 calc(100% - 2.25rem) 0 0 round 0.375rem);
+  }
+  /* Nested nav rows slide their indent away when collapsed so their icons line
+     up with the rest of the 64px column. Transform, not padding — nothing
+     re-lays-out while the rail animates. */
+  .sb-collapse-indent {
+    transition-property: transform;
+    transition-duration: var(--sb-collapse-ms);
+    transition-timing-function: var(--sb-collapse-ease);
+  }
+  [data-collapsed="true"] .sb-collapse-indent {
+    transform: translateX(-1rem);
+  }
+}
+
+/* The switcher row being switched to: a light sweep (HRIS viewswitch-shimmer). */
+@keyframes viewswitch-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.viewswitch-shimmer {
+  animation: viewswitch-shimmer 500ms ease-out forwards;
+}
+
+/* ── Sidebar logo — neon running border on hover + periodic slide-in beat ──
+   HRIS `.logo-neon` / `.logo-heartbeat`, recoloured to the three Locale
+   sub-brand tints so the ring reads as the brand family. */
+@property --neon-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes neon-spin {
+  from { --neon-angle: 0deg; }
+  to { --neon-angle: 360deg; }
+}
+.logo-neon {
+  position: relative;
+  display: block;
+  border-radius: 8px;
+  padding: 3px;
+  text-decoration: none;
+}
+.logo-neon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: conic-gradient(
+    from var(--neon-angle),
+    transparent 0deg,
+    #9ce3db 60deg,
+    #c8d5f5 100deg,
+    #f7d4b7 140deg,
+    transparent 190deg
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+}
+.logo-neon:hover::before {
+  opacity: 1;
+  animation: neon-spin 3.5s linear infinite;
+}
+.logo-neon__inner {
+  position: relative;
+  z-index: 1;
+  border-radius: 6px;
+}
+
+@keyframes logo-word-slide {
+  0% { transform: translateX(-115%); opacity: 0; }
+  65% { transform: translateX(5%); opacity: 1; }
+  82% { transform: translateX(-2%); }
+  100% { transform: translateX(0); opacity: 1; }
+}
+.logo-heartbeat {
+  animation: logo-word-slide 1s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+}
+
+@keyframes brand-mark-beat {
+  0%, 26%, 60%, 100% { transform: scale(1); }
+  13% { transform: scale(1.12); }
+  38% { transform: scale(1.04); }
+}
+.brand-mark-beating {
+  animation: brand-mark-beat 3.2s ease-in-out 800ms infinite;
+  transform-origin: center;
+}
+
+/* ── Attention rings (from the Launchpad mockup's lh-pulse) ──
+   A soft ring that radiates from something that needs a decision. Paired with
+   visible text every time — the ring is decoration, never the only signal. */
+@keyframes pulse-ring-haven {
+  0% { box-shadow: 0 0 0 0 rgb(22 116 107 / 0.45); }
+  100% { box-shadow: 0 0 0 14px rgb(22 116 107 / 0); }
+}
+@keyframes pulse-ring-rose {
+  0% { box-shadow: 0 0 0 0 rgb(225 29 72 / 0.4); }
+  100% { box-shadow: 0 0 0 14px rgb(225 29 72 / 0); }
+}
+@keyframes pulse-ring-haven-dark {
+  0% { box-shadow: 0 0 0 0 rgb(156 227 219 / 0.6); }
+  100% { box-shadow: 0 0 0 16px rgb(156 227 219 / 0); }
+}
+@keyframes pulse-ring-rose-dark {
+  0% { box-shadow: 0 0 0 0 rgb(251 113 133 / 0.55); }
+  100% { box-shadow: 0 0 0 16px rgb(251 113 133 / 0); }
+}
+.pulse-haven { animation: pulse-ring-haven 2.2s ease-out infinite; }
+.pulse-rose { animation: pulse-ring-rose 1.8s ease-out infinite; }
+.dark .pulse-haven { animation-name: pulse-ring-haven-dark; }
+.dark .pulse-rose { animation-name: pulse-ring-rose-dark; }
+
+/* Generic shimmer skeleton (HRIS `.skeleton-shimmer`). */
+@keyframes skeleton-shimmer-sweep {
+  0% { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
+}
+.skeleton-shimmer {
+  background-color: rgb(228 228 231);
+  background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.85) 50%, transparent 100%);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer-sweep 1.6s linear infinite;
+}
+.dark .skeleton-shimmer {
+  background-color: rgb(39 39 42);
+  background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%);
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Jarvis bubble — HRIS Penny AI's beating chat head, with the Locale "L" ──
+   A soft halo ripples out (two staggered rings) and the mark beats lub-dub.
+   Ambient loops: both stop under reduced motion (the bubble stays put). */
+@keyframes jarvis-halo {
+  0% { transform: scale(0.85); opacity: 0.55; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+@keyframes jarvis-beat {
+  0%, 30%, 60%, 100% { transform: scale(1); }
+  12% { transform: scale(1.09); }
+  42% { transform: scale(1.04); }
+}
+.jarvis-halo { animation: jarvis-halo 1.6s ease-out infinite; }
+.jarvis-halo-late { animation: jarvis-halo 1.6s ease-out 0.4s infinite; }
+.jarvis-beat { animation: jarvis-beat 1.4s ease-in-out infinite; transform-origin: center; }
+@keyframes jarvis-dot {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.jarvis-dot { animation: jarvis-dot 0.9s ease-in-out infinite; }
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Brand accent — Libre Baskerville Italic at -25 tracking (stylesheet). */
+  .font-accent {
+    font-family: var(--font-heading);
+    font-style: italic;
+    letter-spacing: -0.025em;
+  }
+}
+
+/* ── Reduced motion ──
+   Kill CSS transitions and the ambient loops. motion/react animations gate
+   themselves with useReducedMotion() — this rule does not reach them. The
+   attention rings stop travelling but the text beside them still says why. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --sb-collapse-ms: 0.01ms;
+  }
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+  .pulse-haven,
+  .pulse-rose,
+  .logo-heartbeat,
+  .brand-mark-beating,
+  .jarvis-halo,
+  .jarvis-halo-late,
+  .jarvis-beat,
+  .jarvis-dot,
+  .logo-neon:hover::before {
+    animation: none !important;
+  }
+  .skeleton-shimmer {
+    animation: none;
+    background: rgb(228 228 231);
+  }
+  .dark .skeleton-shimmer {
+    background: rgb(63 63 70);
+  }
+}
