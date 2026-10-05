@@ -1,14 +1,12 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Check, Landmark, Loader2, Lock, PauseCircle, Send, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EASE_OUT, rowDelay } from "@/lib/motion";
 import { useLaunchpad } from "@/state/launchpad-store";
-import { hrefForKey } from "@/components/shell/dashboards";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
 import { Reveal } from "@/components/ui/reveal";
@@ -181,10 +179,7 @@ function Receipt({ run, view }: { run: PayRun; view: PayRunView }) {
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
-            <Link href={hrefForKey("accounting:dispatch")} className={buttonVariants({ variant: all ? "outline" : "brand" })}>
-              <Send /> Open Pay Dispatch
-            </Link>
-            <Button variant={all ? "default" : "outline"} onClick={startNextRun}>
+            <Button onClick={startNextRun}>
               Start next pay run <ArrowRight />
             </Button>
           </div>

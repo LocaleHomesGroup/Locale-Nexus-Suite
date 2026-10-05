@@ -4,10 +4,11 @@ import * as React from "react";
 import { Landmark, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
+import { Pill } from "@/components/ui/pill";
 import { Dash } from "@/components/ui/table";
 import { money, type PaymentMethod } from "@/components/modules/employee/data";
 import { php } from "./fx";
-import { methodSummary, personOf } from "./data";
+import { methodSummary, personOf, type PayoutStatus } from "./data";
 
 /**
  * Pieces the Accounting sections share: who a row is about, how they're
@@ -44,6 +45,21 @@ export function MethodCell({ method }: { method: PaymentMethod | null }) {
         {m.detail ? <span className="block truncate font-mono text-[11px] text-muted-foreground">{m.detail}</span> : null}
       </span>
     </span>
+  );
+}
+
+const PAYOUT: Record<PayoutStatus, { label: string; tone: "pending" | "ok" | "problem" }> = {
+  pending: { label: "Pending", tone: "pending" },
+  paid: { label: "Paid", tone: "ok" },
+  problem: { label: "Problem", tone: "problem" },
+};
+
+/** Where a payout stands in Pay Dispatch (HRIS's Pending / Paid / Problem). */
+export function PayoutPill({ status, className }: { status: PayoutStatus; className?: string }) {
+  return (
+    <Pill variant="caps" tone={PAYOUT[status].tone} className={className}>
+      {PAYOUT[status].label}
+    </Pill>
   );
 }
 
