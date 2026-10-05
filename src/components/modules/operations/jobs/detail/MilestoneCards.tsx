@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { AlertTriangle, Check, Circle, Minus, ReceiptText, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, Circle, Hourglass, Minus, ReceiptText, RefreshCw } from "lucide-react";
 import {
   BUILDER_CLAIMS,
   MILESTONE_HUBSPOT_STAGE,
@@ -18,7 +18,8 @@ import { Card, CardContent, CardHeader, CardMeta, CardTitle } from "@/components
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { ChoiceChips } from "../../ui/ChoiceChips";
-import type { MilestoneKind } from "../../sync/types";
+import { movesStageForward, type MilestoneKind } from "../../sync/types";
+import { MONEY_MILESTONES, isRegression, liveMilestone } from "../../review/review";
 import { UPDATE_SOURCES, type UpdateSource } from "../data";
 import { EDITABLE_CARD } from "./DetailCards";
 
@@ -37,7 +38,7 @@ const SOURCE_OPTIONS = UPDATE_SOURCES.map((s) => ({ value: s, label: s }));
  * The precon row glyph (mockup `vc`): done without a date is a caution, not a
  * tick. Decorative — the row's right-hand text carries the status in words.
  */
-function StatusIcon({ m }: { m: Milestone }) {
+export function StatusIcon({ m }: { m: Milestone }) {
   if ((m.status === "done" && !m.date) || m.status === "pendingDate")
     return <AlertTriangle className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />;
   if (m.status === "done")
@@ -52,7 +53,7 @@ interface EditorBinding {
   setDraft: React.Dispatch<React.SetStateAction<MilestoneDraft | null>>;
   onEdit: (kind: MilestoneKind, m: Milestone) => void;
   onSave: () => void;
-  /** The milestone Monday and CRM Dash disagree on, if any. It can't be edited until resolved. */
+  /** The milestone Monday and Launchpad disagree on, if any. It can't be edited until resolved. */
   conflictOn?: string;
   onConflict?: () => void;
 }
@@ -163,7 +164,7 @@ export function ConstructionCard({ job, editor }: { job: Job; editor: EditorBind
       <CardHeader>
         <CardTitle>Construction</CardTitle>
         <CardMeta className="text-muted-foreground">
-          Dates are the builder&apos;s dates · each completion advances the HubSpot stage
+          Dates are the builder&apos;s dates · a completion can move the HubSpot stage forward, never back
         </CardMeta>
       </CardHeader>
       <CardContent>
@@ -181,7 +182,7 @@ export function ConstructionCard({ job, editor }: { job: Job; editor: EditorBind
                   onClick={() => (conflicted ? editor.onConflict?.() : editor.onEdit("construction", m))}
                   aria-expanded={conflicted ? undefined : editing}
                   aria-haspopup={conflicted ? "dialog" : undefined}
-                  title={conflicted ? "Monday and CRM Dash disagree. Resolve the conflict to continue." : undefined}
+                  title={conflicted ? "Monday and Launchpad disagree. Resolve the conflict to continue." : undefined}
                   aria-controls={editing ? editorId : undefined}
                   className={cn(
                     "flex w-full flex-col rounded-lg border text-left transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
@@ -269,13 +270,20 @@ function MilestoneEditor({
   const done = draft.status === "done";
   const stage = MILESTONE_HUBSPOT_STAGE[draft.name];
   const property = PRECON_HUBSPOT_PROPERTY[draft.name];
-  const claim = done ? BUILDER_CLAIMS[job.builder]?.[draft.name] : undefined;
+  const current = liveMilestone(job, { kind: draft.kind, milestone: draft.name });
+  const regression = isRegression(current, draft.status, draft.date);
+  // A reversal or backdate on a milestone that moves money waits for a person.
+  const held = regression && MONEY_MILESTONES.has(draft.name);
+  // A builder bills a stage once: only a first completion raises a claim.
+  const claim = done && current?.status !== "done" ? BUILDER_CLAIMS[job.builder]?.[draft.name] : undefined;
 
   const note = !done
     ? "Saving updates the Monday subitem status. HubSpot stays unchanged until the milestone is Completed with a date."
     : draft.kind === "construction"
       ? stage
-        ? `Saving writes to Launchpad, then updates the Monday subitem and HubSpot, advancing the deal stage to ${stage}.`
+        ? movesStageForward(stage, job.hsStage)
+          ? `Saving writes to Launchpad, then updates the Monday subitem and HubSpot, moving the deal stage forward to ${stage}.`
+          : `Saving writes to Launchpad, then updates the Monday subitem and HubSpot. The deal is already at ${job.hsStage}, so its stage stays where it is.`
         : "Saving writes to Launchpad and the Monday subitem. No matching HubSpot stage exists for Key Handover — flagged for the field matrix."
       : property
         ? `Saving writes to Launchpad, updates the Monday subitem, and sets ${property} in HubSpot.`
@@ -326,9 +334,20 @@ function MilestoneEditor({
         </div>
       </div>
 
-      <p className="mt-3 max-w-[70ch] rounded-lg bg-muted px-3 py-2.5 text-xs leading-relaxed text-foreground/85">
-        {note}
-      </p>
+      {held ? (
+        <p className="mt-3 flex max-w-[70ch] gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <Hourglass className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>
+            This milestone affects cashflow, so the change is filed in the review queue rather than applied. Operations
+            releases it from the Review queue; nothing reaches Monday or HubSpot until they do.
+          </span>
+        </p>
+      ) : (
+        <p className="mt-3 max-w-[70ch] rounded-lg bg-muted px-3 py-2.5 text-xs leading-relaxed text-foreground/85">
+          {note}
+          {regression ? " Reversing a completed milestone is allowed here, and is recorded in the audit log with your name." : ""}
+        </p>
+      )}
 
       {claim ? (
         <p className="mt-2 flex max-w-[70ch] gap-2 rounded-lg border border-tone-line bg-tone-soft px-3 py-2.5 text-xs leading-relaxed text-foreground">
@@ -341,7 +360,7 @@ function MilestoneEditor({
       ) : null}
 
       <div className="mt-3 flex gap-2">
-        <Button onClick={onSave}>Save and sync {draft.name}</Button>
+        <Button onClick={onSave}>{held ? `File ${draft.name} for review` : `Save and sync ${draft.name}`}</Button>
         <Button variant="outline" onClick={() => setDraft(null)}>
           Cancel
         </Button>

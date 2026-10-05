@@ -50,6 +50,9 @@ export interface StageShare {
   amount: string;
 }
 
+/** Commission received this year — the sum of COMMISSION_BY_STAGE's amounts. */
+export const COMMISSION_YTD = "$9.39m";
+
 export const COMMISSION_BY_STAGE: StageShare[] = [
   { stage: "Finance Approval", pct: 44.6, amount: "$4.19m" },
   { stage: "Land Settlement", pct: 32.2, amount: "$3.03m" },

@@ -71,12 +71,23 @@ export interface WealthPackage {
   /** "Baldivis — The Hartley package". */
   title: string;
   when: string;
+  /** Generated this month (August — the prototype's today is 5 August 2026). */
+  thisMonth: boolean;
 }
 
 export const packageTitle = (s: Suburb) => `${s.name} — ${s.design} package`;
 
+/** A suburb's stat as a number: "$612,000" → 612000, "+8.4%" → 8.4, "+2.9% pa" → 2.9. */
+export function statValue(s: Suburb, label: string): number {
+  const raw = s.stats.find((st) => st.label === label)?.value ?? "";
+  return Number.parseFloat(raw.replace(/[^\d.-]/g, ""));
+}
+
+/** The stat as the tiles print it: "5.3%". */
+export const statText = (s: Suburb, label: string) => s.stats.find((st) => st.label === label)?.value ?? "—";
+
 export const SEED_PACKAGES: WealthPackage[] = [
-  { title: "Baldivis — The Hartley package", when: "Generated today" },
-  { title: "Alkimos — The Coventry package", when: "Generated yesterday" },
-  { title: "Yanchep — The Sorrento package", when: "Generated 31 Jul" },
+  { title: "Baldivis — The Hartley package", when: "Generated today", thisMonth: true },
+  { title: "Alkimos — The Coventry package", when: "Generated yesterday", thisMonth: true },
+  { title: "Yanchep — The Sorrento package", when: "Generated 31 Jul", thisMonth: false },
 ];

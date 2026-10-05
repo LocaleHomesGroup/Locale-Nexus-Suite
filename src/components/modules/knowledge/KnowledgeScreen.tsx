@@ -16,6 +16,7 @@ import { NoMatches } from "@/components/ui/states";
 import { Reveal } from "@/components/ui/reveal";
 import { useNavReselect, useNavState } from "@/components/shell/nav-state";
 import { AddMaterialDialog } from "./AddMaterialDialog";
+import { KnowledgeOverview } from "./KnowledgeOverview";
 import {
   CATEGORIES,
   CATEGORY_SLUGS,
@@ -45,13 +46,12 @@ export function KnowledgeScreen() {
   const params = useSearchParams();
   const paramQuery = params.get("q") ?? "";
 
-  // The category lives in `?cat=` and is chosen in the Knowledge rail.
+  // The category lives in `?cat=` and is chosen in the Knowledge rail. With no
+  // category (and no search to show) the page is Knowledge's Overview.
   const category = categoryForSlug(params.get("cat"));
+  const overview = (params.get("cat") ?? "overview") === "overview" && !paramQuery;
   const setCategory = React.useCallback(
-    (cat: Category) => {
-      const slug = CATEGORY_SLUGS[cat];
-      router.replace(slug === CATEGORY_SLUGS[CATEGORIES[0].name] ? pathname : `${pathname}?cat=${slug}`, { scroll: false });
-    },
+    (cat: Category) => router.replace(`${pathname}?cat=${CATEGORY_SLUGS[cat]}`, { scroll: false }),
     [router, pathname],
   );
   const [materials, setMaterials] = React.useState<Record<Category, Material[]>>(MATERIALS);
@@ -105,6 +105,14 @@ export function KnowledgeScreen() {
     setAdding(false);
     confirm("Material added", `${title} · ${cat}`);
   };
+
+  if (overview) {
+    return (
+      <PageContainer>
+        <KnowledgeOverview materials={materials} counts={counts} />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>

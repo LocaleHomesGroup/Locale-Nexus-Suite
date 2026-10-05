@@ -52,5 +52,5 @@ export const CELEBRATIONS: { icon: LucideIcon; name: string; note: string }[] = 
 export const QUICK_LINKS: { label: string; module: ModuleId; tab: string | null }[] = [
   { label: "Leave request", module: "hr", tab: "leave" },
   { label: "Expenses", module: "accounts", tab: "expenses" },
-  { label: "IT help desk", module: "it", tab: null },
+  { label: "IT help desk", module: "it", tab: "helpdesk" },
 ];

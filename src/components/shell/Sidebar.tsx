@@ -23,6 +23,7 @@ import {
   dashboardById,
   hrefFor,
   isItemActive,
+  spaceOf,
   type Dashboard,
   type NavItem,
 } from "./dashboards";
@@ -46,6 +47,11 @@ import { useNavState, type NavBadge } from "./nav-state";
  *
  * Collapse: the pull-tab, or Ctrl+B / ⌘B. Collapse is desktop-only; below md
  * the rail is a drawer, and while the drawer is closed it is `inert`.
+ *
+ * A portal (Client, Developer, Employee) keeps the same rail but is its own space: the
+ * caption and logo point at the portal, the staff Inbox is gone (the client
+ * has Messages instead), the user card names who is being previewed, and the
+ * Switch view lists only the portals.
  */
 const RAIL_ID = "launchpad-sidebar-nav";
 const MOBILE_QUERY = "(max-width: 767px)";
@@ -86,6 +92,8 @@ export function Sidebar({ mobileOpen, onNavigate }: { mobileOpen: boolean; onNav
   const isMobile = useIsMobile();
   const dash = dashboardById(dashboardId);
   const tone = TONES[dash.tone];
+  const portal = spaceOf(dash) === "portal";
+  const person = dash.persona ?? STAFF;
 
   // Ctrl+B / ⌘B toggles the rail (desktop). Ignored while typing in a
   // rich-text field, where the chord means bold.
@@ -124,7 +132,13 @@ export function Sidebar({ mobileOpen, onNavigate }: { mobileOpen: boolean; onNav
       <RailTooltip railId={RAIL_ID} enabled={collapsed && !isMobile} />
 
       <div className="shrink-0 px-5 pt-6 pb-3">
-        <SidebarLogoHeader collapsed={collapsed} captionClassName={tone.caption} />
+        <SidebarLogoHeader
+          collapsed={collapsed}
+          captionClassName={tone.caption}
+          caption={portal ? dash.title : undefined}
+          href={portal ? dash.href : undefined}
+          homeLabel={portal ? `${dash.title} overview` : undefined}
+        />
       </div>
 
       <div className="sb-collapse-shift shrink-0 px-5 pb-3">
@@ -160,15 +174,16 @@ export function Sidebar({ mobileOpen, onNavigate }: { mobileOpen: boolean; onNav
         <div className="sb-collapse-shift flex flex-col gap-2">
           <ThemeToggle collapsed={collapsed} />
           <div
-            data-rail-tip="Shannan Hart, Manager"
+            data-rail-tip={`${person.name}, ${person.role}`}
             className={cn("vs-collapse-box flex items-center gap-2.5 rounded-md border px-[3px] py-1.5", tone.softCard)}
           >
-            <Avatar name="Shannan Hart" tone="haven" size="sm" />
+            <Avatar name={person.name} tone={portal ? (dash.tone === "haven" ? "haven" : "charcoal") : "haven"} size="sm" />
             <div className="sb-collapse-fade min-w-0 flex-1">
-              <div className="truncate text-[13px] leading-tight font-medium text-zinc-900 dark:text-zinc-100">Shannan Hart</div>
+              <div className="truncate text-[13px] leading-tight font-medium text-zinc-900 dark:text-zinc-100">{person.name}</div>
               {/* No RBAC yet, so this account sees every dashboard, the
-                  manager-only pages included. Say so. */}
-              <div className={cn("mt-px truncate text-xs leading-tight", tone.caption)}>Manager · all dashboards</div>
+                  manager-only pages included — and a portal is a staff
+                  preview of what its client or developer sees. Say so. */}
+              <div className={cn("mt-px truncate text-xs leading-tight", tone.caption)}>{person.role}</div>
             </div>
           </div>
           <button
@@ -196,6 +211,9 @@ export function Sidebar({ mobileOpen, onNavigate }: { mobileOpen: boolean; onNav
 }
 
 const EMPTY_PARAMS = new URLSearchParams();
+
+/** The signed-in staff member, shown on every Launchpad rail. */
+const STAFF = { name: "Shannan Hart", role: "Manager · all dashboards" };
 
 function LiveRailNav(props: Omit<RailNavProps, "params">) {
   const params = useSearchParams();
@@ -240,7 +258,11 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, isMobile, onNaviga
     const exact = opts.href ? pathname === opts.href : onDashRoot && viewKey(dash, Object.entries(item.params)) === currentView;
     const index = order++;
     const attention = opts.badge && opts.badge.tone && opts.badge.tone !== "neutral";
-    const tip = opts.badge ? `${item.label} (${opts.badge.count > 99 ? "99+" : opts.badge.count})` : item.label;
+    const tip = opts.badge
+      ? `${item.label} (${opts.badge.count > 99 ? "99+" : opts.badge.count})`
+      : item.tag
+        ? `${item.label} (${item.tag})`
+        : item.label;
     return (
       <Link
         key={item.key}
@@ -287,7 +309,19 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, isMobile, onNaviga
             tone={opts.badge?.tone === "problem" ? "bg-rose-500" : "bg-amber-500"}
           />
         </span>
-        <span className="sb-collapse-fade min-w-0 flex-1 truncate text-left">{item.label}</span>
+        {item.tag ? (
+          // A tagged label wraps rather than truncating: "Inbound capture" and
+          // its chip don't fit one nested row, and a cut-off name hides the
+          // very thing the tag is about.
+          <span className="sb-collapse-fade min-w-0 flex-1 text-left leading-snug">
+            {item.label}{" "}
+            <span className="inline-block rounded-full border border-current/25 px-1.5 align-[1px] text-[10px] leading-4 font-semibold tracking-[0.12em] whitespace-nowrap uppercase opacity-75">
+              {item.tag}
+            </span>
+          </span>
+        ) : (
+          <span className="sb-collapse-fade min-w-0 flex-1 truncate text-left">{item.label}</span>
+        )}
         {opts.badge ? <BadgeChip badge={opts.badge} active={opts.active && !opts.child} /> : null}
       </Link>
     );
@@ -361,22 +395,26 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, isMobile, onNaviga
         </div>
       ) : null}
 
-      <p className="sb-collapse-fade mt-5 mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.12em] text-subtle-foreground uppercase">
-        Inbox
-      </p>
-      <nav className="flex flex-col gap-px" aria-label="Inbox">
-        {row(
-          { key: "inbox:notifications", label: "Notifications", icon: NOTIFICATIONS_ICON, params: {} },
-          {
-            href: NOTIFICATIONS_HREF,
-            active: pathname === NOTIFICATIONS_HREF,
-            badge:
-              notifications.length > 0
-                ? { count: notifications.length, tone: urgent ? "problem" : "neutral", label: "unread" }
-                : undefined,
-          },
-        )}
-      </nav>
+      {spaceOf(dash) === "portal" ? null : (
+        <>
+          <p className="sb-collapse-fade mt-5 mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.12em] text-subtle-foreground uppercase">
+            Inbox
+          </p>
+          <nav className="flex flex-col gap-px" aria-label="Inbox">
+            {row(
+              { key: "inbox:notifications", label: "Notifications", icon: NOTIFICATIONS_ICON, params: {} },
+              {
+                href: NOTIFICATIONS_HREF,
+                active: pathname === NOTIFICATIONS_HREF,
+                badge:
+                  notifications.length > 0
+                    ? { count: notifications.length, tone: urgent ? "problem" : "neutral", label: "unread" }
+                    : undefined,
+              },
+            )}
+          </nav>
+        </>
+      )}
     </>
   );
 }

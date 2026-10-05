@@ -14,14 +14,14 @@
  *
  * Static prototype: there is no model. Figures are computed from the SAME data
  * the dashboard draws — its data file or the live store — so Jarvis always
- * matches the screen, and a store change (a conflict resolved, a portal update
- * accepted) changes the answer. "How do I…" answers restate what the screen
+ * matches the screen, and a store change (a conflict resolved, a held change
+ * released) changes the answer. "How do I…" answers restate what the screen
  * itself says and does. Nothing is invented.
  */
 import type { ModuleId } from "@/state/launchpad-store";
 import type { Job, SubmissionDoc } from "@/data/jobs";
-import { BUILDER_CHECKLISTS } from "@/data/jobs";
-import type { AppNotification, PortalUpdate } from "@/data/seed";
+import { BUILDER_CHECKLISTS, BUILDER_CLAIMS } from "@/data/jobs";
+import type { AppNotification, ReviewItem } from "@/data/seed";
 import { aud } from "@/lib/utils";
 import { ANNOUNCEMENTS, CELEBRATIONS, COMING_UP } from "@/components/modules/home/data";
 import { buildMyDay } from "@/components/modules/home/my-day";
@@ -78,6 +78,41 @@ import {
   JARVIS_SUGGESTIONS,
 } from "@/components/modules/leadership/data";
 import { TICKET_SEED } from "@/components/modules/it/data";
+import { awaitingAcceptance, currentStage, journeyFor, nextStep } from "@/data/journey";
+import { CLIENT_JOB_ID, DEVELOPER } from "@/data/portal";
+import {
+  BORROWING_CAPACITY,
+  BUILD_CONTRACT,
+  CLIENT_DOCS,
+  MATCHES,
+  PACKAGE_SPLIT,
+  PACKAGE_TOTAL,
+  PROGRESS_PAYMENTS,
+  matchScore,
+} from "@/components/modules/client/data";
+import { DEMAND, OBJECTIONS } from "@/components/modules/developer/data";
+import { masterList, orgDepartment, orgDepartmentOf, type OrgPerson } from "@/components/modules/hr/data";
+import {
+  CURRENCY,
+  EMPLOYEE_ID,
+  GOES_BY,
+  INVOICE_APPROVER,
+  LATEST_WEEK,
+  RATES,
+  dayMonth,
+  formatHours,
+  invoiceTotals,
+  money,
+  paymentComplete,
+  weekLabel,
+  weekPay,
+  type StaffInvoice,
+} from "@/components/modules/employee/data";
+
+import { PAYEE_IDS, PAY_RUN, personOf, type RunSummary } from "@/components/modules/accounting/data";
+import { php, rateText } from "@/components/modules/accounting/fx";
+import type { PayRunView } from "@/components/modules/accounting/payrun-store";
+import { billsFor } from "@/components/modules/employee/parts";
 
 export interface JarvisAction {
   label: string;
@@ -94,19 +129,25 @@ export interface JarvisAnswer {
 
 /**
  * Live values the answers read, so a figure Jarvis quotes stays true after the
- * user acts on screen: the Launchpad store (jobs, portal inbox, submission,
+ * user acts on screen: the Launchpad store (jobs, review queue, submission,
  * Accounts' invoices and claims) plus HR's shared leave queue. An item inside
  * its undo window keeps its pending status until the window closes.
  */
 export interface JarvisContext {
   jobs: Job[];
   notifications: AppNotification[];
-  portalUpdates: PortalUpdate[];
+  reviewItems: ReviewItem[];
   submissionDocs: SubmissionDoc[];
   submissionStatus: string;
   leave: LeaveRequest[];
   invoices: BuilderInvoice[];
   claims: ExpenseClaim[];
+  /** The Employee portal's invoices (its invoice store). */
+  staffInvoices: StaffInvoice[];
+  /** HR's live org chart. */
+  people: OrgPerson[];
+  /** Accounting's pay run and its summary, with the Employee portal's invoices folded in. */
+  payRun: { view: PayRunView; run: RunSummary };
 }
 
 export interface Faq {
@@ -200,6 +241,29 @@ const USING = (dashLabel: string): Faq[] => [
   },
 ];
 
+/* ── The portals: their own switcher, their own how-to ─────────────────── */
+
+const PORTAL_USING = (portal: string): Faq[] => [
+  {
+    group: "Using the portal",
+    question: "How do I switch views?",
+    keys: ["switch", "view", "client portal", "developer portal", "employee portal", "back to launchpad"],
+    answer: () => ({
+      text: `Use “Switch view” in the sidebar. The portals have their own: Client, Developer and Employee, plus “Back to Launchpad” for the staff dashboards. You're in the ${portal}.`,
+    }),
+  },
+];
+
+/** The previewed client's job, live. */
+function clientJob(ctx: JarvisContext): Job | undefined {
+  return ctx.jobs.find((j) => j.id === CLIENT_JOB_ID);
+}
+
+const doneDates = (job: Job) =>
+  new Map([...job.precon, ...job.milestones].filter((m) => m.status === "done").map((m) => [m.name, m.date]));
+
+const NO_JOB: JarvisAnswer = { text: "I can't find your job right now." };
+
 /* ── Per-dashboard FAQs ────────────────────────────────────────────────── */
 
 export const JARVIS: Record<ModuleId, DashboardBrief> = {
@@ -260,27 +324,30 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
 
   operations: {
     subtitle: "Jobs, syncs and builder pricing",
-    greeting: "I'm watching CRM Dash Sync, the portal inbox and builder pricing.",
+    greeting: "I'm watching CRM dash sync, the review queue and builder pricing.",
     faqs: [
-      { group: "CRM Dash Sync", question: "Which jobs have sync conflicts?", keys: ["conflict", "out of sync", "disagree"], answer: conflictAnswer },
+      { group: "CRM dash sync", question: "Which jobs have sync conflicts?", keys: ["conflict", "out of sync", "disagree"], answer: conflictAnswer },
       {
-        group: "CRM Dash Sync",
-        question: "What's waiting in the portal inbox?",
-        keys: ["portal", "inbox", "builder portal", "email parse"],
-        answer: (ctx) =>
-          ctx.portalUpdates.length === 0
-            ? { text: "The portal inbox is clear — nothing is waiting for a human.", source: "Automated sources · live" }
+        group: "Review queue",
+        question: "What's waiting in the review queue?",
+        keys: ["review", "queue", "held", "regression", "release", "waiting"],
+        answer: (ctx) => {
+          const waiting = ctx.reviewItems.filter((i) => i.status === "pending");
+          return waiting.length === 0
+            ? {
+                text: "The review queue is clear — no change to a money milestone is waiting on a person.",
+                source: "Review queue · live",
+              }
             : {
-                text: `${plural(ctx.portalUpdates.length, "update")} waiting — nothing syncs until a human approves:`,
-                bullets: ctx.portalUpdates.map(
-                  (u) => `${u.jobNo || "No job no"} · ${u.client} (${u.builder}) — ${u.milestone}, ${u.date}. From ${u.source}.`,
-                ),
-                actions: [{ label: "Review the inbox", href: "/operations" }],
-                source: "Automated sources · live",
-              },
+                text: `${plural(waiting.length, "change")} held — nothing reaches Monday or HubSpot until a person releases it:`,
+                bullets: waiting.map((i) => `${i.summary}. Queued ${i.queuedAt} by ${i.queuedBy}.`),
+                actions: [{ label: "Open the review queue", href: "/operations?tab=review" }],
+                source: "Review queue · live",
+              };
+        },
       },
       {
-        group: "CRM Dash Sync",
+        group: "CRM dash sync",
         question: "Which jobs are still syncing?",
         keys: ["syncing", "pending", "still"],
         answer: (ctx) => {
@@ -296,7 +363,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         },
       },
       {
-        group: "CRM Dash Sync",
+        group: "CRM dash sync",
         question: "How does a milestone sync?",
         keys: ["how", "milestone", "sync work", "flow"],
         answer: () => ({
@@ -311,12 +378,24 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         }),
       },
       {
-        group: "CRM Dash Sync",
+        group: "CRM dash sync",
         question: "How do I bulk update builder dates?",
-        keys: ["bulk", "csv", "import", "many"],
+        keys: ["bulk", "csv", "import", "many", "portal", "inbound", "upload"],
         answer: () => ({
-          text: "Use Bulk update on CRM Dash Sync and drop in the builder's CSV. Rows are matched by job number; applying writes each update to Launchpad, then Monday and HubSpot, and every row appears in the sync trail. Skipped rows are reported for follow-up.",
-          actions: [{ label: "Open CRM Dash Sync", href: "/operations" }],
+          text: "Bulk upload and builder-portal polling aren't built yet — Inbound capture shows where they're going. You'll upload the builder's file or forward their weekly email, Launchpad matches each line to a job, and you approve the ones that are right. Until then, open the job and mark each milestone.",
+          actions: [
+            { label: "See Inbound capture", href: "/operations?tab=jobs&view=inbound" },
+            { label: "Open CRM dash sync", href: "/operations?tab=jobs" },
+          ],
+        }),
+      },
+      {
+        group: "Audit log",
+        question: "Where do I see who changed a job?",
+        keys: ["audit", "who changed", "history", "log"],
+        answer: () => ({
+          text: "In the Audit log: every write Launchpad has made — who did it, what changed, and which systems it went to — newest first. Filter it to milestones, job details, regressions or sync. Each job's page shows its own share, with a link to the full log.",
+          actions: [{ label: "Open the audit log", href: "/operations?tab=audit" }],
         }),
       },
       {
@@ -361,7 +440,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
       ...USING("Operations"),
     ],
     fallback:
-      "On Operations I can answer about sync conflicts, the portal inbox, how milestones sync, bulk updates, the Nguyen submission, builder price lists and the Doc formatter.",
+      "On Operations I can answer about sync conflicts, the review queue, the audit log, how milestones sync, bulk updates, the Nguyen submission, builder price lists and the Doc formatter.",
   },
 
   sales: {
@@ -378,7 +457,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
             const deals = SEED_DEALS.filter((d) => d.stage === stage);
             return `${stage}: ${deals.length ? deals.map((d) => `${d.client} (${d.suburb}, ${d.value})`).join(", ") : "none"}.`;
           }),
-          actions: [{ label: "Open Pipeline", href: "/sales" }],
+          actions: [{ label: "Open Pipeline", href: "/sales?tab=pipeline" }],
         }),
       },
       {
@@ -387,7 +466,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["won", "sale won", "move a deal", "next stage"],
         answer: () => ({
           text: "Open the deal card and move it to the next stage. When it reaches Sale won, the job is created in CRM Dash Sync automatically — Operations picks it up from there.",
-          actions: [{ label: "Open Pipeline", href: "/sales" }],
+          actions: [{ label: "Open Pipeline", href: "/sales?tab=pipeline" }],
         }),
       },
       {
@@ -482,7 +561,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
               `Cheapest: ${ranked[0].name} at ${aud(ranked[0].spend / ranked[0].won)} a deal.`,
               `Most expensive: ${ranked[ranked.length - 1].name} at ${aud(ranked[ranked.length - 1].spend / ranked[ranked.length - 1].won)} a deal.`,
             ],
-            actions: [{ label: "Open Performance", href: "/marketing" }],
+            actions: [{ label: "Open Performance", href: "/marketing?tab=performance" }],
           };
         },
       },
@@ -551,7 +630,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["health check", "what does", "form"],
         answer: () => ({
           text: "It's the client-facing finance health check. It replaces the WordPress form and writes each answer straight to Mercury, five steps in all.",
-          actions: [{ label: "Open the health check", href: "/finance" }],
+          actions: [{ label: "Open the health check", href: "/finance?tab=health" }],
         }),
       },
       {
@@ -560,7 +639,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["income", "employment", "salary", "step 2"],
         answer: () => ({
           text: "Step 2 of 5 covers income and employment: the employment type and annual income. Income is required before the client can continue.",
-          actions: [{ label: "Open step 2", href: "/finance" }],
+          actions: [{ label: "Open step 2", href: "/finance?tab=health" }],
         }),
       },
       {
@@ -587,14 +666,14 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
           if (drafts.length === 0) {
             return {
               text: "No draft invoices are waiting. Everything raised has been approved.",
-              actions: [{ label: "Open Builder invoicing", href: "/accounts" }],
+              actions: [{ label: "Open Builder invoicing", href: "/accounts?tab=invoicing" }],
             };
           }
           const total = drafts.reduce((s, i) => s + i.amount, 0);
           return {
             text: `${plural(drafts.length, "draft invoice")} worth ${aud(total)} + GST ${drafts.length === 1 ? "is" : "are"} waiting:`,
             bullets: drafts.map((i) => `${i.id} · ${i.job} ${i.client}: ${i.builder}, ${i.stage}, ${aud(i.amount)} + GST.`),
-            actions: [{ label: "Open Builder invoicing", href: "/accounts" }],
+            actions: [{ label: "Open Builder invoicing", href: "/accounts?tab=invoicing" }],
             source: "Xero drafts",
           };
         },
@@ -604,8 +683,8 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         question: "How are builder invoices raised?",
         keys: ["raised", "how", "schedule", "automatic"],
         answer: () => ({
-          text: "Stage completions in CRM Dash raise a draft invoice against each builder's schedule. Nothing reaches a builder until it's approved here — Approve sends it from Xero.",
-          actions: [{ label: "Open Builder invoicing", href: "/accounts" }],
+          text: "Stage completions in CRM dash sync raise a draft invoice against each builder's schedule. Nothing reaches a builder until it's approved here — Approve sends it from Xero.",
+          actions: [{ label: "Open Builder invoicing", href: "/accounts?tab=invoicing" }],
         }),
       },
       {
@@ -614,7 +693,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["invoiced", "this month", "revenue", "forecast"],
         answer: (ctx) => ({
           text: `${aud(invoicedThisMonth(ctx.invoices))} invoiced so far this month (excl GST), with ${aud(FORECAST_NEXT_MONTH)} forecast for next month.`,
-          actions: [{ label: "Open Builder invoicing", href: "/accounts" }],
+          actions: [{ label: "Open Builder invoicing", href: "/accounts?tab=invoicing" }],
         }),
       },
       {
@@ -659,6 +738,124 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
     fallback: "On Accounts I can answer about draft invoices, how they're raised, what's been invoiced, cash flow and expense claims.",
   },
 
+  accounting: {
+    subtitle: "Staff invoices, the pay run and what's been paid",
+    greeting: "Ask me which invoices are waiting on you, what rate this pay run uses, or who can't be paid.",
+    faqs: [
+      {
+        group: "Pay run",
+        question: "Which invoices are waiting on me?",
+        keys: ["waiting", "pending", "review", "approve", "to decide", "invoice"],
+        answer: ({ payRun: { run } }) => {
+          const pending = run.pending;
+          if (!pending.length) {
+            return {
+              text: run.approved.length
+                ? `Nothing to review. ${plural(run.approved.length, "approved invoice")} ${run.approved.length === 1 ? "is" : "are"} ready to pay.`
+                : "Nothing to review: every invoice that's reached Accounting has been decided.",
+              actions: [{ label: `Open ${PAY_RUN}`, href: "/accounting?tab=payrun" }],
+            };
+          }
+          const total = pending.reduce((n, i) => n + invoiceTotals(i.lines).total, 0);
+          return {
+            text: `${plural(pending.length, "invoice")} worth ${money(total)} ${pending.length === 1 ? "is" : "are"} waiting for a decision:`,
+            bullets: pending.map((i) => `${personOf(i.employeeId).name}: ${i.number}, ${money(invoiceTotals(i.lines).total)}, ${billsFor(i).toLowerCase()}.`),
+            actions: [{ label: `Open ${PAY_RUN}`, href: "/accounting?tab=payrun" }],
+            source: "Accounting · live",
+          };
+        },
+      },
+      {
+        group: "Pay run",
+        question: "What rate is this pay run using?",
+        keys: ["rate", "php", "peso", "exchange", "fx", "aud to php", "conversion"],
+        answer: ({ payRun: { view, run } }) => {
+          const last = view.runs[0];
+          const recent = view.runs.slice(0, 5).map((r) => `${dayMonth(r.on)}: ${rateText(r.rate)} per A$1.`);
+          if (view.rate == null) {
+            return {
+              text: `No rate is set for this run yet.${last ? ` The last run, on ${dayMonth(last.on)}, used ${rateText(last.rate)} per A$1.` : ""} Set it on the Rate step first.`,
+              bullets: recent,
+              actions: [{ label: "Set the rate", href: "/accounting?tab=payrun" }],
+              source: "Accounting · live",
+            };
+          }
+          return {
+            text: `This run converts at ${rateText(view.rate)} per A$1.${run.pay.length ? ` At that rate it pays ${php(run.php)} for ${money(run.aud)} invoiced.` : ""} Recent runs:`,
+            bullets: recent,
+            actions: [{ label: `Open ${PAY_RUN}`, href: "/accounting?tab=payrun" }],
+            source: "Accounting · live",
+          };
+        },
+      },
+      {
+        group: "Pay run",
+        question: "Who can't be paid this run?",
+        keys: ["can't be paid", "cannot be paid", "held", "hold", "payment method", "blocked", "missing"],
+        answer: ({ payRun: { view, run } }) => {
+          const noMethod = PAYEE_IDS.filter((id) => !paymentComplete(view.methods[id] ?? null));
+          const held = run.held;
+          if (!held.length && !noMethod.length) {
+            return {
+              text: "Everyone can be paid: each person has a payment method on file and no one is held.",
+              actions: [{ label: "Open Validation", href: "/accounting?tab=payrun" }],
+            };
+          }
+          return {
+            text: held.length
+              ? `${plural(held.length, "person", "people")} ${held.length === 1 ? "is" : "are"} held from this run:`
+              : "No one with approved invoices is held, but some people can't be paid until they add a payment method:",
+            bullets: [
+              ...held.map((h) => `${personOf(h.employeeId).name}: ${h.reason}.`),
+              ...noMethod
+                .filter((id) => !held.some((h) => h.employeeId === id))
+                .map((id) => `${personOf(id).name}: no payment method on file yet.`),
+            ],
+            actions: [{ label: "Open Validation", href: "/accounting?tab=payrun" }],
+            source: "Accounting · live",
+          };
+        },
+      },
+      {
+        group: "Pay run",
+        question: "How does the pay run work?",
+        keys: ["how", "steps", "wizard", "work", "dispatch", "process"],
+        answer: () => ({
+          text: `The ${PAY_RUN} is HRIS's Payroll Wizard cut to four steps:`,
+          bullets: [
+            "Rate: set today's AUD to PHP rate. Every run starts without one.",
+            "Invoices: approve or reject each staff invoice. Pending ones wait for the next run.",
+            "Validation: a pre-flight, then a review per person. No payment method holds someone, and you can hold anyone else.",
+            "Dispatch: pays everyone cleared at the run's rate, with 6 seconds to undo. Each invoice then shows as Paid in the Employee portal.",
+          ],
+          actions: [{ label: `Open ${PAY_RUN}`, href: "/accounting?tab=payrun" }],
+        }),
+      },
+      {
+        group: "Pay history",
+        question: "What did the last pay run pay?",
+        keys: ["last run", "last pay", "paid", "history", "previous"],
+        answer: ({ payRun: { view } }) => {
+          const last = view.runs[0];
+          if (!last) return { text: "No pay run has gone yet.", actions: [{ label: "Open Pay history", href: "/accounting?tab=history" }] };
+          return {
+            text: `The last run, on ${dayMonth(last.on)}, paid ${php(last.php)} to ${plural(last.payees, "person", "people")}: ${money(last.aud)} invoiced at ${rateText(last.rate)} per A$1.`,
+            bullets: [
+              `${plural(last.invoiceIds.length, "invoice")} paid by ${last.by}.`,
+              ...(last.held.length ? [`Held: ${last.held.map((h) => personOf(h.employeeId).name).join(", ")}.`] : []),
+              ...(last.skipped ? [`${plural(last.skipped, "pending invoice")} left for the next run.`] : []),
+            ],
+            actions: [{ label: "Open Pay history", href: "/accounting?tab=history" }],
+            source: "Accounting · live",
+          };
+        },
+      },
+      ...USING("Accounting"),
+    ],
+    fallback:
+      "In Accounting I can list invoices waiting on you, tell you this pay run's rate, say who can't be paid and why, explain the pay run's steps, and sum up the last run.",
+  },
+
   wealth: {
     subtitle: "Suburb data and packages",
     greeting: "I can compare suburbs and find recent packages.",
@@ -669,7 +866,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["median", "price", "baldivis", "house price"],
         answer: () => {
           const s = SUBURBS[0];
-          return { text: `${s.label}:`, bullets: s.stats.map((st) => `${st.label}: ${st.value}.`), actions: [{ label: "Open the generator", href: "/wealth" }] };
+          return { text: `${s.label}:`, bullets: s.stats.map((st) => `${st.label}: ${st.value}.`), actions: [{ label: "Open the generator", href: "/wealth?tab=generator" }] };
         },
       },
       {
@@ -693,7 +890,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         answer: () => ({
           text: "Recent packages:",
           bullets: SEED_PACKAGES.map((p) => `${p.title} — ${p.when.toLowerCase()}.`),
-          actions: [{ label: "Generate one", href: "/wealth" }],
+          actions: [{ label: "Generate one", href: "/wealth?tab=generator" }],
         }),
       },
       {
@@ -702,7 +899,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["make", "create", "generate a", "how"],
         answer: () => ({
           text: "Pick the suburb — its property data loads automatically — then press Generate package. It's added to Recent packages; no more hand-typed brochures.",
-          actions: [{ label: "Open the generator", href: "/wealth" }],
+          actions: [{ label: "Open the generator", href: "/wealth?tab=generator" }],
         }),
       },
       ...USING("Wealth"),
@@ -721,7 +918,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         answer: () => ({
           text: `${HR_KPIS.totalEmployees} people across ${DIVISIONS.length} divisions:`,
           bullets: DIVISIONS.map((d) => `${d.name}: ${d.count} (${d.share}%).`),
-          actions: [{ label: "Open Employees", href: "/hr?tab=people" }],
+          actions: [{ label: "Open the Global Master List", href: "/hr?tab=people" }],
         }),
       },
       {
@@ -858,7 +1055,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["submission", "checklist", "deal"],
         answer: () => ({
           text: "It's in Builder guides: “Deal submission checklist — all builders”, updated 6 Aug.",
-          actions: [{ label: "Open it", href: "/knowledge?q=Deal%20submission%20checklist" }],
+          actions: [{ label: "Open it", href: "/knowledge?cat=builders&q=Deal%20submission%20checklist" }],
         }),
       },
       {
@@ -867,7 +1064,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["milestone", "sync", "hubspot", "monday"],
         answer: () => ({
           text: "See “How milestones sync to HubSpot and Monday” in Systems reference — new this month.",
-          actions: [{ label: "Open it", href: "/knowledge?q=How%20milestones%20sync" }],
+          actions: [{ label: "Open it", href: "/knowledge?cat=systems&q=How%20milestones%20sync" }],
         }),
       },
       {
@@ -877,7 +1074,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         answer: () => ({
           text: "The SOP is “Leave request and approval”, in SOPs and processes.",
           actions: [
-            { label: "Read the SOP", href: "/knowledge?q=Leave%20request" },
+            { label: "Read the SOP", href: "/knowledge?cat=sops&q=Leave%20request" },
             { label: "Go to HR › Leave", href: "/hr?tab=leave" },
           ],
         }),
@@ -928,7 +1125,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
           return {
             text: `${plural(OVERVIEW_KPIS.salesThisMonth, "sale")} so far in August (month to date). ${best.month} was the best full month with ${best.value}.`,
             bullets: SALES_BY_MONTH.map((m) => `${m.month}: ${m.value}${m.partial ? " (month to date)" : ""}.`),
-            actions: [{ label: "Open the dashboard", href: "/leadership" }],
+            actions: [{ label: "Open the dashboard", href: "/leadership?tab=business" }],
           };
         },
       },
@@ -987,7 +1184,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
           return {
             text: open.length ? `${plural(open.length, "ticket")} still open:` : "No open tickets.",
             bullets: open.map((t) => `#${t.id} ${t.title} — ${t.status}, ${t.priority.toLowerCase()} priority (${t.requester}).`),
-            actions: [{ label: "Open the help desk", href: "/it" }],
+            actions: [{ label: "Open the help desk", href: "/it?tab=helpdesk" }],
           };
         },
       },
@@ -997,7 +1194,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         keys: ["raise", "new ticket", "log", "report a problem"],
         answer: () => ({
           text: "Use “New ticket” on the IT help desk: pick a category and priority, describe what's happening, and submit. It appears in Open and recent tickets straight away.",
-          actions: [{ label: "Raise a ticket", href: "/it" }],
+          actions: [{ label: "Raise a ticket", href: "/it?tab=helpdesk" }],
         }),
       },
       {
@@ -1012,6 +1209,322 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
     ],
     fallback: "On IT I can list open tickets and explain how to raise one or report phishing.",
   },
+  client: {
+    subtitle: "Your home journey",
+    greeting: "Hi — I can tell you where your build is up to, how your budget splits and why your builder was recommended.",
+    faqs: [
+      {
+        group: "Your build",
+        question: "Where is my build up to?",
+        keys: ["build", "up to", "progress", "stage", "where"],
+        answer: (ctx) => {
+          const job = clientJob(ctx);
+          if (!job) return NO_JOB;
+          const stage = currentStage(job);
+          const done = job.milestones.filter((m) => m.status === "done");
+          const last = done[done.length - 1];
+          const next = nextStep(job);
+          return {
+            text: stage ? `You're at ${stage.label.toLowerCase()}, with ${stage.who}.` : "Your journey is complete. Welcome home.",
+            bullets: [
+              last ? `Last milestone: ${last.name}, ${last.date}.` : "Your builder hasn't started on site yet.",
+              ...(next ? [`Next: ${next.name}.`] : []),
+              `${done.length} of 8 build milestones reached.`,
+            ],
+            actions: [{ label: "Open My build", href: "/client?tab=build" }],
+            source: "Your job · live",
+          };
+        },
+      },
+      {
+        group: "Your build",
+        question: "What happens before handover?",
+        keys: ["handover", "keys", "before", "left"],
+        answer: (ctx) => {
+          const job = clientJob(ctx);
+          if (!job) return NO_JOB;
+          const left = journeyFor(job)
+            .filter((s) => s.id === "construction" || s.id === "handover")
+            .flatMap((s) => s.milestones)
+            .filter((m) => m.status !== "done" && m.status !== "na");
+          return {
+            text: left.length ? `${plural(left.length, "milestone")} to go:` : "Nothing left: you have your keys.",
+            bullets: left.map((m) => m.name),
+            actions: [{ label: "Open My build", href: "/client?tab=build" }],
+            source: "Your job · live",
+          };
+        },
+      },
+      {
+        group: "Finance",
+        question: "How does our budget split?",
+        keys: ["budget", "split", "borrow", "afford", "package", "cost", "price"],
+        answer: () => ({
+          text: `You can borrow ${aud(BORROWING_CAPACITY)}. Your package is ${aud(PACKAGE_TOTAL)}, ${aud(BORROWING_CAPACITY - PACKAGE_TOTAL)} under that:`,
+          bullets: Object.values(PACKAGE_SPLIT).map((p) => `${p.label}: ${aud(p.amount)} (${p.detail}).`),
+          actions: [{ label: "Open Finance", href: "/client?tab=finance" }],
+        }),
+      },
+      {
+        group: "Finance",
+        question: "What have we paid so far?",
+        keys: ["paid", "payment", "progress payment", "deposit"],
+        answer: (ctx) => {
+          const job = clientJob(ctx);
+          if (!job) return NO_JOB;
+          const done = doneDates(job);
+          const paid = PROGRESS_PAYMENTS.filter((p) => done.has(p.milestone));
+          const total = paid.reduce((sum, p) => sum + (BUILD_CONTRACT * p.pct) / 100, 0);
+          return {
+            text: `${aud(total)} of your ${aud(BUILD_CONTRACT)} build contract has been paid to ${job.builder}, in ${plural(paid.length, "progress payment")}.`,
+            bullets: paid.map((p) => `${p.stage}: ${aud((BUILD_CONTRACT * p.pct) / 100)}, ${done.get(p.milestone)}.`),
+            actions: [{ label: "Open Finance", href: "/client?tab=finance" }],
+            source: "Your job · live",
+          };
+        },
+      },
+      {
+        group: "My options",
+        question: "Why was our builder recommended?",
+        keys: ["recommend", "why", "match", "score", "options", "builder"],
+        answer: () => {
+          const ranked = [...MATCHES].sort((a, b) => matchScore(b) - matchScore(a));
+          const top = ranked[0];
+          return {
+            text: `${top.design} by ${top.builder} scored ${matchScore(top)}, the best match for your brief. ${top.why}`,
+            bullets: ranked.map((m) => `${m.builder}, ${m.design}: ${matchScore(m)} · ${aud(m.land + m.build)} · ${m.weeks} weeks.`),
+            actions: [{ label: "Open My options", href: "/client?tab=options" }],
+          };
+        },
+      },
+      {
+        group: "Documents",
+        question: "Which documents are still to come?",
+        keys: ["document", "contract", "paper", "pdf"],
+        answer: (ctx) => {
+          const job = clientJob(ctx);
+          if (!job) return NO_JOB;
+          const done = doneDates(job);
+          const later = CLIENT_DOCS.filter((d) => d.after && !done.has(d.after));
+          return {
+            text: later.length ? `${plural(later.length, "document")} still to come:` : "Every document is here.",
+            bullets: later.map((d) => `${d.name}, at ${d.after}.`),
+            actions: [{ label: "Open Documents", href: "/client?tab=documents" }],
+            source: "Your job · live",
+          };
+        },
+      },
+      {
+        group: "Messages",
+        question: "How do I contact my team?",
+        keys: ["contact", "message", "call", "consultant", "talk", "ask"],
+        answer: (ctx) => {
+          const job = clientJob(ctx);
+          return {
+            text: `Send a message in Messages. It goes to everyone on your build at once${job ? `: ${job.rep}, Locale Operations and ${job.builder}` : ""}.`,
+            actions: [{ label: "Open Messages", href: "/client?tab=messages" }],
+          };
+        },
+      },
+      ...PORTAL_USING("Client portal"),
+    ],
+    fallback:
+      "In the Client portal I can tell you where your build is up to, what's left before handover, how your budget splits, what you've paid, why your builder was recommended and which documents are still to come.",
+  },
+  developer: {
+    subtitle: "Your Locale clients and rankings",
+    greeting: `Hi ${DEVELOPER}, ask me which jobs are waiting on you, why clients pick other builders, or what Locale needs with a sale.`,
+    faqs: [
+      {
+        group: "Locale clients",
+        question: "Which jobs are waiting on us?",
+        keys: ["waiting", "accept", "acceptance", "new job", "on us"],
+        answer: (ctx) => {
+          const waiting = ctx.jobs.filter((j) => j.builder === DEVELOPER && awaitingAcceptance(j));
+          return {
+            text: waiting.length
+              ? `${plural(waiting.length, "new Locale sale")} ${waiting.length === 1 ? "is" : "are"} waiting for you to accept:`
+              : "Nothing is waiting on you: every Locale sale is accepted.",
+            bullets: waiting.map((j) => `${j.client}, sold ${j.saleWon} by ${j.rep}.`),
+            actions: [{ label: "Open Locale clients", href: "/developer?tab=clients&show=awaiting" }],
+            source: "Locale jobs · live",
+          };
+        },
+      },
+      {
+        group: "Locale clients",
+        question: "Who's in construction?",
+        keys: ["construction", "on site", "building"],
+        answer: (ctx) => {
+          const onSite = ctx.jobs.filter((j) => j.builder === DEVELOPER && currentStage(j)?.id === "construction");
+          return {
+            text: onSite.length ? `${plural(onSite.length, "Locale client")} on site:` : "No Locale clients on site right now.",
+            bullets: onSite.map((j) => `${j.client}, next: ${nextStep(j)?.name ?? "Practical Completion"}.`),
+            actions: [{ label: "Send a site update", href: "/developer?tab=updates" }],
+            source: "Locale jobs · live",
+          };
+        },
+      },
+      {
+        group: "Match insights",
+        question: "Why do clients pick another builder?",
+        keys: ["why", "lose", "lost", "objection", "another builder", "weakness"],
+        answer: () => {
+          const lost = OBJECTIONS.reduce((sum, o) => sum + o.count, 0);
+          return {
+            text: `In ${lost} recorded consultations where you were shown and not chosen, these came up:`,
+            bullets: OBJECTIONS.map((o) => `${o.objection} (${o.count}): “${o.said}”`),
+            actions: [{ label: "Open Match insights", href: "/developer?tab=insights" }],
+            source: "Sample figures · recording isn't live yet",
+          };
+        },
+      },
+      {
+        group: "Match insights",
+        question: "Where should we add packages?",
+        keys: ["suburb", "demand", "add", "baldivis"],
+        answer: () => {
+          const gaps = DEMAND.filter((d) => d.packages === 0);
+          return {
+            text: gaps.length
+              ? `Locale clients want ${gaps.map((g) => g.suburb).join(" and ")}, and you have no package there.`
+              : "You have packages in every suburb Locale clients ask for.",
+            bullets: DEMAND.map((d) => `${d.suburb}: ${d.enquiries} enquiries, ${plural(d.packages, "package")} of yours.`),
+            actions: [{ label: "Open Match insights", href: "/developer?tab=insights" }],
+            source: "Sample figures",
+          };
+        },
+      },
+      {
+        group: "Terms",
+        question: "What does Locale need with a sale?",
+        keys: ["need", "checklist", "submission", "documents", "requirements"],
+        answer: () => {
+          const list = BUILDER_CHECKLISTS[DEVELOPER] ?? [];
+          return {
+            text: `Your deal-submission checklist has ${plural(list.filter((c) => c.req).length, "required document")}:`,
+            bullets: list.map((c) => `${c.cat} · ${c.name}${c.req ? "" : " (if it applies)"}.`),
+            actions: [{ label: "Open Terms and requirements", href: "/developer?tab=terms" }],
+          };
+        },
+      },
+      {
+        group: "Terms",
+        question: "What are Locale's fees?",
+        keys: ["fee", "invoice", "claim", "charge"],
+        answer: (ctx) => {
+          const open = ctx.invoices.filter((i) => i.builder === DEVELOPER && i.status !== "Paid");
+          return {
+            text: "Locale invoices you when a client reaches each milestone (excl GST):",
+            bullets: [
+              ...Object.entries(BUILDER_CLAIMS[DEVELOPER] ?? {}).map(([m, a]) => `${m}: ${aud(a)}.`),
+              open.length
+                ? `${plural(open.length, "invoice")} open: ${open.map((i) => `${i.id} ${aud(i.amount)}`).join(", ")}.`
+                : "No invoices open.",
+            ],
+            actions: [{ label: "Open Terms and requirements", href: "/developer?tab=terms" }],
+            source: "Accounts · live",
+          };
+        },
+      },
+      ...PORTAL_USING("Developer portal"),
+    ],
+    fallback:
+      "In the Developer portal I can list jobs waiting on you and clients on site, explain why clients pick another builder and where to add packages, and tell you what Locale needs with a sale and what it charges.",
+  },
+  employee: {
+    subtitle: "Your pay, invoices and department",
+    greeting: `Hi ${GOES_BY}, ask me what this week pays, what your rates are, where your invoices are up to, or who's in your department.`,
+    faqs: [
+      {
+        group: "Pay",
+        question: "What's my pay this week?",
+        keys: ["pay", "earn", "salary", "this week", "take-home", "how much"],
+        answer: (ctx) => {
+          const pay = weekPay(LATEST_WEEK);
+          const inv = ctx.staffInvoices.find((i) => i.week === LATEST_WEEK.start);
+          return {
+            text: `For the week of ${weekLabel(LATEST_WEEK.start)} you worked ${formatHours(pay.hours)}, which comes to ${money(pay.total)} at your rates:`,
+            bullets: [
+              `Regular: ${formatHours(pay.regularHours)} at ${money(RATES.regular)}/h, ${money(pay.regular)}.`,
+              pay.overtimeHours
+                ? `Overtime: ${formatHours(pay.overtimeHours)} at ${money(RATES.overtime)}/h, ${money(pay.overtime)}.`
+                : "No overtime this week.",
+              inv
+                ? `Invoiced as ${inv.number}: ${inv.decision ?? "with Accounts for review"}.`
+                : "Not invoiced yet. Send it to get paid.",
+            ],
+            actions: inv
+              ? [{ label: "Open invoice history", href: "/employee?tab=invoices&view=history" }]
+              : [{ label: "Invoice this week", href: `/employee?tab=invoices&week=${LATEST_WEEK.start}` }],
+            source: "Sample figures · time tracking isn't connected yet",
+          };
+        },
+      },
+      {
+        group: "Pay",
+        question: "What are my current rates?",
+        keys: ["rate", "rates", "hourly", "overtime", "per hour"],
+        answer: () => ({
+          text: "Locale pays you by the hour, and you invoice it weekly:",
+          bullets: [
+            `Regular: ${money(RATES.regular)}/h, up to ${RATES.overtimeAfter}h in a pay week.`,
+            `Overtime: ${money(RATES.overtime)}/h for every hour after that.`,
+            `Pay weeks run Sunday to Saturday, billed in ${CURRENCY}.`,
+          ],
+          actions: [{ label: "Open Profile", href: "/employee?tab=profile" }],
+          source: "Sample figures",
+        }),
+      },
+      {
+        group: "Invoices",
+        question: "Which invoices are with Accounts?",
+        keys: ["invoice", "pending", "accounts", "approved", "review", "waiting"],
+        answer: (ctx) => {
+          const pending = ctx.staffInvoices.filter((i) => i.status === "pending");
+          return {
+            text: pending.length
+              ? `${plural(pending.length, "invoice")} ${pending.length === 1 ? "is" : "are"} with Accounts. ${INVOICE_APPROVER} reviews them:`
+              : "Nothing is with Accounts: every invoice you've sent has been decided.",
+            bullets: pending.map(
+              (i) => `${i.number}, ${money(invoiceTotals(i.lines).total)}${i.week ? `, week of ${weekLabel(i.week)}` : ""}.`,
+            ),
+            actions: [{ label: "Open invoice history", href: "/employee?tab=invoices&view=history" }],
+          };
+        },
+      },
+      {
+        group: "Invoices",
+        question: "How do I send an invoice?",
+        keys: ["send", "create", "new invoice", "bill", "how do i invoice"],
+        answer: () => ({
+          text: "Open Invoices › New invoice and pick the pay week it bills. Its hours fill the lines at your rates and your Profile fills in the sender. Check it, then Send to Accounts. You get six seconds to undo, and you can retract it from History while it's still pending.",
+          actions: [{ label: "New invoice", href: "/employee?tab=invoices" }],
+        }),
+      },
+      {
+        group: "Department",
+        question: "Who's in my department?",
+        keys: ["department", "team", "who", "colleague", "head", "manager"],
+        answer: (ctx) => {
+          const deptId = orgDepartmentOf(ctx.people, EMPLOYEE_ID);
+          const dept = orgDepartment(deptId);
+          const members = masterList(ctx.people).filter((r) => r.department === deptId);
+          return {
+            text: `${dept.name} has ${plural(members.length, "person", "people")}:`,
+            bullets: members.map(
+              (m) => `${m.name}${m.id === EMPLOYEE_ID ? " (you)" : ""}, ${m.role}${m.id === dept.headId ? ". Heads the department." : "."}`,
+            ),
+            actions: [{ label: "Open Department", href: "/employee?tab=department" }],
+            source: "HR's org chart · live",
+          };
+        },
+      },
+      ...PORTAL_USING("Employee portal"),
+    ],
+    fallback:
+      "In the Employee portal I can tell you this week's pay and your rates, which invoices are with Accounts, how to send one, and who's in your department.",
+  },
 };
 
 /**
@@ -1022,17 +1535,21 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
  */
 export const FEATURED: Record<ModuleId, readonly [string, string, string]> = {
   home: ["What needs me today?", "Are any jobs out of sync?", "What's coming up this fortnight?"],
-  operations: ["Which jobs have sync conflicts?", "What's waiting in the portal inbox?", "Where is the Nguyen submission up to?"],
+  operations: ["Which jobs have sync conflicts?", "What's waiting in the review queue?", "Where is the Nguyen submission up to?"],
   sales: ["What's in my pipeline?", "Which lots can I hold?", "Where is my deal submission?"],
   marketing: ["What's our cost per deal?", "Which channel converts best?", "Can we trust the attribution?"],
   finance: ["What does the health check do?", "What's asked about income?", "Where do the answers go?"],
   accounts: ["Which invoices are waiting for approval?", "What does cash flow look like?", "Any expense claims to approve?"],
+  accounting: ["Which invoices are waiting on me?", "What rate is this pay run using?", "Who can't be paid this run?"],
   wealth: ["What's the median price in Baldivis?", "Which suburb has the best yield?", "What packages were made recently?"],
   hr: ["Which leave requests need approval?", "Who's away or not in yet?", "Which roles are we hiring for?"],
   projects: ["What's in build right now?", "What's closest to done?", "What's on the to-do list?"],
   knowledge: ["Where's the deal submission checklist?", "How do I request leave?", "What's new this month?"],
   leadership: ["How are sales tracking this month?", "What does cash look like next month?", "Any sync risk I should know about?"],
   it: ["What tickets are open?", "How do I raise a ticket?", "How do I report a phishing email?"],
+  client: ["Where is my build up to?", "How does our budget split?", "Why was our builder recommended?"],
+  developer: ["Which jobs are waiting on us?", "Why do clients pick another builder?", "What does Locale need with a sale?"],
+  employee: ["What's my pay this week?", "What are my current rates?", "Who's in my department?"],
 };
 
 /** A dashboard's three FAQ entries. Throws if a featured question has no answer behind it. */

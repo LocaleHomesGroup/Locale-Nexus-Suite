@@ -16,6 +16,7 @@ import { ErrorState } from "@/components/ui/states";
 import { Reveal } from "@/components/ui/reveal";
 import { useOperationsSync } from "../../sync/OperationsSyncProvider";
 import type { MilestoneKind } from "../../sync/types";
+import { MONEY_MILESTONES, isRegression, liveMilestone } from "../../review/review";
 import { DEFAULT_BUILDER_DATE, DEFAULT_SITE_START } from "../data";
 import { MondayPill } from "../JobsTable";
 import { DealDetailsCard, JobDetailsCard, LandHouseCard } from "./DetailCards";
@@ -29,7 +30,7 @@ const CONFLICT_GUIDE = `/knowledge?cat=sops&q=${encodeURIComponent("Resolving a 
 
 function BackLink() {
   return (
-    <Link href="/operations" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-2 w-fit")}>
+    <Link href="/operations?tab=jobs" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-2 w-fit")}>
       <ArrowLeft /> All jobs
     </Link>
   );
@@ -48,8 +49,8 @@ export function JobDetailScreen({ id }: { id: string }) {
         <Card>
           <ErrorState
             title="Job not found"
-            message={`No job with ID "${id}" is mirrored in CRM Dash Sync. The link may be out of date.`}
-            onBack={() => router.push("/operations")}
+            message={`No job with ID "${id}" is mirrored in CRM dash sync. The link may be out of date.`}
+            onBack={() => router.push("/operations?tab=jobs")}
           />
         </Card>
       </PageContainer>
@@ -60,7 +61,8 @@ export function JobDetailScreen({ id }: { id: string }) {
 
 function JobDetail({ job }: { job: Job }) {
   const { activity, updateJob, logActivity } = useLaunchpad();
-  const { syncMilestone, syncDetails, handOver, resolveConflict, trailForJob, viewTrail } = useOperationsSync();
+  const { syncMilestone, syncDetails, handOver, resolveConflict, fileReview, trailForJob, viewTrail } =
+    useOperationsSync();
   const trail = trailForJob(job.id);
   // The audit log is this job's own history: entries scoped to it, plus any that apply to every job.
   const history = React.useMemo(
@@ -89,7 +91,20 @@ function JobDetail({ job }: { job: Job }) {
 
   const saveMilestone = () => {
     if (!draft) return;
-    syncMilestone(job.id, draft.name, draft.date, draft.kind, draft.status);
+    const current = liveMilestone(job, { kind: draft.kind, milestone: draft.name });
+    // Taking back a milestone that moves money, or backdating it, waits for a
+    // person in the review queue. Everything else applies and syncs now.
+    if (MONEY_MILESTONES.has(draft.name) && isRegression(current, draft.status, draft.date)) {
+      fileReview(
+        job.id,
+        draft.kind,
+        draft.name,
+        { status: draft.status, date: draft.status === "done" ? draft.date : "" },
+        draft.source,
+      );
+    } else {
+      syncMilestone(job.id, draft.name, draft.date, draft.kind, draft.status);
+    }
     setDraft(null);
   };
 
@@ -160,7 +175,7 @@ function JobDetail({ job }: { job: Job }) {
             <AlertTriangle className="size-4 shrink-0 text-rose-600 dark:text-rose-300" aria-hidden />
             <div className="min-w-0 flex-1">
               <p className="max-w-[70ch] text-[13px] leading-relaxed text-rose-800 dark:text-rose-200">
-                <strong className="font-semibold">Conflict on {job.conflict.field}.</strong> CRM Dash:{" "}
+                <strong className="font-semibold">Conflict on {job.conflict.field}.</strong> Launchpad:{" "}
                 {job.conflict.hub}. Monday: {job.conflict.monday}. Nothing on this milestone syncs until it&apos;s
                 resolved.
               </p>

@@ -70,8 +70,10 @@
    on <html>. `inline` so the utilities resolve the runtime variable. */
 @theme inline {
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-libre), Georgia, "Times New Roman", serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* One face everywhere, the sidebar's. Headings and IDs are Manrope too; the
+     classes stay so either role can be restyled from here in one line. */
+  --font-heading: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -603,13 +605,48 @@
 }
 .jarvis-dot { animation: jarvis-dot 0.9s ease-in-out infinite; }
 
+/* Accounting › Pay run › Dispatch: HRIS's dispatch running light. A light runs
+   round the card's rim while a pay run sits in its undo window, which is money
+   about to move. It loops only while that lasts; under reduced motion the rim
+   holds still. */
+.dispatch-running {
+  position: relative;
+  isolation: isolate;
+}
+.dispatch-running::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--neon-angle),
+    transparent 0deg,
+    var(--tone-strong) 70deg,
+    var(--tone-fill) 110deg,
+    transparent 170deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: neon-spin 1.6s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
 @layer utilities {
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
-  /* Brand accent — Libre Baskerville Italic at -25 tracking (stylesheet). */
+  /* IDs and job numbers used to be monospace; in Manrope they keep even-width
+     digits so a column of job numbers still lines up. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Brand accent — Libre Baskerville Italic at -25 tracking (stylesheet). The
+     one serif left: a single accent word, never a heading. */
   .font-accent {
-    font-family: var(--font-heading);
+    font-family: var(--font-libre), Georgia, "Times New Roman", serif;
     font-style: italic;
     letter-spacing: -0.025em;
   }
@@ -633,7 +670,8 @@
   .logo-heartbeat,
   .brand-mark-beating,
   .jarvis-dot,
-  .logo-neon:hover::before {
+  .logo-neon:hover::before,
+  .dispatch-running::before {
     animation: none !important;
   }
   .skeleton-shimmer {

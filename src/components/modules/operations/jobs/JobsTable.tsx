@@ -1,19 +1,16 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
-import { ChevronRight, SearchX } from "lucide-react";
+import { Eye } from "lucide-react";
 import type { Job } from "@/data/jobs";
 import { cn } from "@/lib/utils";
 import { EASE_OUT, rowDelay } from "@/lib/motion";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
-import { Button } from "@/components/ui/button";
 import { SyncBadge } from "@/components/ui/sync-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { SyncFilter } from "./CrmDashSync";
 
 const MotionRow = motion.create(TableRow);
 
@@ -34,27 +31,41 @@ export function MondayPill({ job, long = false }: { job: Job; long?: boolean }) 
   return <Pill tone="neutral">{long ? "Monday · Sales board" : "Sales board"}</Pill>;
 }
 
-function openLabel(job: Job) {
-  return `Open ${job.jobNo ? `job ${job.jobNo}` : "new job"} · ${job.client}`;
+function viewLabel(job: Job) {
+  return `View ${job.jobNo ? `job ${job.jobNo}` : "new job"} · ${job.client}`;
 }
 
 /**
- * Every mirrored job. A table from `md` up (rows open the job), stacked cards
- * below it. The row entrance replays when the sync filter changes, not while
- * typing a search (HRIS § 14.3).
+ * The HRIS **View** row action (outline, small, eye icon). It opens the job's
+ * quick view in a dialog; the dialog's footer goes on to the full job page.
+ */
+function ViewJob({ job, onView }: { job: Job; onView: (job: Job) => void }) {
+  return (
+    <Button variant="outline" size="sm" aria-label={viewLabel(job)} onClick={() => onView(job)}>
+      <Eye /> View
+    </Button>
+  );
+}
+
+/**
+ * Every mirrored job. A table from `md` up, stacked cards below it. A row is
+ * not a link: the Action column's View opens the job, so reading across a row
+ * never navigates by accident. The row entrance replays when `replayKey`
+ * changes (a tile or a filter), not while typing a search (HRIS § 14.3).
+ * `empty` fills the card when nothing is left to show; `onView` opens a job's
+ * quick view.
  */
 export function JobsTable({
   rows,
-  filter,
-  query,
-  onClear,
+  replayKey,
+  empty,
+  onView,
 }: {
   rows: Job[];
-  filter: SyncFilter;
-  query: string;
-  onClear: () => void;
+  replayKey: string;
+  empty: React.ReactNode;
+  onView: (job: Job) => void;
 }) {
-  const router = useRouter();
   const reduce = useReducedMotion();
 
   return (
@@ -63,36 +74,31 @@ export function JobsTable({
         <Table>
           <TableHeader>
             <tr>
-              <TableHead className="pl-5">Job no</TableHead>
+              <TableHead className="pl-5">Job number</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Builder</TableHead>
               <TableHead>HubSpot stage</TableHead>
               <TableHead>Monday</TableHead>
-              <TableHead className="pr-5">Sync</TableHead>
+              <TableHead>Sync</TableHead>
+              <TableHead className="pr-5 text-right">Action</TableHead>
             </tr>
           </TableHeader>
           <TableBody>
             {rows.map((j, i) => (
               <MotionRow
-                key={`${filter}:${j.id}`}
+                key={`${replayKey}:${j.id}`}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: reduce ? 0 : 0.18, ease: EASE_OUT, delay: rowDelay(i, reduce) }}
-                onClick={() => router.push(jobHref(j.id))}
-                className="group cursor-pointer"
               >
                 <TableCell className="py-3 pl-5">
-                  <Link
-                    href={jobHref(j.id)}
-                    aria-label={openLabel(j)}
-                    onClick={(e) => e.stopPropagation()}
-                    className={cn(
-                      "rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/45",
-                      j.jobNo ? "font-mono text-xs font-semibold text-foreground" : "text-[13px] text-subtle-foreground",
-                    )}
+                  <span
+                    className={
+                      j.jobNo ? "font-mono text-xs font-semibold text-foreground" : "text-[13px] text-subtle-foreground"
+                    }
                   >
                     {j.jobNo || "Awaiting"}
-                  </Link>
+                  </span>
                 </TableCell>
                 <TableCell className="py-3 font-medium">{j.client}</TableCell>
                 <TableCell className="py-3 text-foreground/80">{j.builder}</TableCell>
@@ -100,14 +106,11 @@ export function JobsTable({
                 <TableCell className="py-3">
                   <MondayPill job={j} />
                 </TableCell>
-                <TableCell className="py-3 pr-5">
-                  <span className="flex items-center justify-between gap-2">
-                    <SyncBadge sync={j.sync} />
-                    <ChevronRight
-                      className="size-3.5 text-subtle-foreground opacity-0 transition-[opacity,transform] group-hover:translate-x-0.5 group-hover:opacity-100"
-                      aria-hidden
-                    />
-                  </span>
+                <TableCell className="py-3">
+                  <SyncBadge sync={j.sync} />
+                </TableCell>
+                <TableCell className="py-3 pr-5 text-right">
+                  <ViewJob job={j} onView={onView} />
                 </TableCell>
               </MotionRow>
             ))}
@@ -118,17 +121,13 @@ export function JobsTable({
       <ul className="md:hidden">
         {rows.map((j, i) => (
           <motion.li
-            key={`${filter}:${j.id}`}
+            key={`${replayKey}:${j.id}`}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduce ? 0 : 0.18, ease: EASE_OUT, delay: rowDelay(i, reduce) }}
             className="border-t border-hairline first:border-t-0"
           >
-            <Link
-              href={jobHref(j.id)}
-              aria-label={openLabel(j)}
-              className="flex flex-col gap-1.5 px-4 py-3 outline-none transition-colors hover:bg-tone-soft/60 focus-visible:bg-tone-soft/60"
-            >
+            <div className="flex flex-col gap-1.5 px-4 py-3">
               <span className="flex items-center gap-2">
                 <span
                   className={cn(
@@ -144,40 +143,16 @@ export function JobsTable({
               <span className="text-xs text-muted-foreground">
                 {j.builder} · {j.hsStage}
               </span>
-              <span>
+              <span className="flex items-center justify-between gap-2">
                 <MondayPill job={j} />
+                <ViewJob job={j} onView={onView} />
               </span>
-            </Link>
+            </div>
           </motion.li>
         ))}
       </ul>
 
-      {rows.length === 0 ? <NoJobMatches query={query} filter={filter} onClear={onClear} /> : null}
+      {rows.length === 0 ? empty : null}
     </Card>
-  );
-}
-
-/** Filter-shaped empty state (HRIS § 12.2) with the mockup's sentence. */
-function NoJobMatches({ query, filter, onClear }: { query: string; filter: SyncFilter; onClear: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="mb-3 flex size-12 items-center justify-center rounded-2xl border border-border bg-muted text-muted-foreground">
-        <SearchX className="size-6" aria-hidden />
-      </div>
-      <h3 className="text-sm font-semibold">No matches</h3>
-      <p className="mt-1.5 max-w-md text-xs text-muted-foreground">
-        No jobs match
-        {query ? (
-          <>
-            {" "}
-            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">{query}</span>
-          </>
-        ) : null}
-        {filter !== "all" ? ` with status ${filter}` : ""}. Try clearing the filter or search.
-      </p>
-      <Button variant="outline" size="sm" className="mt-4 rounded-full" onClick={onClear}>
-        Clear filter and search
-      </Button>
-    </div>
   );
 }

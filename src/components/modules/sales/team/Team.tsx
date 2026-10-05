@@ -33,6 +33,7 @@ import { Dash, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } f
 import {
   JOBS_BY_STAGE,
   REPS,
+  SALES_WON_MTD,
   SALES_WON_QTD,
   STAGE_REPORT_DEALS,
   STAGE_REPORT_LEADS,
@@ -152,7 +153,7 @@ export function Team() {
 
       <Reveal index={0}>
         <KpiGrid cols={4}>
-          <KpiCard label="Team sales MTD" value={4} icon={Trophy} />
+          <KpiCard label="Team sales MTD" value={SALES_WON_MTD} icon={Trophy} />
           <KpiCard label="Pipeline value" value="$2.98m" icon={Wallet} />
           <KpiCard label="Active client builds" value={223} icon={HardHat} tone="charcoal" />
           <KpiCard

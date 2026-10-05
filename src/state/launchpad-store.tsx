@@ -17,13 +17,13 @@ import { aud } from "@/lib/utils";
 import {
   SEED_ACTIVITY,
   SEED_NOTIFICATIONS,
-  SEED_PORTAL_UPDATES,
+  SEED_REVIEW_ITEMS,
   SEED_SUBMISSION_DOCS,
   type ActivityEntry,
   type ActivityType,
   type AppNotification,
   type NotificationKind,
-  type PortalUpdate,
+  type ReviewItem,
 } from "@/data/seed";
 
 /**
@@ -50,12 +50,16 @@ export type ModuleId =
   | "marketing"
   | "finance"
   | "accounts"
+  | "accounting"
   | "wealth"
   | "hr"
   | "projects"
   | "knowledge"
   | "leadership"
-  | "it";
+  | "it"
+  | "client"
+  | "developer"
+  | "employee";
 
 interface LaunchpadStore {
   jobs: Job[];
@@ -67,8 +71,19 @@ interface LaunchpadStore {
 
   /** Audit log shown on the job detail page, newest first. */
   activity: ActivityEntry[];
-  /** Record a write. `jobs` scopes it to the job(s) it touched, so each job page shows only its own. */
-  logActivity: (type: ActivityType, action: string, detail: string, targets: string[], jobs?: number | number[]) => void;
+  /**
+   * Record a write. `jobs` scopes it to the job(s) it touched, so each job page
+   * shows only its own. `who` defaults to the signed-in user; a portal write
+   * names its sender ("Forma · Developer portal").
+   */
+  logActivity: (
+    type: ActivityType,
+    action: string,
+    detail: string,
+    targets: string[],
+    jobs?: number | number[],
+    who?: string,
+  ) => void;
 
   notifications: AppNotification[];
   /** Add a notification (newest first). `kind: "red"` marks it as needing action. */
@@ -76,9 +91,13 @@ interface LaunchpadStore {
   dismissNotification: (index: number) => void;
   clearNotifications: () => void;
 
-  /** Builder-portal and email updates waiting for a human in Operations. */
-  portalUpdates: PortalUpdate[];
-  setPortalUpdates: React.Dispatch<React.SetStateAction<PortalUpdate[]>>;
+  /**
+   * Operations' review queue: money-milestone regressions held back from
+   * Monday and HubSpot, and the decisions taken on them, newest first. Filed,
+   * released and dismissed through the Operations sync engine.
+   */
+  reviewItems: ReviewItem[];
+  setReviewItems: React.Dispatch<React.SetStateAction<ReviewItem[]>>;
 
   /**
    * Builder invoices, approved in Accounts and read by Home and Jarvis. An
@@ -126,7 +145,7 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
   const [lotDetails, setLotDetails] = useState<Record<number, LotDetail>>(LOT_DETAILS);
   const [activity, setActivity] = useState<ActivityEntry[]>(SEED_ACTIVITY);
   const [notifications, setNotifications] = useState<AppNotification[]>(SEED_NOTIFICATIONS);
-  const [portalUpdates, setPortalUpdates] = useState<PortalUpdate[]>(SEED_PORTAL_UPDATES);
+  const [reviewItems, setReviewItems] = useState<ReviewItem[]>(SEED_REVIEW_ITEMS);
   const [submissionDocs, setSubmissionDocs] = useState<SubmissionDoc[]>(SEED_SUBMISSION_DOCS);
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>("draft");
   const [invoices, setInvoices] = useState<BuilderInvoice[]>(SEED_INVOICES);
@@ -150,9 +169,9 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
     setLotDetails((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }, []);
 
-  const logActivity = useCallback<LaunchpadStore["logActivity"]>((type, action, detail, targets, jobs) => {
+  const logActivity = useCallback<LaunchpadStore["logActivity"]>((type, action, detail, targets, jobs, who = "S. Hart") => {
     const scope = jobs === undefined ? undefined : Array.isArray(jobs) ? jobs : [jobs];
-    setActivity((prev) => [{ type, action, detail, targets, who: "S. Hart", when: "Just now", jobs: scope }, ...prev]);
+    setActivity((prev) => [{ type, action, detail, targets, who, when: "Just now", jobs: scope }, ...prev]);
   }, []);
 
   const notify = useCallback<LaunchpadStore["notify"]>((msg, kind = "ok") => {
@@ -268,8 +287,8 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
       notify,
       dismissNotification,
       clearNotifications,
-      portalUpdates,
-      setPortalUpdates,
+      reviewItems,
+      setReviewItems,
       submissionDocs,
       setSubmissionDocs,
       submissionStatus,
@@ -297,7 +316,7 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
       notify,
       dismissNotification,
       clearNotifications,
-      portalUpdates,
+      reviewItems,
       submissionDocs,
       submissionStatus,
       invoices,

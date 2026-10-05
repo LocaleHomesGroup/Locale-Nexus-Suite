@@ -15,7 +15,7 @@ are both supported.
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
+npm run dev      # http://localhost:3000, or the next free port if 3000 is taken (see the terminal)
 npm run build    # production build (stop the dev server first — they share .next/)
 npm run lint     # type-check
 ```
@@ -37,6 +37,7 @@ an assistant bubble (bottom-right) with three FAQ questions about that dashboard
 | `/marketing` | Marketing | `performance` · `channels` · `attribution` |
 | `/finance` | Finance | — |
 | `/accounts` | Accounts | `invoicing` · `reports` · `expenses` |
+| `/accounting` | Accounting | `payrun` (Pay run: Rate → Invoices → Validation → Dispatch) · `history` |
 | `/wealth` | Wealth | — |
 | `/hr` | HR | `dashboard` · `people` · `attendance` · `leave` · `recruitment` · `performance` · `assets` |
 | `/projects` | Projects | — |
@@ -53,7 +54,7 @@ Collapse the sidebar with its pull-tab or Ctrl+B / ⌘B.
 
 ```
 app/
-  layout.tsx               fonts (Manrope, Libre Baskerville, JetBrains Mono), theme, toaster
+  layout.tsx               fonts (Manrope, plus Libre Baskerville for the one accent word), theme, toaster
   (dashboard)/layout.tsx   store + shell, stays mounted across navigation
   (dashboard)/template.tsx page-enter animation
   (dashboard)/<module>/    one route per module
@@ -73,8 +74,9 @@ docs/UI-GUIDE.md           the design system: tokens, components, motion, portin
 - **Colour:** Charcoal `#323232`, Granite `#737373` and Silver `#F2F2F2` are the master brand.
   The three sub-brand tints are Haven Green `#9CE3DB` (Homes, and the Launchpad accent),
   Nectar `#F7D4B7` (Financial) and Sky Blue `#C8D5F5` (Wealth).
-- **Type:** headings are Libre Baskerville Bold, body is Manrope, and the accent is
-  Libre Baskerville Italic. The fonts are self-hosted from the brand kit.
+- **Type:** one face, Manrope, for headings, body and IDs alike, the same as the sidebar. The
+  only exception is the brand accent word, Libre Baskerville Italic, on Home's greeting.
+  Both fonts are self-hosted from the brand kit.
 - **Logo:** the Locale Property Group master logo sits in the rail. When the rail is
   collapsed it becomes the "L" sticker, which is also the favicon.
 

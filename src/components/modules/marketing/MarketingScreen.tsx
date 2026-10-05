@@ -36,9 +36,12 @@ import {
   TOTAL_SPEND,
   TOTAL_WON,
   WON_BAR_SCALE,
+  dollars,
+  k1,
   type MarketingTab,
 } from "./data";
 import { SpendDealsChart } from "./SpendDealsChart";
+import { MarketingOverview } from "./MarketingOverview";
 
 /**
  * Marketing — the mockup's `ym`: Performance (spend against deals won),
@@ -46,10 +49,6 @@ import { SpendDealsChart } from "./SpendDealsChart";
  * trusted). Read-only reporting; every figure derives from `./data`.
  */
 
-/** "$18.4k" — the mockup's one-decimal thousands. */
-const k1 = (n: number) => `$${(n / 1e3).toFixed(1)}k`;
-/** "$1,238" */
-const dollars = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`;
 /** Commission returned, "$104k". */
 const commission = (won: number) => `$${((won * COMMISSION_PER_DEAL) / 1e3).toFixed(0)}k`;
 /** Above this a channel's cost per deal is flagged amber on the Channels table. */
@@ -57,12 +56,20 @@ const COST_PER_DEAL_CEILING = 2000;
 
 export function MarketingScreen() {
   // The three sections are listed in the Marketing rail, not as a strip in the page.
-  const [tab, , dir] = useTabParam(MARKETING_TABS, "performance");
+  const [tab, , dir] = useTabParam(MARKETING_TABS, "overview");
 
   return (
     <PageContainer>
       <TabPanels value={tab} dir={dir}>
-        {tab === "performance" ? <PerformanceTab /> : tab === "channels" ? <ChannelsTab /> : <AttributionTab />}
+        {tab === "overview" ? (
+          <MarketingOverview />
+        ) : tab === "performance" ? (
+          <PerformanceTab />
+        ) : tab === "channels" ? (
+          <ChannelsTab />
+        ) : (
+          <AttributionTab />
+        )}
       </TabPanels>
     </PageContainer>
   );

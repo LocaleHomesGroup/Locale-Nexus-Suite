@@ -113,7 +113,7 @@ export function ConflictDialog({
   const hubDate = c?.hubDate ?? "";
   const labels: Record<Keep, string> = {
     monday: mondayDate ? `Accept Monday's ${shortDate(mondayDate)}` : "Accept Monday's value",
-    crm: hubDate ? `Keep CRM Dash's ${shortDate(hubDate)}` : "Keep CRM Dash: no date",
+    crm: hubDate ? `Keep Launchpad's ${shortDate(hubDate)}` : "Keep Launchpad: no date",
   };
   const milestone = c?.milestone ?? "the milestone";
   const stage = mondayDate && c?.milestone ? MILESTONE_HUBSPOT_STAGE[c.milestone] : null;
@@ -146,15 +146,15 @@ export function ConflictDialog({
           <ChoiceCard
             selected={choice === "monday"}
             title={labels.monday}
-            body={`Monday: ${c.monday}. CRM Dash records it and marks ${milestone} Completed${
-              stage ? `, HubSpot moves to ${stage}` : ""
+            body={`Monday: ${c.monday}. Launchpad records it and marks ${milestone} Completed${
+              stage ? `, HubSpot moves forward to ${stage} if it is behind` : ""
             }${claim ? ` and a ${job.builder} draft invoice is raised in Xero for Accounts to approve` : ""}.`}
             onSelect={() => setChoice("monday")}
           />
           <ChoiceCard
             selected={choice === "crm"}
             title={labels.crm}
-            body={`CRM Dash: ${c.hub}. Monday is corrected to match${
+            body={`Launchpad: ${c.hub}. Monday is corrected to match${
               hubDate ? "" : `, and ${milestone} stays awaiting the builder's date`
             }.`}
             onSelect={() => setChoice("crm")}

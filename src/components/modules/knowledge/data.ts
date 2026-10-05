@@ -88,10 +88,10 @@ export const MATERIALS: Record<Category, Material[]> = {
 
 /**
  * Home's "Popular right now" titles, verbatim, with the search that surfaces
- * each one here.
+ * each one here and the category it lives in (so the rail highlights it).
  */
-export const POPULAR: { label: string; query: string }[] = [
-  { label: "Deal submission checklist — all builders", query: "Deal submission checklist" },
-  { label: "How milestones sync to HubSpot and Monday", query: "How milestones sync" },
-  { label: "Leave request process", query: "Leave request" },
+export const POPULAR: { label: string; query: string; cat: string }[] = [
+  { label: "Deal submission checklist — all builders", query: "Deal submission checklist", cat: "builders" },
+  { label: "How milestones sync to HubSpot and Monday", query: "How milestones sync", cat: "systems" },
+  { label: "Leave request process", query: "Leave request", cat: "sops" },
 ];

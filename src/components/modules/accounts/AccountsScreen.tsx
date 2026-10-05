@@ -12,12 +12,13 @@ import { invoicedThisMonth } from "./data";
 import { InvoicingTab } from "./InvoicingTab";
 import { ReportsTab } from "./ReportsTab";
 import { ExpensesTab } from "./ExpensesTab";
+import { AccountsOverview } from "./AccountsOverview";
 
-const TABS = ["invoicing", "reports", "expenses"] as const;
+const TABS = ["overview", "invoicing", "reports", "expenses"] as const;
 
 /**
- * Accounts — the mockup's `hm` (app.js 10098–10855): Builder invoicing (default),
- * Reports and Expenses, kept in `?tab=` so Home's "3 draft invoices" and
+ * Accounts — the mockup's `hm` (app.js 10098–10855): an Overview (the default),
+ * Builder invoicing, Reports and Expenses, kept in `?tab=` so Home's "3 draft invoices" and
  * "2 expense claims" shortcuts land on the right tab.
  *
  * Invoices and claims live in the shared Launchpad store, so an approval here
@@ -29,7 +30,7 @@ const TABS = ["invoicing", "reports", "expenses"] as const;
  * window closes does the status change.
  */
 export function AccountsScreen() {
-  const [tab, , dir] = useTabParam(TABS, "invoicing");
+  const [tab, , dir] = useTabParam(TABS, "overview");
   const { invoices, sendingInvoices, approveInvoices, claims, decidingClaims, decideClaim } = useLaunchpad();
 
   // An item inside its undo window is still waiting: nothing has been sent yet.
@@ -56,7 +57,9 @@ export function AccountsScreen() {
   return (
     <PageContainer>
       <TabPanels value={tab} dir={dir}>
-        {tab === "invoicing" ? (
+        {tab === "overview" ? (
+          <AccountsOverview />
+        ) : tab === "invoicing" ? (
           <InvoicingTab
             invoices={invoices}
             sending={sendingInvoices}

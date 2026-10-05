@@ -15,9 +15,10 @@ import { TONES } from "./dashboard-tones";
  * click to landed view. The emblem pulses inside two expanding rings; a status
  * line cycles; a bar fills toward (never past) 99% until the switch lands.
  *
- * The skeleton is shaped like the destination (`SHAPES`): Finance is one form,
- * Knowledge is a list, Sales is a board; the rail skeleton has the
- * destination's nav rows, at the rail's current (collapsed or expanded) width.
+ * The skeleton is shaped like the destination (`SHAPES`): Home is its own
+ * page, and every other dashboard opens on its Overview (two rows of KPI
+ * cards); the rail skeleton has the destination's nav rows, at the rail's
+ * current (collapsed or expanded) width.
  *
  * Under reduced motion the rings, pulse, dots and sweep stop; the card, the
  * words and the bar (no travel, just its fill) stay — the signal survives.
@@ -26,42 +27,40 @@ const STATUS_MESSAGES = ["Loading your workspace", "Syncing HubSpot and Monday",
 const CYCLE_MS = 700;
 const TICK_MS = 60;
 
-type Body = "panels" | "table" | "chart" | "board" | "form" | "form-list" | "list";
+type Body = "panels" | "overview";
 interface Shape {
   /** A wide search field under the heading (Home, Knowledge). */
   search?: boolean;
   /** KPI tiles in a row. */
   kpis?: number;
   body: Body;
-  /** Board columns. */
-  columns?: number;
 }
 
 /** What each dashboard's landing screen looks like, roughly. Keep in step with the screens. */
+const OVERVIEW: Shape = { kpis: 4, body: "overview" };
 const SHAPES: Record<ModuleId, Shape> = {
   home: { search: true, kpis: 4, body: "panels" },
-  operations: { kpis: 4, body: "table" },
-  sales: { body: "board", columns: 4 },
-  marketing: { kpis: 4, body: "chart" },
-  finance: { body: "form" },
-  accounts: { kpis: 3, body: "table" },
-  wealth: { body: "form-list" },
-  hr: { kpis: 4, body: "panels" },
-  projects: { kpis: 4, body: "board", columns: 3 },
-  knowledge: { search: true, body: "list" },
-  leadership: { kpis: 4, body: "chart" },
-  it: { body: "form-list" },
+  operations: OVERVIEW,
+  sales: OVERVIEW,
+  marketing: OVERVIEW,
+  finance: OVERVIEW,
+  accounts: OVERVIEW,
+  accounting: OVERVIEW,
+  wealth: OVERVIEW,
+  hr: OVERVIEW,
+  projects: OVERVIEW,
+  knowledge: OVERVIEW,
+  leadership: OVERVIEW,
+  it: OVERVIEW,
+  client: OVERVIEW,
+  developer: OVERVIEW,
+  employee: OVERVIEW,
 };
 
 const KPI_COLS: Record<number, string> = {
   3: "grid-cols-1 sm:grid-cols-3",
   4: "grid-cols-2 lg:grid-cols-4",
 };
-const BOARD_COLS: Record<number, string> = {
-  3: "grid-cols-1 sm:grid-cols-3",
-  4: "grid-cols-2 lg:grid-cols-4",
-};
-const BAR_HEIGHTS = [46, 70, 38, 84, 58, 92, 64, 50];
 
 export function DashboardSwitchLoader({ dashboard, expectedMs = 650 }: { dashboard: Dashboard; expectedMs?: number }) {
   const reduce = useReducedMotion();
@@ -245,7 +244,6 @@ function Lines({ n, className }: { n: number; className?: string }) {
 }
 
 function PageSkeleton({ shape }: { shape: Shape }) {
-  const columns = shape.columns ?? 4;
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-6 px-4 pt-6 sm:px-6 lg:px-8 lg:pt-8">
       <div className="space-y-2">
@@ -269,6 +267,24 @@ function PageSkeleton({ shape }: { shape: Shape }) {
         </div>
       ) : null}
 
+      {shape.body === "overview" ? (
+        // An Overview's second row: a section label, then smaller KPI cards.
+        <div className="flex flex-col gap-3">
+          <div className="skeleton-shimmer h-2.5 w-40 rounded" />
+          <div className={cn("grid gap-3", KPI_COLS[4])}>
+            {Array.from({ length: 4 }, (_, i) => (
+              <Panel key={i} className="flex items-center gap-3 px-4 py-3">
+                <div className="skeleton-shimmer size-8 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <div className="skeleton-shimmer h-2.5 w-16 rounded" />
+                  <div className="skeleton-shimmer h-5 w-12 rounded" />
+                </div>
+              </Panel>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {shape.body === "panels" ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {[0, 1].map((i) => (
@@ -278,121 +294,6 @@ function PageSkeleton({ shape }: { shape: Shape }) {
             </Panel>
           ))}
         </div>
-      ) : null}
-
-      {shape.body === "table" ? (
-        <Panel className="space-y-0 p-0">
-          <div className="flex gap-6 border-b border-border px-5 py-3.5">
-            {[16, 28, 20, 22, 14].map((w, i) => (
-              <div key={i} className="skeleton-shimmer h-2.5 rounded" style={{ width: `${w}%` }} />
-            ))}
-          </div>
-          {Array.from({ length: 6 }, (_, r) => (
-            <div key={r} className="flex items-center gap-6 border-b border-hairline px-5 py-4 last:border-b-0">
-              {[16, 28, 20, 22, 14].map((w, i) => (
-                <div key={i} className="skeleton-shimmer h-3 rounded" style={{ width: `${w * (0.7 + ((r + i) % 3) * 0.12)}%` }} />
-              ))}
-            </div>
-          ))}
-        </Panel>
-      ) : null}
-
-      {shape.body === "chart" ? (
-        <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-          <Panel className="flex h-72 flex-col">
-            <div className="skeleton-shimmer h-4 w-44 rounded" />
-            <div className="mt-auto flex h-48 items-end gap-3">
-              {BAR_HEIGHTS.map((h, i) => (
-                <div key={i} className="skeleton-shimmer flex-1 rounded-t-md" style={{ height: `${h}%` }} />
-              ))}
-            </div>
-          </Panel>
-          <Panel className="space-y-4">
-            <div className="skeleton-shimmer h-4 w-36 rounded" />
-            <Lines n={6} />
-          </Panel>
-        </div>
-      ) : null}
-
-      {shape.body === "board" ? (
-        <div className={cn("grid gap-3", BOARD_COLS[columns] ?? BOARD_COLS[4])}>
-          {Array.from({ length: columns }, (_, c) => (
-            <Panel key={c} className="space-y-3 p-3">
-              <div className="skeleton-shimmer h-3 w-28 rounded" />
-              {Array.from({ length: 2 + (c % 2) }, (_, k) => (
-                <div key={k} className="skeleton-shimmer h-20 rounded-lg" />
-              ))}
-            </Panel>
-          ))}
-        </div>
-      ) : null}
-
-      {shape.body === "form" ? (
-        <Panel className="space-y-5">
-          <div className="flex items-center gap-3">
-            <div className="skeleton-shimmer h-3 w-32 rounded" />
-            <div className="skeleton-shimmer h-1.5 flex-1 rounded-full" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[0, 1].map((i) => (
-              <div key={i} className="space-y-2">
-                <div className="skeleton-shimmer h-2.5 w-24 rounded" />
-                <div className="skeleton-shimmer h-10 rounded-lg" />
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-end gap-2">
-            <div className="skeleton-shimmer h-9 w-20 rounded-lg" />
-            <div className="skeleton-shimmer h-9 w-28 rounded-lg" />
-          </div>
-        </Panel>
-      ) : null}
-
-      {shape.body === "form-list" ? (
-        <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-          <Panel className="space-y-4">
-            <div className="skeleton-shimmer h-4 w-40 rounded" />
-            <div className="grid gap-3 sm:grid-cols-2">
-              {Array.from({ length: 6 }, (_, i) => (
-                <div key={i} className="skeleton-shimmer h-14 rounded-lg" />
-              ))}
-            </div>
-            <div className="skeleton-shimmer h-9 w-36 rounded-lg" />
-          </Panel>
-          <Panel className="space-y-4">
-            <div className="skeleton-shimmer h-4 w-32 rounded" />
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="flex-1 space-y-2">
-                  <div className="skeleton-shimmer h-3 w-3/4 rounded" />
-                  <div className="skeleton-shimmer h-2.5 w-1/2 rounded" />
-                </div>
-                <div className="skeleton-shimmer h-5 w-16 rounded-full" />
-              </div>
-            ))}
-          </Panel>
-        </div>
-      ) : null}
-
-      {shape.body === "list" ? (
-        <>
-          <div className="flex gap-2">
-            {[24, 32, 28, 36].map((w) => (
-              <div key={w} className="skeleton-shimmer h-6 rounded-full" style={{ width: `${w * 4}px` }} />
-            ))}
-          </div>
-          <Panel className="space-y-0 p-0">
-            {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="flex items-center gap-3 border-b border-hairline px-5 py-4 last:border-b-0">
-                <div className="skeleton-shimmer size-8 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <div className="skeleton-shimmer h-3 rounded" style={{ width: `${[52, 64, 44, 58, 48, 60][i]}%` }} />
-                  <div className="skeleton-shimmer h-2.5 w-1/4 rounded" />
-                </div>
-              </div>
-            ))}
-          </Panel>
-        </>
       ) : null}
     </div>
   );

@@ -4,9 +4,11 @@ import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Send } from "lucide-react";
 import { confirm, useLaunchpad } from "@/state/launchpad-store";
+import { useTabParam } from "@/hooks/useTabParam";
 import { EASE_OUT, rowDelay } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { PageContainer, PageHeader } from "@/components/ui/page";
+import { TabPanels } from "@/components/ui/sliding-tabs";
 import { Card, CardContent, CardHeader, CardMeta, CardTitle } from "@/components/ui/card";
 import { Field, Label, Textarea } from "@/components/ui/input";
 import { SmoothSelect } from "@/components/ui/select";
@@ -23,6 +25,7 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from "./data";
+import { ItOverview } from "./ItOverview";
 
 /** Open = waiting on IT (amber), in progress = neutral info, resolved = done (emerald). */
 const STATUS_TONE: Record<TicketStatus, PillTone> = {
@@ -33,11 +36,35 @@ const STATUS_TONE: Record<TicketStatus, PillTone> = {
 
 const CATEGORY_OPTIONS = TICKET_CATEGORIES.map((c) => ({ value: c, label: c }));
 
-/** IT — the mockup's `zm` help desk: raise a ticket, see the open and recent ones. */
+const TABS = ["overview", "helpdesk"] as const;
+
+/**
+ * IT — an Overview (the default) and the Help desk, in the rail (`?tab=`).
+ * Tickets live here, above both, so one raised on the Help desk is counted on
+ * the Overview.
+ */
 export function ItScreen() {
+  const [tab, , dir] = useTabParam(TABS, "overview");
+  const [tickets, setTickets] = React.useState<Ticket[]>(TICKET_SEED);
+  return (
+    <PageContainer>
+      <TabPanels value={tab} dir={dir}>
+        {tab === "overview" ? <ItOverview tickets={tickets} /> : <HelpDesk tickets={tickets} setTickets={setTickets} />}
+      </TabPanels>
+    </PageContainer>
+  );
+}
+
+/** The mockup's `zm` help desk: raise a ticket, see the open and recent ones. */
+function HelpDesk({
+  tickets,
+  setTickets,
+}: {
+  tickets: Ticket[];
+  setTickets: React.Dispatch<React.SetStateAction<Ticket[]>>;
+}) {
   const { notify } = useLaunchpad();
   const reduce = useReducedMotion();
-  const [tickets, setTickets] = React.useState<Ticket[]>(TICKET_SEED);
   const [category, setCategory] = React.useState<TicketCategory>("Access and permissions");
   const [priority, setPriority] = React.useState<TicketPriority>("Medium");
   const [description, setDescription] = React.useState("");
@@ -81,7 +108,7 @@ export function ItScreen() {
   };
 
   return (
-    <PageContainer>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="IT help desk"
         description="Raise it here — not in a hallway conversation — so nothing gets lost."
@@ -214,6 +241,6 @@ export function ItScreen() {
           </Card>
         </Reveal>
       </div>
-    </PageContainer>
+    </div>
   );
 }

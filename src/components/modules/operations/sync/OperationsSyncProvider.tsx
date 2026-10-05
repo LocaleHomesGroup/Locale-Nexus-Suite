@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   BUILDER_CLAIMS,
@@ -10,12 +11,14 @@ import {
   type Job,
   type MilestoneStatus,
 } from "@/data/jobs";
-import type { PortalUpdate } from "@/data/seed";
-import { useLaunchpad } from "@/state/launchpad-store";
-import { aud, clockStamp } from "@/lib/utils";
+import type { MilestoneState, ReviewItem } from "@/data/seed";
+import { confirm, useLaunchpad } from "@/state/launchpad-store";
+import { clockStamp } from "@/lib/utils";
+import { useNavBadge } from "@/components/shell/nav-state";
+import { isStale, jobRef, liveMilestone, reviewSummary } from "../review/review";
 import { SyncTrailDialog } from "./SyncTrailDialog";
 import {
-  HUBSPOT_STAGE_ORDER,
+  movesStageForward,
   seedConstruction,
   trailDone,
   type MilestoneKind,
@@ -25,9 +28,9 @@ import {
 } from "./types";
 
 /**
- * CRM Dash Sync's write engine — the mockup's `Er` (milestone), `ls` (detail
- * fields), `yc` (hand over to construction), `ss` (conflict), `gc` / `mc`
- * (portal inbox). Every write is saved to Launchpad first, then pushed to
+ * CRM dash sync's write engine — the mockup's `Er` (milestone), `ls` (detail
+ * fields), `yc` (hand over to construction) and `ss` (conflict), plus the
+ * review queue. Every write is saved to Launchpad first, then pushed to
  * Monday, HubSpot and — when the builder bills that stage — Xero, on the same
  * timings as the prototype.
  *
@@ -36,12 +39,13 @@ import {
  * Slab Down synced") and its "View sync trail" opens the step-by-step trail on
  * demand. A trail open when its run lands closes itself a moment later.
  *
- * It lives in the Operations layout, so a run started from the jobs list keeps
- * going when you open a job. Timers go through the store's `later`, so jobs
- * still finish syncing if you leave Operations mid-run.
+ * A regression on a money milestone is the exception: it is filed in the review
+ * queue instead, and syncs only once a person releases it.
+ *
+ * It lives in the Operations layout, so a run started on one Operations page
+ * keeps going when you open another. Timers go through the store's `later`, so
+ * jobs still finish syncing if you leave Operations mid-run.
  */
-export type PortalSyncState = { trailId: string; state: "syncing" | "synced" };
-
 interface OperationsSync {
   /** Mark a milestone (construction or preconstruction) and sync it. */
   syncMilestone: (jobId: number, name: string, date: string, kind?: MilestoneKind, status?: MilestoneStatus) => void;
@@ -49,15 +53,14 @@ interface OperationsSync {
   syncDetails: (jobId: number, label: string) => void;
   /** Move a sales-board job to the construction pipeline. */
   handOver: (jobId: number, siteStart: string) => void;
-  /** Settle a Monday vs CRM Dash disagreement. */
+  /** Settle a Monday vs Launchpad disagreement. */
   resolveConflict: (jobId: number, keep: "monday" | "crm") => void;
-  /** A person accepted a portal update — only now does anything sync. */
-  acceptPortalUpdate: (update: PortalUpdate) => void;
-  /** Accept several at once, as one trail. */
-  acceptPortalUpdates: (updates: PortalUpdate[]) => void;
-  dismissPortalUpdate: (id: string) => void;
-  /** Accepted portal updates still syncing (or just synced), by update id. */
-  portalSync: Record<string, PortalSyncState>;
+  /** Hold a money-milestone regression in the review queue instead of applying it. */
+  fileReview: (jobId: number, kind: MilestoneKind, name: string, proposed: MilestoneState, source?: string) => void;
+  /** Apply a held change and sync it onward. Refused once the milestone has moved since it was filed. */
+  releaseReview: (id: string, reason: string) => void;
+  /** Close a held change without applying it. The reason is the only record, so it is required. */
+  dismissReview: (id: string, reason: string) => void;
   /** The latest trail that wrote to a job. */
   trailForJob: (jobId: number) => SyncTrail | undefined;
   /** Open a trail in the sync trail dialog. */
@@ -105,15 +108,22 @@ function systemsList(systems: string[]): string {
 }
 
 export function OperationsSyncProvider({ children }: { children: React.ReactNode }) {
-  const { jobs, updateJob, logActivity, notify, setPortalUpdates, later } = useLaunchpad();
+  const router = useRouter();
+  const { jobs, updateJob, logActivity, reviewItems, setReviewItems, later } = useLaunchpad();
   const [trails, setTrails] = React.useState<SyncTrail[]>([]);
   const [viewing, setViewing] = React.useState<string | null>(null);
-  const [portalSync, setPortalSync] = React.useState<Record<string, PortalSyncState>>({});
 
-  // Read the latest jobs (and which trail is on screen) inside timers without
-  // re-creating every handler.
+  // Every Operations page wears the rail, so the queue's count is published
+  // here rather than by one screen.
+  const waiting = reviewItems.filter((i) => i.status === "pending").length;
+  useNavBadge("operations:review", { count: waiting, tone: "pending", label: "waiting on a person" });
+
+  // Read the latest jobs and queue (and which trail is on screen) inside
+  // timers without re-creating every handler.
   const jobsRef = React.useRef<Job[]>(jobs);
   jobsRef.current = jobs;
+  const reviewRef = React.useRef<ReviewItem[]>(reviewItems);
+  reviewRef.current = reviewItems;
   const viewingRef = React.useRef(viewing);
   viewingRef.current = viewing;
   const seq = React.useRef(0);
@@ -194,7 +204,10 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
     [updateJob],
   );
 
-  /** Save a milestone to Launchpad now and plan its push to Monday, HubSpot and Xero. */
+  /**
+   * Save a milestone to Launchpad now and plan its push to Monday, HubSpot and
+   * Xero. `released` marks a change let out of the review queue.
+   */
   const planMilestone = React.useCallback(
     (
       jobId: number,
@@ -202,7 +215,7 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
       date: string,
       kind: MilestoneKind,
       status: MilestoneStatus,
-      via?: PortalUpdate,
+      released = false,
     ): { plan: RunPlan; summary: string } => {
       const job = findJob(jobId);
       const done = status === "done";
@@ -210,12 +223,17 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
       const builder = job?.builder ?? "";
       const stage = MILESTONE_HUBSPOT_STAGE[name];
       const property = PRECON_HUBSPOT_PROPERTY[name];
-      const claim = done ? BUILDER_CLAIMS[builder]?.[name] : undefined;
+      // A builder bills a stage once. Re-saving a Completed milestone (a date
+      // correction) must not raise a second draft invoice.
+      const wasDone = job?.[list].find((m) => m.name === name)?.status === "done";
+      const claim = done && !wasDone ? BUILDER_CLAIMS[builder]?.[name] : undefined;
       const hubspotWrites = done && (kind === "precon" ? Boolean(property) : Boolean(stage));
+      // Said as it will happen: a deal already at or past this stage stays put.
+      const stageMoves = kind !== "precon" && done && Boolean(stage) && movesStageForward(stage ?? "", job?.hsStage ?? "");
 
       updateJob(jobId, (j) => ({
         sync: "pending",
-        lastSource: via ? "Portal review, just now" : "Ops entry, just now",
+        lastSource: released ? "Review queue, just now" : "Ops entry, just now",
         [list]: j[list].map((m) => (m.name === name ? { ...m, status, date: done ? date : "" } : m)),
       }));
 
@@ -224,10 +242,12 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
         : kind === "precon"
           ? property
             ? `HubSpot · ${property} set`
-            : "Recorded in CRM Dash · no HubSpot property mapped for this milestone"
+            : "Recorded in Launchpad · no HubSpot property mapped for this milestone"
           : stage
-            ? `HubSpot · date property set, deal stage → ${stage}`
-            : "Recorded in CRM Dash · no matching HubSpot stage for this milestone";
+            ? stageMoves
+              ? `HubSpot · date property set, deal stage → ${stage}`
+              : `HubSpot · date property set, deal stage stays at ${job?.hsStage}`
+            : "Recorded in Launchpad · no matching HubSpot stage for this milestone";
 
       const legs: Leg[] = [
         {
@@ -244,9 +264,7 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
           // A completion only ever moves the deal forward.
           onLand: () => {
             if (kind !== "precon" && done && stage) {
-              updateJob(jobId, (j) =>
-                HUBSPOT_STAGE_ORDER.indexOf(stage) > HUBSPOT_STAGE_ORDER.indexOf(j.hsStage) ? { hsStage: stage } : {},
-              );
+              updateJob(jobId, (j) => (movesStageForward(stage, j.hsStage) ? { hsStage: stage } : {}));
             }
           },
         },
@@ -255,13 +273,13 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
         legs.push({
           sys: "Xero",
           pending: "Xero · raising draft invoice",
-          done: `Xero · draft invoice for ${builder}, ${aud(claim)} + GST, waiting for approval in Accounts`,
+          done: `Xero · draft invoice for ${builder}, waiting for approval in Accounts`,
           ms: 1200,
         });
       }
 
       const builderDate = done && date ? date : "not set";
-      const source = via ? ` · accepted from ${via.source}` : "";
+      const source = released ? " · released from the review queue" : "";
       const finish = () => {
         settle(jobId);
         logActivity(
@@ -271,7 +289,9 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
             kind === "precon"
               ? " · preconstruction subitem"
               : stage && done
-                ? ` · stage advanced to ${stage}`
+                ? stageMoves
+                  ? ` · stage advanced to ${stage}`
+                  : ` · deal stage already at ${job?.hsStage}, not moved`
                 : stage
                   ? ""
                   : " · no matching HubSpot stage"
@@ -280,9 +300,8 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
           jobId,
         );
         if (claim) {
-          logActivity("invoice", "Draft invoice created", `${builder} · ${aud(claim)} + GST · awaiting approval in Accounts`, ["Xero"], jobId);
+          logActivity("invoice", "Draft invoice created", `${builder} · awaiting approval in Accounts`, ["Xero"], jobId);
         }
-        if (via) notify(`Portal update applied — ${jobName(job)} ${name}`);
       };
 
       const summary = claim
@@ -295,12 +314,12 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
 
       return { plan: { jobId, label: `${jobName(job)} · ${name}`, saved: `Saved to Launchpad · ${name} ${done ? `= ${date}` : `→ ${STATUS_LABEL[status]}`}`, legs, finish }, summary };
     },
-    [findJob, logActivity, notify, settle, updateJob],
+    [findJob, logActivity, settle, updateJob],
   );
 
   /** Plan the move from the sales board to the construction pipeline. */
   const planHandover = React.useCallback(
-    (jobId: number, siteStart: string, via?: PortalUpdate): RunPlan => {
+    (jobId: number, siteStart: string): RunPlan => {
       const job = findJob(jobId);
       updateJob(jobId, { sync: "pending" });
       return {
@@ -324,7 +343,7 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
                 board: "construction",
                 hsStage: "Site Start",
                 sync: j.conflict ? "conflict" : "ok",
-                lastSource: via ? "Portal review, just now" : "Ops entry, just now",
+                lastSource: "Ops entry, just now",
                 milestones: j.milestones.length ? j.milestones : seedConstruction(siteStart),
               })),
           },
@@ -333,17 +352,14 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
           logActivity(
             "milestone",
             "Moved to construction",
-            via
-              ? `Site start ${siteStart} detected in the ${via.builder} portal, confirmed by a human · 8 construction subitems seeded`
-              : `Site start ${siteStart} · 8 construction subitems seeded on the Monday board`,
+            `Site start ${siteStart} · 8 construction subitems seeded on the Monday board`,
             ["Monday", "HubSpot"],
             jobId,
           );
-          if (via) notify(`Portal update applied — ${jobName(job)} moved to construction`);
         },
       };
     },
-    [findJob, logActivity, notify, updateJob],
+    [findJob, logActivity, updateJob],
   );
 
   const syncMilestone = React.useCallback<OperationsSync["syncMilestone"]>(
@@ -409,19 +425,19 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
       logActivity(
         "conflict",
         "Conflict resolved",
-        `${c.field} · kept the CRM Dash value, ${hubDate || "no date"}`,
+        `${c.field} · kept the Launchpad value, ${hubDate || "no date"}`,
         [],
         jobId,
       );
       const plan: RunPlan = {
         jobId,
         label: `${jobName(job)} · ${name}`,
-        saved: `Saved to Launchpad · kept CRM Dash's ${c.field.toLowerCase()}`,
+        saved: `Saved to Launchpad · kept Launchpad's ${c.field.toLowerCase()}`,
         legs: [
           {
             sys: "Monday",
             pending: "Monday subitem updating",
-            done: hubDate ? `Monday · ${name} date set back to ${hubDate}` : `Monday · ${name} date cleared to match CRM Dash`,
+            done: hubDate ? `Monday · ${name} date set back to ${hubDate}` : `Monday · ${name} date cleared to match Launchpad`,
             ms: 1300,
           },
         ],
@@ -430,76 +446,118 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
           logActivity(
             "milestone",
             `Monday corrected · ${name}`,
-            hubDate ? `Date set back to ${hubDate}` : "Date cleared to match CRM Dash · still awaiting the builder's date",
+            hubDate ? `Date set back to ${hubDate}` : "Date cleared to match Launchpad · still awaiting the builder's date",
             ["Monday"],
             jobId,
           );
         },
       };
-      startTrail(plan.label, [plan], { summary: "Monday now matches CRM Dash." });
+      startTrail(plan.label, [plan], { summary: "Monday now matches Launchpad." });
     },
     [findJob, logActivity, settle, startTrail, syncMilestone, updateJob],
   );
 
-  /** Plan one accepted portal update. */
-  const planPortal = React.useCallback(
-    (u: PortalUpdate): RunPlan =>
-      u.kind === "move"
-        ? planHandover(u.jobId, u.date, u)
-        : planMilestone(u.jobId, u.milestone, u.date, u.kind, "done", u).plan,
-    [planHandover, planMilestone],
+  /** Close one pending item: released, dismissed or superseded, with who decided and why. */
+  const decide = React.useCallback(
+    (id: string, status: ReviewItem["status"], decidedBy: string, decisionNote?: string) =>
+      setReviewItems((prev) =>
+        prev.map((i) =>
+          i.id === id && i.status === "pending" ? { ...i, status, decidedAt: "Just now", decidedBy, decisionNote } : i,
+        ),
+      ),
+    [setReviewItems],
   );
 
-  /** Accepted updates stay in the inbox, marked syncing, until their trail lands. */
-  const acceptUpdates = React.useCallback(
-    (updates: PortalUpdate[], subject: string, summary: string) => {
-      const ids = updates.map((u) => u.id);
-      const trailId = startTrail(subject, updates.map(planPortal), {
+  const fileReview = React.useCallback<OperationsSync["fileReview"]>(
+    (jobId, kind, name, proposed, source) => {
+      const job = findJob(jobId);
+      const live = liveMilestone(job, { kind, milestone: name });
+      if (!job || !live) return;
+      const held = { status: live.status, date: live.date };
+      const summary = reviewSummary(job, name, held, proposed);
+      const next = Math.max(0, ...reviewRef.current.map((i) => Number(i.id.replace(/\D/g, "")) || 0)) + 1;
+      const item: ReviewItem = {
+        id: `RQ-${next}`,
+        status: "pending",
+        jobId,
+        kind,
+        milestone: name,
         summary,
-        onComplete: () => {
-          setPortalSync((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, { trailId, state: "synced" as const }])) }));
-          later(() => {
-            setPortalUpdates((prev) => prev.filter((p) => !ids.includes(p.id)));
-            setPortalSync((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => !ids.includes(id))));
-          }, 1400);
-        },
+        queuedAt: "Just now",
+        queuedBy: "S. Hart",
+        source,
+        held,
+        proposed,
+      };
+      // A newer change to the same milestone replaces the one still waiting.
+      setReviewItems((prev) => [
+        item,
+        ...prev.map((i) =>
+          i.status === "pending" && i.jobId === jobId && i.milestone === name
+            ? { ...i, status: "superseded" as const, decidedAt: "Just now", decidedBy: "System" }
+            : i,
+        ),
+      ]);
+      logActivity("review", "Filed to the review queue", `${summary} · held until Operations releases it`, [], jobId);
+      toast.success("Filed to the review queue", {
+        description: `${name} affects cashflow, so nothing was sent to Monday or HubSpot. It waits there until Operations releases it.`,
+        action: { label: "Open review queue", onClick: () => router.push("/operations?tab=review") },
       });
-      setPortalSync((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, { trailId, state: "syncing" as const }])) }));
     },
-    [later, planPortal, setPortalUpdates, startTrail],
+    [findJob, logActivity, router, setReviewItems],
   );
 
-  const acceptPortalUpdate = React.useCallback<OperationsSync["acceptPortalUpdate"]>(
-    (u) => {
-      const job = findJob(u.jobId);
-      acceptUpdates(
-        [u],
-        u.kind === "move" ? `${jobName(job)} · Move to construction` : `${jobName(job)} · ${u.milestone}`,
-        u.kind === "move" ? "Moved to construction in Monday and HubSpot. 8 milestones seeded." : "Monday and HubSpot updated.",
+  const releaseReview = React.useCallback<OperationsSync["releaseReview"]>(
+    (id, reason) => {
+      const item = reviewRef.current.find((i) => i.id === id && i.status === "pending");
+      if (!item) return;
+      const job = findJob(item.jobId);
+      // The screen already refuses this; the rule lives here too, so no other
+      // caller can apply a change over one nobody is looking at.
+      if (isStale(item, liveMilestone(job, item))) {
+        toast.error("Releasing was refused", {
+          description: `${item.milestone} has changed since this was queued. Dismiss it with a reason and make the change again.`,
+        });
+        return;
+      }
+      const note = reason.trim();
+      decide(id, "accepted", "S. Hart", note || undefined);
+      logActivity(
+        "review",
+        "Released from the review queue",
+        `${item.summary}${note ? ` · “${note}”` : ""}`,
+        [],
+        item.jobId,
       );
-    },
-    [acceptUpdates, findJob],
-  );
-
-  const acceptPortalUpdates = React.useCallback<OperationsSync["acceptPortalUpdates"]>(
-    (updates) => {
-      if (updates.length === 0) return;
-      if (updates.length === 1) return acceptPortalUpdate(updates[0]);
-      acceptUpdates(
-        updates,
-        `${updates.length} portal updates`,
-        `${updates.map((u) => jobName(findJob(u.jobId))).join(", ")} written to Monday and HubSpot.`,
+      const { plan, summary } = planMilestone(
+        item.jobId,
+        item.milestone,
+        item.proposed.date,
+        item.kind,
+        item.proposed.status,
+        true,
       );
+      startTrail(plan.label, [plan], { summary: `Released from the review queue. ${summary}` });
     },
-    [acceptPortalUpdate, acceptUpdates, findJob],
+    [decide, findJob, logActivity, planMilestone, startTrail],
   );
 
-  const dismissPortalUpdate = React.useCallback<OperationsSync["dismissPortalUpdate"]>(
-    (id) => {
-      setPortalUpdates((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Update dismissed · logged for follow-up");
+  const dismissReview = React.useCallback<OperationsSync["dismissReview"]>(
+    (id, reason) => {
+      const item = reviewRef.current.find((i) => i.id === id && i.status === "pending");
+      const note = reason.trim();
+      if (!item || !note) return;
+      decide(id, "dismissed", "S. Hart", note);
+      logActivity(
+        "review",
+        "Dismissed from the review queue",
+        `${item.milestone} on ${jobRef(findJob(item.jobId))} · nothing changed · “${note}”`,
+        [],
+        item.jobId,
+      );
+      confirm("Dismissed · nothing was changed", "Monday and HubSpot were never told. The reason is in the audit log.");
     },
-    [setPortalUpdates],
+    [decide, findJob, logActivity],
   );
 
   const trailForJob = React.useCallback(
@@ -521,10 +579,9 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
       syncDetails,
       handOver,
       resolveConflict,
-      acceptPortalUpdate,
-      acceptPortalUpdates,
-      dismissPortalUpdate,
-      portalSync,
+      fileReview,
+      releaseReview,
+      dismissReview,
       trailForJob,
       viewTrail,
       syncing,
@@ -534,10 +591,9 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
       syncDetails,
       handOver,
       resolveConflict,
-      acceptPortalUpdate,
-      acceptPortalUpdates,
-      dismissPortalUpdate,
-      portalSync,
+      fileReview,
+      releaseReview,
+      dismissReview,
       trailForJob,
       viewTrail,
       syncing,

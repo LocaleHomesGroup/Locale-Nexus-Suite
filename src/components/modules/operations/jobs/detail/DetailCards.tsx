@@ -14,7 +14,7 @@ import { ChoiceChips } from "../../ui/ChoiceChips";
 import { FieldRow, InlineInput } from "../../ui/FieldRow";
 import { BUILDER_FORMAT_JOB_NO, CLIENT_PHONE } from "../data";
 
-/** Cards CRM Dash owns (editable) wear the dashboard's accent rim; HubSpot-owned ones stay neutral. */
+/** Cards Launchpad owns (editable) wear the dashboard's accent rim; HubSpot-owned ones stay neutral. */
 export const EDITABLE_CARD = "border-tone-line";
 
 export function OwnerPill({ owner }: { owner: "hubspot" | "crm" }) {
@@ -24,7 +24,7 @@ export function OwnerPill({ owner }: { owner: "hubspot" | "crm" }) {
     </Pill>
   ) : (
     <Pill tone="tone" icon={Pencil} className="ml-auto">
-      CRM Dash owns · editable
+      Launchpad owns · editable
     </Pill>
   );
 }
@@ -97,7 +97,7 @@ const TITLE_STATES = [
   { value: "Untitled", label: "Untitled" },
 ] as const;
 
-/** Job details — CRM Dash owns these; edits land in the store at once, then sync on save. */
+/** Job details — Launchpad owns these; edits land in the store at once, then sync on save. */
 export function JobDetailsCard({
   job,
   dirty,
@@ -201,7 +201,7 @@ export function JobDetailsCard({
   );
 }
 
-const LOT_FIELDS: { label: string; key: keyof LotDetail }[] = [
+export const LOT_FIELDS: { label: string; key: keyof LotDetail }[] = [
   { label: "Estate", key: "estate" },
   { label: "Developer", key: "developer" },
   { label: "Lot and street", key: "lot" },
@@ -211,7 +211,7 @@ const LOT_FIELDS: { label: string; key: keyof LotDetail }[] = [
   { label: "House size", key: "size" },
 ];
 
-/** Land and house — the mirrored HubSpot site record, editable from CRM Dash. */
+/** Land and house — the mirrored HubSpot site record, editable from Launchpad. */
 export function LandHouseCard({
   jobId,
   dirty,

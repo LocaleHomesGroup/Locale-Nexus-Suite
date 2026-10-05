@@ -4,7 +4,7 @@
  * Strings are Locale's words, copied verbatim. Nothing here is fetched.
  */
 
-export const LEADERSHIP_TABS = ["overview", "custom"] as const;
+export const LEADERSHIP_TABS = ["overview", "business", "custom"] as const;
 export type LeadershipTab = (typeof LEADERSHIP_TABS)[number];
 
 /* ── Business dashboard ─────────────────────────────────────────────── */

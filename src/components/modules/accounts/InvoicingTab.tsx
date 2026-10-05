@@ -31,7 +31,7 @@ function listOf(names: string[]): string {
 }
 
 /**
- * Accounts › Builder invoicing. Stage completions in CRM Dash raise draft Xero
+ * Accounts › Builder invoicing. Stage completions in CRM dash sync raise draft Xero
  * invoices; nothing reaches a builder until it's approved here. Approving
  * waits out an undo window before it goes to Xero (the row says "Sending"
  * meanwhile). The invoice list is owned by AccountsScreen so approvals survive
@@ -70,7 +70,7 @@ export function InvoicingTab({
         actions={
           <span className="inline-flex items-center gap-1.5 text-xs text-subtle-foreground">
             <Zap className="size-3.5" aria-hidden />
-            Raised automatically from CRM Dash milestones · all amounts excl GST
+            Raised automatically when a milestone is completed in CRM dash sync · all amounts excl GST
           </span>
         }
       />
@@ -346,7 +346,7 @@ interface NextClaim {
 /**
  * The next draft each job's builder schedule will raise: the first billable
  * milestone (precon, then construction) that isn't complete yet. Live from the
- * jobs CRM Dash holds, so a stage completed in Operations drops off here.
+ * jobs Launchpad holds, so a stage completed in Operations drops off here.
  */
 function nextClaims(jobs: Job[]): NextClaim[] {
   return jobs.flatMap((job) => {
@@ -383,7 +383,7 @@ function UpNext({ jobs }: { jobs: Job[] }) {
         </CardMeta>
         <CardDescription className="basis-full">
           <span className="block max-w-[70ch]">
-            Each builder&apos;s schedule raises a draft here when one of these milestones completes in CRM Dash. Nothing
+            Each builder&apos;s schedule raises a draft here when one of these milestones completes in CRM dash sync. Nothing
             is sent until it&apos;s approved above.
           </span>
         </CardDescription>

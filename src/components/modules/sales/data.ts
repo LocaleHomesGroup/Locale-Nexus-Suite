@@ -17,6 +17,9 @@ export const REPS = ["A. Mercer", "K. Ellery", "D. Okafor"] as const;
 
 /* ── Pipeline ──────────────────────────────────────────────────────────── */
 
+/** Team sales won, August to date — the Team page's "Team sales MTD" tile and Sales' Overview. */
+export const SALES_WON_MTD = 4;
+
 export const PIPELINE_STAGES = ["Appointment booked", "Appointment held", "Potential sale", "Sale won"] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
@@ -41,6 +44,16 @@ export const SEED_DEALS: PipelineDeal[] = [
   { id: "d-tran", stage: "Potential sale", client: "H. Tran", suburb: "Lakelands", value: "$598k", rep: "K. Ellery", days: "3d" },
   { id: "d-mallillin", stage: "Sale won", client: "L. Mallillin", suburb: "Yanchep", value: "$630k", rep: "K. Ellery", days: "today" },
 ];
+
+/** Open pipeline in $k: every deal not yet won ("$585k" → 585). */
+export function openPipelineK(deals: PipelineDeal[]): number {
+  return deals
+    .filter((d) => d.stage !== "Sale won")
+    .reduce((sum, d) => sum + (Number.parseFloat(d.value.replace(/[^\d.]/g, "")) || 0), 0);
+}
+
+/** 2990 → "$2.99m". */
+export const millionsFromK = (k: number) => `$${(k / 1000).toFixed(2)}m`;
 
 /* ── My clients · To-dos ───────────────────────────────────────────────── */
 

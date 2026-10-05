@@ -4,7 +4,7 @@
  */
 import { Home, Megaphone, Target, TrendingUp, Users, type LucideIcon } from "lucide-react";
 
-export const MARKETING_TABS = ["performance", "channels", "attribution"] as const;
+export const MARKETING_TABS = ["overview", "performance", "channels", "attribution"] as const;
 export type MarketingTab = (typeof MARKETING_TABS)[number];
 
 export interface Channel {
@@ -23,6 +23,11 @@ export const CHANNELS: Channel[] = [
   { name: "Referral", spend: 3200, leads: 38, qual: 26, won: 11, icon: Users },
   { name: "Organic and email", spend: 2400, leads: 51, qual: 19, won: 5, icon: TrendingUp },
 ];
+
+/** "$18.4k" — the mockup's one-decimal thousands. */
+export const k1 = (n: number) => `$${(n / 1e3).toFixed(1)}k`;
+/** "$1,238" */
+export const dollars = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`;
 
 /** Blended commission per deal from the P and L — revenue is commission, not contract value. */
 export const COMMISSION_PER_DEAL = 11500;

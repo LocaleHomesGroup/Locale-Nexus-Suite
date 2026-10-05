@@ -7,8 +7,8 @@ import { PageContainer } from "@/components/ui/page";
 import { TabPanels } from "@/components/ui/sliding-tabs";
 import { HR_TABS, type HrTab } from "./data";
 import { useLeave } from "./leave-store";
-import { HrDashboardTab } from "./tabs/HrDashboardTab";
-import { HrEmployeesTab } from "./tabs/HrEmployeesTab";
+import { HrOverviewTab } from "./tabs/HrOverviewTab";
+import { HrMasterListTab } from "./tabs/HrMasterListTab";
 import { HrAttendanceTab } from "./tabs/HrAttendanceTab";
 import { HrLeaveTab } from "./tabs/HrLeaveTab";
 import { HrRecruitmentTab } from "./tabs/HrRecruitmentTab";
@@ -22,7 +22,7 @@ import { HrAssetsTab } from "./tabs/HrAssetsTab";
  * stays in step, and Home's My day and Jarvis read the same queue.
  */
 export function HrScreen() {
-  const [tab, setTab, dir] = useTabParam(HR_TABS, "dashboard");
+  const [tab, setTab, dir] = useTabParam(HR_TABS, "overview");
   const { requests } = useLeave();
 
   // Amber on the rail: these requests are waiting on a decision. A decision in
@@ -41,10 +41,10 @@ export function HrScreen() {
 
 function TabBody({ tab, goTab }: { tab: HrTab; goTab: (tab: HrTab) => void }) {
   switch (tab) {
-    case "dashboard":
-      return <HrDashboardTab goTab={goTab} />;
+    case "overview":
+      return <HrOverviewTab goTab={goTab} />;
     case "people":
-      return <HrEmployeesTab />;
+      return <HrMasterListTab />;
     case "attendance":
       return <HrAttendanceTab />;
     case "leave":

@@ -1,69 +1,99 @@
 "use client";
 
-import { ArrowRight, BriefcaseBusiness, Plane, UserPlus, Users } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, CircleAlert, Clock, ListChecks, Target, UserPlus, Users } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { rowDelay } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/ui/page";
 import { Card, CardContent, CardHeader, CardMeta, CardRow, CardTitle } from "@/components/ui/card";
-import { KpiCard, KpiGrid } from "@/components/ui/kpi-card";
 import { RateBar } from "@/components/ui/progress";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
-import { ATTENDANCE_TODAY, DIVISIONS, HR_KPIS, ON_LEAVE_TODAY, personTone, type HrTab } from "../data";
+import { DashboardOverview } from "../../overview/DashboardOverview";
+import {
+  ATTENDANCE_TODAY,
+  ATTENDANCE_TO_VALIDATE,
+  DIVISIONS,
+  HR_KPIS,
+  OKRS,
+  OKR_ON_TRACK_AT,
+  ONBOARDING,
+  ON_LEAVE_TODAY,
+  OPEN_ROLES,
+  personTone,
+  type HrTab,
+} from "../data";
+import { useLeave } from "../leave-store";
 import { OrgChartCard } from "../OrgChart";
 
 /**
- * HR › Dashboard — the mockup's "HR dashboard": four counts, divisions, today's leave and attendance,
- * then the group's org chart, where HR can add someone under any department.
+ * HR › Overview (the mockup's "HR dashboard"): the KPI cards every dashboard
+ * opens on, then divisions, today's leave and attendance, and the group's org
+ * chart, where HR can add someone under any department. The leave queue is
+ * live (`leave-store`), so a decision on Leave moves its card here.
  */
-export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
+export function HrOverviewTab({ goTab }: { goTab: (tab: HrTab) => void }) {
   const reduce = useReducedMotion();
+  const { requests } = useLeave();
+  const pending = requests.filter((r) => r.status === "Pending").length;
+  const [clockedIn, wfh] = ATTENDANCE_TODAY;
+  const applicants = OPEN_ROLES.reduce((n, r) => n + (r.stages.find((s) => s.label === "Applied")?.count ?? 0), 0);
+  const offers = OPEN_ROLES.reduce((n, r) => n + (r.stages.find((s) => s.label === "Offer")?.count ?? 0), 0);
+  const onTrack = OKRS.filter((o) => o.score >= OKR_ON_TRACK_AT).length;
+  const tasksLeft = ONBOARDING.total - ONBOARDING.done;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="HR dashboard"
-        description="Mirrored from Horilla · live counts, leave and attendance at a glance."
-      />
-
-      <Reveal index={0}>
-        <KpiGrid cols={4}>
-          <KpiCard
-            label="Total employees"
-            value={HR_KPIS.totalEmployees}
-            icon={Users}
-            onClick={() => goTab("people")}
-            hint="Across 4 divisions · tap to view"
-          />
-          <KpiCard
-            label="On leave today"
-            value={HR_KPIS.onLeaveToday}
-            icon={Plane}
-            onClick={() => goTab("leave")}
-            hint="K. Ellery · tap to view leave"
-          />
-          <KpiCard
-            label="New joiners this month"
-            value={HR_KPIS.newJoiners}
-            icon={UserPlus}
-            onClick={() => goTab("recruitment")}
-            hint="Lane Dixon · tap to view"
-          />
-          <KpiCard
-            label="Open positions"
-            value={HR_KPIS.openPositions}
-            icon={BriefcaseBusiness}
-            tone="charcoal"
-            onClick={() => goTab("recruitment")}
-            hint="Homes · Financial · tap to view"
-          />
-        </KpiGrid>
-      </Reveal>
-
+    <DashboardOverview
+      title="HR overview"
+      description="Mirrored from Horilla · live counts, leave and attendance at a glance."
+      headline={[
+        { label: "Headcount", value: HR_KPIS.totalEmployees, sub: `across ${DIVISIONS.length} divisions`, icon: Users, to: "hr:people" },
+        {
+          label: "On leave today",
+          value: HR_KPIS.onLeaveToday,
+          sub: `${ON_LEAVE_TODAY.name} · ${ON_LEAVE_TODAY.note.split(" · ").pop()}`,
+          icon: CalendarDays,
+          to: "hr:leave",
+        },
+        {
+          label: "Leave to approve",
+          value: pending,
+          sub: pending ? "requests waiting" : "all requests decided",
+          icon: CalendarClock,
+          tone: pending ? "pending" : "ok",
+          to: "hr:leave",
+        },
+        {
+          label: "Open positions",
+          value: HR_KPIS.openPositions,
+          sub: `${applicants} applicants · ${offers} offer${offers === 1 ? "" : "s"}`,
+          icon: UserPlus,
+          to: "hr:recruitment",
+        },
+      ]}
+      moreLabel="More from each section"
+      more={[
+        { label: "Clocked in", value: clockedIn.value, sub: `${wfh.value} working from home`, icon: Clock, to: "hr:attendance" },
+        {
+          label: "Records to validate",
+          value: ATTENDANCE_TO_VALIDATE,
+          sub: "before July payroll",
+          icon: CircleAlert,
+          tone: ATTENDANCE_TO_VALIDATE ? "pending" : "ok",
+          to: "hr:attendance",
+        },
+        { label: "OKRs on track", value: `${onTrack} of ${OKRS.length}`, sub: `Q3 score ${OKR_ON_TRACK_AT} or more`, icon: Target, to: "hr:performance" },
+        {
+          label: "Onboarding",
+          value: `${ONBOARDING.done} of ${ONBOARDING.total}`,
+          sub: `${ONBOARDING.name} · ${tasksLeft} task${tasksLeft === 1 ? "" : "s"} left`,
+          icon: ListChecks,
+          to: "hr:recruitment",
+        },
+      ]}
+    >
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        <Reveal index={1}>
+        <Reveal index={2}>
           <Card>
             <CardHeader>
               <CardTitle>Employees by division</CardTitle>
@@ -95,7 +125,7 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
         </Reveal>
 
         <div className="flex min-w-0 flex-col gap-5">
-          <Reveal index={2}>
+          <Reveal index={3}>
             <Card>
               <CardHeader>
                 <CardTitle>On leave today</CardTitle>
@@ -112,7 +142,7 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
             </Card>
           </Reveal>
 
-          <Reveal index={3}>
+          <Reveal index={4}>
             <Card>
               <CardHeader>
                 <CardTitle>Attendance today</CardTitle>
@@ -142,9 +172,9 @@ export function HrDashboardTab({ goTab }: { goTab: (tab: HrTab) => void }) {
         </div>
       </div>
 
-      <Reveal index={4}>
+      <Reveal index={5}>
         <OrgChartCard />
       </Reveal>
-    </div>
+    </DashboardOverview>
   );
 }

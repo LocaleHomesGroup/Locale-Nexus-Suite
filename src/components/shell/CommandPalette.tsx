@@ -9,10 +9,21 @@ import { EASE_OUT } from "@/lib/motion";
 import { useLaunchpad } from "@/state/launchpad-store";
 import type { Job, LotDetail } from "@/data/jobs";
 import { CATEGORIES, CATEGORY_SLUGS } from "@/components/modules/knowledge/data";
-import { DASHBOARDS, DASHBOARD_GROUPS, NOTIFICATIONS_HREF, NOTIFICATIONS_ICON, dashboardById, hrefFor } from "./dashboards";
+import {
+  DASHBOARDS,
+  DASHBOARD_GROUPS,
+  NOTIFICATIONS_HREF,
+  NOTIFICATIONS_ICON,
+  dashboardById,
+  dashboardsIn,
+  hrefFor,
+  spaceOf,
+  type DashboardSpace,
+} from "./dashboards";
 import { TONES, type DashboardTone } from "./dashboard-tones";
 import { useDashboardSwitch } from "./dashboard-switch";
 import { SidebarFocusTile } from "./CollapsibleSidebarShell";
+import { useNavState } from "./nav-state";
 
 /**
  * The command palette: Ctrl+K / ⌘K from anywhere, or the rail's Search row.
@@ -25,6 +36,10 @@ import { SidebarFocusTile } from "./CollapsibleSidebarShell";
  * `aria-activedescendant`). Up / Down move, Enter opens, Escape closes; Tab is
  * trapped inside the dialog; focus goes back where it was. Empty query: the
  * last few picks, then every dashboard.
+ *
+ * Scoped to the space you are in, like Switch view: inside a portal it finds
+ * only the portals' views (and the way back to the Launchpad), never a staff
+ * job, article or inbox.
  */
 const PICKS_KEY = "launchpad:palette-recent";
 const PICKS_MAX = 5;
@@ -135,8 +150,15 @@ export function useCommandPalette(): PaletteCtx {
 
 /* ── The rail's Search row ────────────────────────────────────────────────── */
 
+/** "Search Launchpad" or "Search the Client portal": what the palette will search. */
+function useSearchLabel(): string {
+  const dash = dashboardById(useNavState().dashboardId);
+  return spaceOf(dash) === "portal" ? `Search the ${dash.title}` : "Search Launchpad";
+}
+
 export function PaletteTrigger({ collapsed }: { collapsed: boolean }) {
   const { open, openPalette, shortcut } = useCommandPalette();
+  const searchLabel = useSearchLabel();
   return (
     <button
       type="button"
@@ -144,7 +166,7 @@ export function PaletteTrigger({ collapsed }: { collapsed: boolean }) {
       aria-haspopup="dialog"
       aria-expanded={open}
       aria-keyshortcuts="Control+K Meta+K"
-      aria-label="Search Launchpad"
+      aria-label={searchLabel}
       data-rail-tip={`Search (${shortcut})`}
       className={cn(
         "group/row sb-row relative flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] text-muted-foreground",
@@ -208,6 +230,9 @@ function PalettePanel({
 }) {
   const reduce = useReducedMotion();
   const { jobs, lotDetails } = useLaunchpad();
+  const dash = dashboardById(useNavState().dashboardId);
+  const space = spaceOf(dash);
+  const searchLabel = useSearchLabel();
   const [query, setQuery] = React.useState("");
   const [active, setActive] = React.useState(0);
   // The panel only ever renders on the client (portal after mount).
@@ -217,7 +242,7 @@ function PalettePanel({
   const uid = React.useId();
   const listId = `${uid}-list`;
 
-  const all = React.useMemo(() => buildItems(jobs, lotDetails), [jobs, lotDetails]);
+  const all = React.useMemo(() => buildItems(jobs, lotDetails, space), [jobs, lotDetails, space]);
   const tokens = React.useMemo(() => tokenize(query), [query]);
   const sections = React.useMemo(() => search(all, tokens, picks), [all, tokens, picks]);
   const flat = React.useMemo(() => sections.flatMap((s) => s.items), [sections]);
@@ -300,7 +325,7 @@ function PalettePanel({
           ref={panelRef}
           role="dialog"
           aria-modal="true"
-          aria-label="Search Launchpad"
+          aria-label={searchLabel}
           onKeyDown={onPanelKey}
           initial={{ opacity: 0, y: -8, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: reduce ? 0 : 0.18, ease: EASE_OUT } }}
@@ -317,8 +342,8 @@ function PalettePanel({
               aria-controls={listId}
               aria-activedescendant={current >= 0 ? optionId(current) : undefined}
               aria-autocomplete="list"
-              aria-label="Search Launchpad"
-              placeholder="Search dashboards, sections, jobs and articles"
+              aria-label={searchLabel}
+              placeholder={space === "portal" ? "Search the portal’s views and sections" : "Search dashboards, sections, jobs and articles"}
               autoComplete="off"
               spellCheck={false}
               value={query}
@@ -409,7 +434,14 @@ function PalettePanel({
           ) : (
             <div className="px-6 py-10 text-center">
               <p className="text-sm font-medium text-foreground">No matches for &ldquo;{query.trim()}&rdquo;</p>
-              <p className="mt-1 text-xs text-muted-foreground">Try a job number, a client, an estate or a section name.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {space === "portal"
+                  ? `Try a section name, like ${dash.items
+                      .slice(1, 3)
+                      .map((i) => i.label)
+                      .join(" or ")}.`
+                  : "Try a job number, a client, an estate or a section name."}
+              </p>
             </div>
           )}
 
@@ -468,17 +500,24 @@ function Highlight({ text, tokens }: { text: string; tokens: string[] }) {
 
 const hay = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(" ").toLowerCase();
 
-function buildItems(jobs: Job[], lots: Record<number, LotDetail>): PaletteItem[] {
+function buildItems(jobs: Job[], lots: Record<number, LotDetail>, space: DashboardSpace): PaletteItem[] {
   const items: PaletteItem[] = [];
 
-  // In picker order: by sub-brand.
+  // In picker order: by sub-brand, then the portals. Inside a portal, only the
+  // portals — plus the way back, as in its Switch view.
   for (const g of DASHBOARD_GROUPS) {
+    if (space === "portal" && g.space !== "portal") continue;
     for (const d of g.dashboards) {
       items.push({ id: `dash:${d.id}`, group: "dashboards", label: d.label, detail: g.label, icon: d.icon, tone: d.tone, href: d.href, hay: hay(d.label, d.title, g.label) });
     }
   }
+  if (space === "portal") {
+    const home = dashboardById("home");
+    items.push({ id: "dash:home:back", group: "dashboards", label: "Back to Launchpad", detail: "Staff dashboards", icon: home.icon, tone: home.tone, href: home.href, hay: hay("back to launchpad home staff dashboards exit") });
+  }
 
-  for (const d of DASHBOARDS) {
+  // Inside a portal, its own sections; on the Launchpad, every section (portals included).
+  for (const d of space === "portal" ? dashboardsIn("portal") : DASHBOARDS) {
     // Knowledge's rail items ARE its categories: they get their own group below.
     if (d.id === "knowledge") continue;
     for (const item of d.items) {
@@ -488,7 +527,7 @@ function buildItems(jobs: Job[], lots: Record<number, LotDetail>): PaletteItem[]
           id: `nav:${child.key}`,
           group: "sections",
           label: child.label,
-          detail: `${d.label} · ${item.label}`,
+          detail: `${d.label} · ${item.label}${child.tag ? ` · ${child.tag}` : ""}`,
           icon: child.icon,
           tone: d.tone,
           href: hrefFor(d, child),
@@ -500,6 +539,9 @@ function buildItems(jobs: Job[], lots: Record<number, LotDetail>): PaletteItem[]
       items.push({ id: `link:${l.href}`, group: "sections", label: l.label, detail: `${d.label} · opens in a new tab`, icon: l.icon, tone: d.tone, href: l.href, external: true, hay: hay(l.label, d.label) });
     }
   }
+  // Staff jobs, articles and the inbox never show inside a portal.
+  if (space === "portal") return items;
+
   items.push({ id: "nav:inbox:notifications", group: "sections", label: "Notifications", detail: "Inbox", icon: NOTIFICATIONS_ICON, tone: "charcoal", href: NOTIFICATIONS_HREF, hay: hay("notifications inbox alerts") });
 
   for (const j of jobs) {

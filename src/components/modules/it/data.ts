@@ -36,3 +36,16 @@ export const PRIORITIES: TicketPriority[] = ["Low", "Medium", "High"];
 
 /** Who is raising tickets from this Launchpad session (the signed-in user in the mockup). */
 export const REQUESTER = "S. Hart";
+
+/**
+ * IT › Overview — SAMPLE FIGURES. The help desk doesn't record when a ticket
+ * closes, and nothing tracks who has finished the phishing module, so these
+ * placeholders stand in until something does. The cards that use them say
+ * "Sample". Replace them with real counts; don't build on them.
+ */
+export const IT_SAMPLE = {
+  medianResolve: "1.4 days",
+  phishingDone: 18,
+  /** Everyone required to take it this year: the group's headcount. */
+  phishingDue: 23,
+} as const;

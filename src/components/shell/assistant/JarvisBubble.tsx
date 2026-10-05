@@ -9,6 +9,9 @@ import { EASE_SWAP } from "@/lib/motion";
 import { useLaunchpad } from "@/state/launchpad-store";
 import type { ModuleId } from "@/state/launchpad-store";
 import { useLeave } from "@/components/modules/hr/leave-store";
+import { useOrg } from "@/components/modules/hr/org-store";
+import { useInvoices } from "@/components/modules/employee/invoice-store";
+import { useRun } from "@/components/modules/accounting/payrun-store";
 import { dashboardById } from "../dashboards";
 import { useNavState } from "../nav-state";
 import {
@@ -90,8 +93,11 @@ export function JarvisBubble() {
   const router = useRouter();
   const reduce = useReducedMotion();
   const { dashboardId } = useNavState();
-  const { jobs, notifications, portalUpdates, submissionDocs, submissionStatus, invoices, claims } = useLaunchpad();
+  const { jobs, notifications, reviewItems, submissionDocs, submissionStatus, invoices, claims } = useLaunchpad();
   const { requests: leave } = useLeave();
+  const { people } = useOrg();
+  const { invoices: staffInvoices } = useInvoices();
+  const payRun = useRun();
   const dash = dashboardById(dashboardId);
   const brief = JARVIS[dash.id];
 
@@ -117,7 +123,19 @@ export function JarvisBubble() {
   const wasOpen = React.useRef(false);
 
   // Always answer from the CURRENT data, even for a reply that lands later.
-  const ctx: JarvisContext = { jobs, notifications, portalUpdates, submissionDocs, submissionStatus, leave, invoices, claims };
+  const ctx: JarvisContext = {
+    jobs,
+    notifications,
+    reviewItems,
+    submissionDocs,
+    submissionStatus,
+    leave,
+    invoices,
+    claims,
+    staffInvoices,
+    people,
+    payRun,
+  };
   const ctxRef = React.useRef<JarvisContext>(ctx);
   ctxRef.current = ctx;
 

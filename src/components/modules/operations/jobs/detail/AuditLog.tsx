@@ -1,13 +1,15 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Clock } from "lucide-react";
+import { ArrowRight, Clock } from "lucide-react";
 import type { ActivityEntry, ActivityType } from "@/data/seed";
 import { cn } from "@/lib/utils";
 import { EASE_OUT, rowDelay } from "@/lib/motion";
 import { Card, CardContent, CardDescription, CardHeader, CardMeta, CardTitle } from "@/components/ui/card";
 import { SystemTag } from "@/components/ui/pill";
+import { AUDIT_DOT as DOT } from "../../audit/data";
 
 const FILTERS: { value: "all" | ActivityType; label: string }[] = [
   { value: "all", label: "All" },
@@ -15,19 +17,13 @@ const FILTERS: { value: "all" | ActivityType; label: string }[] = [
   { value: "details", label: "Details" },
   { value: "invoice", label: "Invoicing" },
   { value: "import", label: "Imports" },
+  { value: "review", label: "Regressions" },
 ];
 
-const DOT: Record<ActivityType, string> = {
-  milestone: "bg-tone-strong",
-  details: "bg-zinc-400 dark:bg-zinc-500",
-  invoice: "bg-emerald-500 dark:bg-emerald-400",
-  import: "bg-amber-400",
-  conflict: "bg-rose-500 dark:bg-rose-400",
-};
-
 /**
- * Audit log (mockup `om`) — every write, what it changed and which systems it
- * landed in, newest first. New entries slide in at the top.
+ * Audit log (mockup `om`) — every write to this job, what it changed and which
+ * systems it landed in, newest first. New entries slide in at the top. Every
+ * job's writes together are on Operations → Audit log.
  */
 export function AuditLog({ entries }: { entries: ActivityEntry[] }) {
   const reduce = useReducedMotion();
@@ -104,6 +100,12 @@ export function AuditLog({ entries }: { entries: ActivityEntry[] }) {
             </ul>
           )}
         </div>
+        <Link
+          href="/operations?tab=audit"
+          className="mt-2 inline-flex items-center gap-1 rounded-sm text-xs font-medium text-tone-ink underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/45"
+        >
+          Full audit log <ArrowRight className="size-3" aria-hidden />
+        </Link>
       </CardContent>
     </Card>
   );

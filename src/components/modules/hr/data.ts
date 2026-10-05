@@ -3,12 +3,12 @@
  * the mockup shows it; nothing here is fetched.
  */
 
-export const HR_TABS = ["dashboard", "people", "attendance", "leave", "recruitment", "performance", "assets"] as const;
+export const HR_TABS = ["overview", "people", "attendance", "leave", "recruitment", "performance", "assets"] as const;
 export type HrTab = (typeof HR_TABS)[number];
 
 export const HR_TAB_LABELS: Record<HrTab, string> = {
-  dashboard: "Dashboard",
-  people: "Employees",
+  overview: "Overview",
+  people: "Global Master List",
   attendance: "Attendance",
   leave: "Leave",
   recruitment: "Recruitment",
@@ -16,7 +16,7 @@ export const HR_TAB_LABELS: Record<HrTab, string> = {
   assets: "Assets",
 };
 
-/* ── Dashboard ─────────────────────────────────────────────────────────── */
+/* ── Overview ──────────────────────────────────────────────────────────── */
 
 export const HR_KPIS = {
   totalEmployees: 23,
@@ -76,6 +76,12 @@ export interface OrgPerson {
   isNew?: boolean;
   /** Who is taking the seat over: "Alison Carter (transition)". */
   transition?: string;
+  /** The master-list id of the person taking the seat over, once their name has been edited away from its slug. */
+  transitionId?: string;
+  /** Changes made to the seat holder's employee record in the Launchpad (Global Master List › Edit). */
+  edits?: RecordEdit;
+  /** The same, for the person taking the seat over. */
+  transitionEdits?: RecordEdit;
 }
 
 export const ORG_DEPARTMENTS = [
@@ -242,6 +248,293 @@ export function orgDepartmentOf(people: OrgPerson[], id: string): OrgDepartmentI
 
 export const orgDepartment = (id: OrgDepartmentId) => ORG_DEPARTMENTS.find((d) => d.id === id)!;
 
+/** A seat's avatar colour: its first sub-brand's tint, or charcoal for group services. */
+export const orgTone = (brands?: OrgBrand[]) => (brands?.length ? ORG_BRANDS[brands[0]].tone : "charcoal");
+
+/* ── Global master list ────────────────────────────────────────────────── */
+
+/**
+ * The Horilla employee record behind each person on the org chart: what
+ * the chart doesn't draw. Employee numbers run in order of commencement; the
+ * gaps are people who have left. Someone added in the Launchpad has no record
+ * until Horilla issues one.
+ */
+export interface EmployeeRecord {
+  employeeId: string;
+  /** Commencement date (ISO). */
+  commenced: string;
+  workEmail: string;
+  personalEmail: string;
+  /** The name they go by, when it isn't their first name. */
+  preferredName?: string;
+  mobile?: string;
+  /** Where they work from: "Perth, WA". */
+  location?: string;
+}
+
+/** The record fields HR can change from the master list. The employee ID is Horilla's. */
+export type RecordEdit = Partial<Omit<EmployeeRecord, "employeeId">>;
+
+const RECORDS: [orgId: string, employeeId: string, commenced: string, workEmail: string, personalEmail: string][] = [
+  ["adam-schaal", "LPG-0001", "2014-03-03", "adam@localegroup.au", "aschaal@icloud.com"],
+  ["yasmin-georgiadis", "LPG-0004", "2016-07-04", "yasmin@localegroup.au", "yasmingeorgiadis@bigpond.com"],
+  ["oli-chevellas", "LPG-0005", "2017-02-06", "oli@localegroup.au", "oli_chevellas@bigpond.com"],
+  ["larnie-clark", "LPG-0008", "2017-06-12", "larnie@localegroup.au", "larnie_clark@gmail.com"],
+  ["kristian-charlon-serrano", "LPG-0010", "2017-06-26", "kristian@localegroup.au", "kristian.serrano@outlook.com"],
+  ["maria-soriano", "LPG-0012", "2018-02-05", "maria@localegroup.au", "msoriano@hotmail.com"],
+  ["sean-oneill", "LPG-0015", "2018-03-26", "sean@localegroup.au", "seanoneill@hotmail.com"],
+  ["keira-whitbread", "LPG-0017", "2018-05-14", "keira@localegroup.au", "keiraw84@outlook.com"],
+  ["brad-linford", "LPG-0020", "2018-09-17", "brad@localegroup.au", "blinford@icloud.com"],
+  ["quentin-smith", "LPG-0021", "2018-12-03", "quentin@localegroup.au", "quentinsmith@outlook.com"],
+  ["aled-smith", "LPG-0023", "2019-01-07", "aled@localegroup.au", "aled.smith85@gmail.com"],
+  ["mitch-forbes", "LPG-0025", "2019-01-28", "mitch@localegroup.au", "mitch_forbes@icloud.com"],
+  ["conor-lloyd-fox", "LPG-0027", "2019-03-11", "conor@localegroup.au", "conor.lloydfox@gmail.com"],
+  ["adam-orlando", "LPG-0030", "2019-07-01", "adamo@localegroup.au", "adam_orlando@hotmail.com"],
+  ["tayla-juratovac", "LPG-0033", "2019-07-22", "tayla@localegroup.au", "tayla.juratovac96@gmail.com"],
+  ["kellie-boyer", "LPG-0035", "2020-03-16", "kellie@localegroup.au", "kellie_boyer@outlook.com"],
+  ["oumi-kapila", "LPG-0037", "2020-05-04", "oumi@localegroup.au", "oumi.kapila@gmail.com"],
+  ["bavinder-singh", "LPG-0040", "2020-06-22", "bavinder@localegroup.au", "bavindersingh@icloud.com"],
+  ["josh-beardsell", "LPG-0042", "2020-06-22", "josh@localegroup.au", "joshbeardsell@hotmail.com"],
+  ["thales-ferreira", "LPG-0045", "2020-07-06", "thales@localegroup.au", "thales_ferreira@hotmail.com"],
+  ["jessica-williamson", "LPG-0048", "2020-08-03", "jessica@localegroup.au", "jessica.williamson93@gmail.com"],
+  ["james-francis", "LPG-0050", "2020-08-17", "james@localegroup.au", "james.francis@outlook.com"],
+  ["sebastian-tindale", "LPG-0052", "2020-08-24", "sebastian@localegroup.au", "sebastian.tindale89@gmail.com"],
+  ["shea-connolly", "LPG-0054", "2020-09-28", "shea@localegroup.au", "shea.connolly94@gmail.com"],
+  ["kate-grierson", "LPG-0055", "2020-11-16", "kate@localegroup.au", "kateg91@gmail.com"],
+  ["nathan-good", "LPG-0058", "2020-11-16", "nathan@localegroup.au", "nathan_good@icloud.com"],
+  ["omar-khirzad", "LPG-0059", "2021-02-01", "omar@localegroup.au", "omar.khirzad79@gmail.com"],
+  ["jian-wen", "LPG-0060", "2021-03-15", "jian@localegroup.au", "jian_wen@gmail.com"],
+  ["nat-mason", "LPG-0063", "2021-04-19", "nat@localegroup.au", "nat.mason@hotmail.com"],
+  ["nash-sivayanam", "LPG-0065", "2021-05-10", "nash@localegroup.au", "nashs80@hotmail.com"],
+  ["lane-dula", "LPG-0067", "2021-06-28", "lane@localegroup.au", "lane_dula@bigpond.com"],
+  ["rachel-riggio", "LPG-0070", "2021-07-19", "rachel@localegroup.au", "rachelr87@gmail.com"],
+  ["dianne-alvarez", "LPG-0073", "2021-08-16", "dianne@localegroup.au", "diannealvarez@hotmail.com"],
+  ["shannan-murray", "LPG-0074", "2021-08-30", "shannan@localegroup.au", "shannan_murray@bigpond.com"],
+  ["ray-shanks", "LPG-0075", "2021-09-13", "ray@localegroup.au", "ray.shanks79@bigpond.com"],
+  ["lori-pirozzi", "LPG-0076", "2021-10-11", "lori@localegroup.au", "lpirozzi@gmail.com"],
+  ["ciaran-fahy", "LPG-0077", "2021-11-22", "ciaran@localegroup.au", "ciaran_fahy@gmail.com"],
+  ["hayden-wilson", "LPG-0078", "2022-07-18", "hayden@localegroup.au", "hwilson@outlook.com"],
+  ["jordan-dench", "LPG-0081", "2022-07-18", "jordan@localegroup.au", "jordandench@yahoo.com.au"],
+  ["de-wet-de-la-porte", "LPG-0084", "2022-10-10", "dewet@localegroup.au", "dewetd94@bigpond.com"],
+  ["rachal-maffina", "LPG-0087", "2023-01-09", "rachal@localegroup.au", "rachalmaffina@gmail.com"],
+  ["sharni-clavarino", "LPG-0089", "2023-02-20", "sharni@localegroup.au", "sclavarino@gmail.com"],
+  ["pryncess-bungard", "LPG-0092", "2023-03-13", "pryncess@localegroup.au", "pryncessbungard@icloud.com"],
+  ["jerry-delos-santos", "LPG-0094", "2023-05-01", "jerry@localegroup.au", "jerrys87@outlook.com"],
+  ["sarah-jasmin", "LPG-0097", "2023-06-12", "sarah@localegroup.au", "sjasmin@hotmail.com"],
+  ["kristen-margetts", "LPG-0099", "2023-07-03", "kristen@localegroup.au", "kristen.margetts@outlook.com"],
+  ["elisa-kalliosalo", "LPG-0101", "2023-07-17", "elisa@localegroup.au", "ekalliosalo@gmail.com"],
+  ["kathryn-carr", "LPG-0102", "2023-08-21", "kathryn@localegroup.au", "kathryncarr@gmail.com"],
+  ["emily-dann", "LPG-0103", "2023-09-25", "emily@localegroup.au", "emilydann@yahoo.com.au"],
+  ["renae-dysart", "LPG-0105", "2024-02-19", "renae@localegroup.au", "rdysart@gmail.com"],
+  ["krystal-mosca", "LPG-0108", "2024-03-25", "krystal@localegroup.au", "krystal_mosca@hotmail.com"],
+  ["monique-juratovac", "LPG-0109", "2024-05-27", "monique@localegroup.au", "moniquej97@hotmail.com"],
+  ["brendan-ford", "LPG-0111", "2024-07-01", "brendan@localegroup.au", "brendanf89@gmail.com"],
+  ["audris-quek", "LPG-0114", "2024-08-26", "audris@localegroup.au", "aquek@gmail.com"],
+  ["brett-jenkinson", "LPG-0117", "2025-04-07", "brett@localegroup.au", "brett.jenkinson95@gmail.com"],
+  ["tomas-watson", "LPG-0119", "2025-04-07", "tomas@localegroup.au", "tomasw89@bigpond.com"],
+  ["andre-mikhail-serra", "LPG-0121", "2025-04-21", "andre@localegroup.au", "andre.serra00@hotmail.com"],
+  ["matt-raven", "LPG-0123", "2025-04-21", "matt@localegroup.au", "matt.raven@bigpond.com"],
+  ["jasmin-bainbridge", "LPG-0125", "2025-06-23", "jasmin@localegroup.au", "jasminbainbridge@icloud.com"],
+  ["roni-nelson", "LPG-0126", "2025-06-30", "roni@localegroup.au", "roninelson@yahoo.com.au"],
+  ["tim-hill", "LPG-0129", "2025-06-30", "tim@localegroup.au", "tim_hill@gmail.com"],
+  ["karina-saxby", "LPG-0131", "2025-07-14", "karina@localegroup.au", "karina.saxby84@outlook.com"],
+  ["alison-carter", "LPG-0132", "2025-08-04", "alison@localegroup.au", "alisoncarter@outlook.com"],
+  ["ankit-kausik", "LPG-0134", "2025-09-15", "ankit@localegroup.au", "akausik@yahoo.com.au"],
+  ["pablo-lopez", "LPG-0135", "2026-01-19", "pablo@localegroup.au", "pablol78@yahoo.com.au"],
+  ["kristen-jackson", "LPG-0137", "2026-03-16", "kristenj@localegroup.au", "kristenjackson@gmail.com"],
+  ["khai-tran", "LPG-0139", "2026-03-23", "khai@localegroup.au", "khaitran@bigpond.com"],
+  ["michael-fox", "LPG-0140", "2026-06-15", "michael@localegroup.au", "michael.fox99@outlook.com"],
+  ["steph-stritch", "LPG-0143", "2026-06-22", "steph@localegroup.au", "steph.stritch@icloud.com"],
+  ["tristan-hatt", "LPG-0144", "2026-06-22", "tristan@localegroup.au", "thatt@outlook.com"],
+  ["jan-kane-reroma", "LPG-0147", "2026-08-24", "jan@localegroup.au", "jreroma@outlook.com"],
+  ["nam-su-byun", "LPG-0149", "2026-09-07", "nam@localegroup.au", "nam.byun93@bigpond.com"],
+];
+
+export const EMPLOYEE_RECORDS: Record<string, EmployeeRecord> = Object.fromEntries(
+  RECORDS.map(([id, employeeId, commenced, workEmail, personalEmail]) => [
+    id,
+    { employeeId, commenced, workEmail, personalEmail },
+  ]),
+);
+
+/** One person on the master list: their seat on the chart plus their record. */
+export interface MasterRow {
+  id: string;
+  name: string;
+  role: string;
+  /** Shown in brackets after the name, as on the chart: "VIC", "Jay Tan". */
+  note?: string;
+  brands?: OrgBrand[];
+  managerId: string | null;
+  link?: OrgPerson["link"];
+  department: OrgDepartmentId;
+  isNew?: boolean;
+  /** Taking the seat over (a transition): who holds it now. */
+  takingOverFrom?: string;
+  /** Missing for someone added in the Launchpad until Horilla issues their record. */
+  record?: EmployeeRecord;
+}
+
+/** The master-list id of whoever is taking a seat over. Stays put if their name is edited. */
+export const transitionIdOf = (p: OrgPerson) => (p.transition ? (p.transitionId ?? orgSlug(p.transition)) : null);
+
+/** Horilla's record with the Launchpad's edits laid over it. No record until Horilla issues one. */
+const withEdits = (id: string, edits?: RecordEdit): EmployeeRecord | undefined =>
+  EMPLOYEE_RECORDS[id] ? { ...EMPLOYEE_RECORDS[id], ...edits } : undefined;
+
+/**
+ * Everyone employed across the group: each named seat on the org chart, plus
+ * anyone taking a seat over (Alison Carter, Sales Operations). Vacant seats
+ * aren't people, so they stay off. Employee-number order; anyone still without
+ * a record comes last. Record edits ride on the seat, so every reader of the
+ * chart sees them.
+ */
+export function masterList(people: OrgPerson[]): MasterRow[] {
+  const rows: MasterRow[] = [];
+  for (const p of people) {
+    const department = orgDepartmentOf(people, p.id);
+    const seat = { role: p.role, brands: p.brands, managerId: p.managerId, link: p.link, department };
+    if (p.name) {
+      rows.push({ ...seat, id: p.id, name: p.name, note: p.note, isNew: p.isNew, record: withEdits(p.id, p.edits) });
+    }
+    const tid = transitionIdOf(p);
+    if (p.transition && tid) {
+      rows.push({
+        ...seat,
+        id: tid,
+        name: p.transition,
+        takingOverFrom: p.name ?? p.role,
+        record: withEdits(tid, p.transitionEdits),
+      });
+    }
+  }
+  return rows.sort((a, b) => {
+    if (!a.record || !b.record) return Number(!a.record) - Number(!b.record);
+    return a.record.employeeId.localeCompare(b.record.employeeId);
+  });
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2026-09-07" → "7 Sep 2026". */
+export function formatIsoDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${MONTHS[m - 1]} ${y}`;
+}
+
+/** A full name in parts, for editing, as HRIS splits it. */
+export interface NameParts {
+  first: string;
+  middle: string;
+  last: string;
+}
+
+const NAME_PARTICLES = new Set(["da", "de", "del", "der", "di", "do", "dos", "du", "la", "le", "van", "von"]);
+
+/** "Kristian Charlon Serrano" → first, middle, last. A lower-case particle stays with the surname: "de la Porte". */
+export function splitName(name: string): NameParts {
+  const t = name.trim().split(/\s+/).filter(Boolean);
+  if (t.length < 2) return { first: t[0] ?? "", middle: "", last: "" };
+  let i = t.length - 1;
+  while (i > 1 && NAME_PARTICLES.has(t[i - 1])) i--;
+  return { first: t[0], middle: t.slice(1, i).join(" "), last: t.slice(i).join(" ") };
+}
+
+/** The parts back into the one name the chart and the master list show. */
+export const joinName = (p: NameParts) =>
+  [p.first, p.middle, p.last]
+    .map((s) => s.trim().replace(/\s+/g, " "))
+    .filter(Boolean)
+    .join(" ");
+
+/** Time served from the commencement date to `today`, as HRIS writes it: "4y 2m", "4y", "8mo", "12d", "New". */
+export function tenure(commenced: string, today: Date): string {
+  const [y, m, d] = commenced.split("-").map(Number);
+  const months = (today.getFullYear() - y) * 12 + today.getMonth() + 1 - m - (today.getDate() < d ? 1 : 0);
+  if (months < 1) {
+    const days = Math.floor((today.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000);
+    return days <= 0 ? "New" : `${days}d`;
+  }
+  const yrs = Math.floor(months / 12);
+  const mos = months % 12;
+  return yrs && mos ? `${yrs}y ${mos}m` : yrs ? `${yrs}y` : `${mos}mo`;
+}
+
+/* ── Pay rates ─────────────────────────────────────────────────────────── */
+
+/** An hourly pay rate in AUD: ordinary time and overtime, and the day it applies from. */
+export interface PayRate {
+  hourly: number;
+  overtime: number;
+  /** Effective date (ISO). */
+  effective: string;
+}
+
+/** The last rate review (start of the financial year). Seed rates apply from here, or from commencement if later. */
+export const RATE_REVIEW = "2026-07-01";
+
+/** Overtime is time-and-a-half unless set otherwise. */
+export const OVERTIME_MULTIPLIER = 1.5;
+
+/** Ordinary hourly rate by position at the last review (AUD, before super). Placeholder until Horilla is wired in. */
+const HOURLY_BY_ROLE: Record<string, number> = {
+  "Managing Director": 125,
+  "Non-Exec Director": 110,
+  "Senior Executive Assistant": 42,
+  "Head of Finance": 92,
+  "Finance Broker": 52,
+  "Broker Support": 34,
+  "Head of Sales": 95,
+  "Advocate Manager VIC": 62,
+  "Advocate Manager QLD": 62,
+  "Advocate Manager WA": 62,
+  "New Home Advocate": 40,
+  "Sales Associate": 36,
+  "Sales Operations Manager": 58,
+  "Workflow & Compliance Lead": 46,
+  "Administration Officer": 32,
+  "Business Development Manager": 60,
+  "Wealth Manager": 70,
+  "Property Investment Partner": 48,
+  "Head of Marketing": 88,
+  "Group Performance Manager": 64,
+  "Social Media Lead": 44,
+  "Senior Video Editor & Content Production Lead": 48,
+  "Graphic Designer": 40,
+  "Content Coordinator": 36,
+  "Senior Media Buyer": 50,
+  "Marketing Manager – Wealth & Financial": 58,
+  "Marketing Manager – Homes": 58,
+  "Marketing Specialist": 42,
+  "Company Accountant": 72,
+  "Head of AI & Growth Systems": 90,
+  "IT Systems Engineer": 52,
+  "AI Engineer – Sales & Marketing": 55,
+  "AI Engineer": 55,
+};
+
+/** Cents-safe rounding for a dollar figure. */
+export const roundCents = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Someone's rate at the last review: their position's rate plus 50c an hour
+ * for each full year of service (up to five), overtime at time-and-a-half.
+ * Null for a position with no rate on file.
+ */
+export function seedPayRate(row: MasterRow): PayRate | null {
+  const base = HOURLY_BY_ROLE[row.role];
+  if (base == null || !row.record) return null;
+  const [y, m, d] = row.record.commenced.split("-").map(Number);
+  const [ry, rm, rd] = RATE_REVIEW.split("-").map(Number);
+  const years = Math.max(0, ry - y - (rm < m || (rm === m && rd < d) ? 1 : 0));
+  const hourly = roundCents(base + Math.min(years, 5) * 0.5);
+  return {
+    hourly,
+    overtime: roundCents(hourly * OVERTIME_MULTIPLIER),
+    effective: row.record.commenced > RATE_REVIEW ? row.record.commenced : RATE_REVIEW,
+  };
+}
+
 /* ── Employees ─────────────────────────────────────────────────────────── */
 
 export type Division = "Homes" | "Financial" | "Group";
@@ -296,7 +589,10 @@ export const ATTENDANCE: AttendanceRow[] = [
   { name: "D. Okafor", checkIn: null, checkOut: null, hours: null, status: "Not yet in" },
 ];
 
-export const ATTENDANCE_FOOTNOTE = "2 attendance records need validation for July payroll.";
+/** Attendance records to validate before July payroll — the Attendance footnote and the Overview card. */
+export const ATTENDANCE_TO_VALIDATE = 2;
+
+export const ATTENDANCE_FOOTNOTE = `${ATTENDANCE_TO_VALIDATE} attendance records need validation for July payroll.`;
 
 /* ── Leave ─────────────────────────────────────────────────────────────── */
 

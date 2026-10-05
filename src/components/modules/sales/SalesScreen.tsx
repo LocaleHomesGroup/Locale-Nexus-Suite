@@ -14,17 +14,18 @@ import { Team } from "./team/Team";
 import { MyWeek } from "./week/MyWeek";
 import { RapidCosting } from "./costing/RapidCosting";
 import { DealSubmissions } from "./submissions/DealSubmissions";
+import { SalesOverview } from "./SalesOverview";
 
-const TABS = ["pipeline", "clients", "week", "build", "costing", "submissions", "land", "team"] as const;
+const TABS = ["overview", "pipeline", "clients", "week", "build", "costing", "submissions", "land", "team"] as const;
 
 /**
- * Sales — the mockup's `gm`: eight sections in `?tab=` (Pipeline by default),
+ * Sales — the mockup's `gm`: an Overview (the default) and eight sections in `?tab=`,
  * listed in the Sales rail along with the "Open HomeScope" link. Each pane
  * renders its own PageHeader. Rapid costing, My week and My Deal Submissions
  * are built in their folders.
  */
 export function SalesScreen() {
-  const [tab, , dir] = useTabParam(TABS, "pipeline");
+  const [tab, , dir] = useTabParam(TABS, "overview");
   // The mockup's tab setter also cleared the open submission (`f(null)`).
   // Switching sections remounts the pane, which does that; re-clicking the
   // section that is showing (in the rail) bumps this so a pane can reset
@@ -36,7 +37,9 @@ export function SalesScreen() {
     <SalesStateProvider reselect={reselect}>
       <PageContainer>
         <TabPanels value={tab} dir={dir}>
-          {tab === "pipeline" ? (
+          {tab === "overview" ? (
+            <SalesOverview />
+          ) : tab === "pipeline" ? (
             <Pipeline />
           ) : tab === "clients" ? (
             <MyClients />

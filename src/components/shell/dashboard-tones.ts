@@ -3,10 +3,11 @@
  * dashboard shares one shell, and the accent is the only thing that changes.
  * Locale's accents are its own sub-brand system:
  *
- *   haven     Locale Homes      — Home, Operations, Sales
- *   nectar    Locale Financial  — Finance, Accounts
+ *   haven     Locale Homes      — Home, Operations, Sales; the Client portal
+ *   nectar    Locale Financial  — Finance, Accounts, Accounting
  *   skyblue   Locale Wealth     — Wealth
- *   charcoal  master brand      — Marketing, HR, Projects, Knowledge, Leadership, IT
+ *   charcoal  master brand      — Marketing, HR, Projects, Knowledge, Leadership, IT;
+ *                                 the Developer and Employee portals
  *
  * Flat fills only: the rail is a working surface, so it stays quiet and lets
  * the selected row carry the sub-brand. No gradients.

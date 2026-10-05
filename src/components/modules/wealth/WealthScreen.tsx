@@ -16,7 +16,9 @@ import {
 } from "lucide-react";
 import { DURATION, EASE_OUT, rowDelay } from "@/lib/motion";
 import { confirm, useLaunchpad } from "@/state/launchpad-store";
+import { useTabParam } from "@/hooks/useTabParam";
 import { PageContainer, PageHeader } from "@/components/ui/page";
+import { TabPanels } from "@/components/ui/sliding-tabs";
 import { Card, CardContent, CardHeader, CardMeta, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ import { SmoothSelect } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/states";
 import { Reveal } from "@/components/ui/reveal";
 import { SEED_PACKAGES, SUBURBS, packageTitle, type Suburb, type WealthPackage } from "./data";
+import { WealthOverview } from "./WealthOverview";
 
 /**
  * Wealth — the mockup's `vm` (app.js 11711–11874), the Sky Blue sub-brand.
@@ -44,13 +47,41 @@ const STAT_ICON: Record<string, LucideIcon> = {
 const LOAD_MS = 450;
 const GENERATE_MS = 1100;
 
+const TABS = ["overview", "generator"] as const;
+
+/**
+ * Wealth — an Overview (the default) and the Package generator, in the rail
+ * (`?tab=`). Packages live here, above both, so one generated in the
+ * generator is counted on the Overview.
+ */
 export function WealthScreen() {
+  const [tab, , dir] = useTabParam(TABS, "overview");
+  const [packages, setPackages] = React.useState<WealthPackage[]>(SEED_PACKAGES);
+  return (
+    <PageContainer>
+      <TabPanels value={tab} dir={dir}>
+        {tab === "overview" ? (
+          <WealthOverview packages={packages} />
+        ) : (
+          <PackageGenerator packages={packages} setPackages={setPackages} />
+        )}
+      </TabPanels>
+    </PageContainer>
+  );
+}
+
+function PackageGenerator({
+  packages,
+  setPackages,
+}: {
+  packages: WealthPackage[];
+  setPackages: React.Dispatch<React.SetStateAction<WealthPackage[]>>;
+}) {
   const reduce = useReducedMotion();
   const { later } = useLaunchpad();
   const [suburbId, setSuburbId] = React.useState<Suburb["id"]>("baldivis");
   const [loading, setLoading] = React.useState(false);
   const [generating, setGenerating] = React.useState(false);
-  const [packages, setPackages] = React.useState<WealthPackage[]>(SEED_PACKAGES);
   const suburb = SUBURBS.find((s) => s.id === suburbId) ?? SUBURBS[0];
 
   // Only the latest lookup may clear the skeleton when suburbs are switched quickly.
@@ -71,13 +102,13 @@ export function WealthScreen() {
     setGenerating(true);
     later(() => {
       setGenerating(false);
-      setPackages((prev) => [{ title, when: "Generated just now" }, ...prev.filter((p) => p.title !== title)]);
+      setPackages((prev) => [{ title, when: "Generated just now", thisMonth: true }, ...prev.filter((p) => p.title !== title)]);
       confirm("Package generated", title);
     }, GENERATE_MS);
   };
 
   return (
-    <PageContainer>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Wealth package generator"
         description="Suburb and property data loads automatically; no more hand-typed brochures."
@@ -181,6 +212,6 @@ export function WealthScreen() {
           </Card>
         </Reveal>
       </div>
-    </PageContainer>
+    </div>
   );
 }

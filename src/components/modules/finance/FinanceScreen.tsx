@@ -6,12 +6,15 @@ import { ArrowLeft, ArrowRight, CircleCheck, LoaderCircle } from "lucide-react";
 import { aud, cn } from "@/lib/utils";
 import { DURATION, EASE_OUT } from "@/lib/motion";
 import { confirm, useLaunchpad } from "@/state/launchpad-store";
+import { useTabParam } from "@/hooks/useTabParam";
 import { PageContainer, PageHeader } from "@/components/ui/page";
+import { TabPanels } from "@/components/ui/sliding-tabs";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { SmoothSelect } from "@/components/ui/select";
 import { Reveal } from "@/components/ui/reveal";
+import { FinanceOverview } from "./FinanceOverview";
 
 /**
  * Finance — the mockup's `mm` (app.js 9955–10097): the client-facing Finance
@@ -30,7 +33,21 @@ type Employment = (typeof EMPLOYMENT)[number];
 const TOTAL_STEPS = 5;
 type Step = 1 | 2 | 3;
 
+const TABS = ["overview", "health"] as const;
+
+/** Finance — an Overview (the default) and the Health check, both in the rail (`?tab=`). */
 export function FinanceScreen() {
+  const [tab, , dir] = useTabParam(TABS, "overview");
+  return (
+    <PageContainer>
+      <TabPanels value={tab} dir={dir}>
+        {tab === "overview" ? <FinanceOverview /> : <HealthCheck />}
+      </TabPanels>
+    </PageContainer>
+  );
+}
+
+function HealthCheck() {
   const reduce = useReducedMotion();
   const { later } = useLaunchpad();
   const [step, setStep] = React.useState<Step>(2);
@@ -66,7 +83,7 @@ export function FinanceScreen() {
   };
 
   return (
-    <PageContainer>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Finance health check"
         description="Client-facing form. Replaces the WordPress form and writes straight to Mercury."
@@ -187,7 +204,7 @@ export function FinanceScreen() {
           </CardFooter>
         </Card>
       </Reveal>
-    </PageContainer>
+    </div>
   );
 }
 

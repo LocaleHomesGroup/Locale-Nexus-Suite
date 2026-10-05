@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/shell/Providers";
 import "@/styles/globals.css";
 
@@ -21,13 +20,6 @@ const libre = localFont({
   variable: "--font-libre",
   display: "swap",
   adjustFontFallback: "Times New Roman",
-});
-
-// Monospace for IDs, job numbers and stamps — the Simple HRIS convention.
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -52,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en-AU"
-      className={`${manrope.variable} ${libre.variable} ${mono.variable}`}
+      className={`${manrope.variable} ${libre.variable}`}
       suppressHydrationWarning
     >
       <body className="min-h-dvh overflow-x-hidden">

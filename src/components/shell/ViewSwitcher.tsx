@@ -4,9 +4,9 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, Undo2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DASHBOARDS, dashboardForPath, type Dashboard } from "./dashboards";
+import { dashboardById, dashboardForPath, dashboardsIn, spaceOf, type Dashboard } from "./dashboards";
 import { TONES } from "./dashboard-tones";
 import { DashboardSwitchLoader } from "./DashboardSwitchLoader";
 
@@ -22,6 +22,12 @@ import { DashboardSwitchLoader } from "./DashboardSwitchLoader";
  * (HRIS deliberately does not wrap this in a View Transition). Our routes are
  * static and land fast, so the loader holds for a short minimum rather than
  * flashing. Hover and focus prefetch the target.
+ *
+ * Each space has its own list (`dashboards.ts`). On a Launchpad dashboard it
+ * lists the staff dashboards, then the portals under a "Portals" caption so
+ * staff can preview them. On a portal it lists only the portals — Client,
+ * Developer and Employee — and a "Back to Launchpad" row: a client or a
+ * builder never sees a staff dashboard in their switcher.
  *
  * No RBAC yet: everyone sees every dashboard.
  */
@@ -46,6 +52,9 @@ export function ViewSwitcher({
   React.useEffect(() => setMounted(true), []);
   const startedAt = React.useRef(0);
   const tone = TONES[current.tone];
+  const space = spaceOf(current);
+  const views = dashboardsIn(space);
+  const portals = space === "launchpad" ? dashboardsIn("portal") : [];
 
   // Close the loader once the destination has rendered and the minimum hold
   // has passed — the new rail and page are already painted underneath.
@@ -83,48 +92,56 @@ export function ViewSwitcher({
           Switch view
         </div>
         <nav aria-label="Switch dashboard" className="vs-collapse-nudge grid gap-0.5">
-          {DASHBOARDS.map((d) => {
-            const Icon = d.icon;
-            const active = d.id === current.id;
-            const pending = target?.id === d.id;
-            return (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => switchTo(d)}
-                onPointerEnter={() => prefetch(d)}
-                onFocus={() => prefetch(d)}
-                disabled={Boolean(target)}
-                aria-current={active ? "page" : undefined}
-                title={collapsed ? d.label : undefined}
-                className={cn(
-                  "group relative flex items-center gap-2 overflow-hidden rounded px-2 py-1.5 text-left text-xs font-medium",
-                  "transition-[color,background-color,transform,opacity] duration-200 ease-out motion-reduce:transition-none",
-                  active
-                    ? tone.switcherActive
-                    : "text-zinc-600 hover:translate-x-0.5 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100",
-                  pending && "scale-[0.98]",
-                  target && !pending && "opacity-40",
-                )}
-              >
-                <Icon
-                  aria-hidden
-                  className={cn(
-                    "relative z-10 size-3.5 shrink-0",
-                    TONES[d.tone].switcherIcon,
-                    pending && "animate-pulse motion-reduce:animate-none",
-                  )}
+          {views.map((d) => (
+            <ViewRow
+              key={d.id}
+              dashboard={d}
+              active={d.id === current.id}
+              pending={target?.id === d.id}
+              busy={Boolean(target)}
+              collapsed={collapsed}
+              activeClassName={tone.switcherActive}
+              onSwitch={switchTo}
+              onPeek={prefetch}
+            />
+          ))}
+          {portals.length ? (
+            <>
+              <p className="sb-collapse-fade mt-1.5 border-t border-hairline px-1 pt-2 pb-0.5 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                Portals
+              </p>
+              {portals.map((d) => (
+                <ViewRow
+                  key={d.id}
+                  dashboard={d}
+                  active={false}
+                  pending={target?.id === d.id}
+                  busy={Boolean(target)}
+                  collapsed={collapsed}
+                  activeClassName={tone.switcherActive}
+                  onSwitch={switchTo}
+                  onPeek={prefetch}
                 />
-                <span className="sb-collapse-fade relative z-10 truncate">{d.label}</span>
-                {pending ? (
-                  <span
-                    aria-hidden
-                    className="viewswitch-shimmer absolute inset-y-0 left-0 w-full bg-gradient-to-r from-white/0 via-white/60 to-white/0 motion-reduce:hidden dark:via-white/15"
-                  />
-                ) : null}
-              </button>
-            );
-          })}
+              ))}
+            </>
+          ) : null}
+          {space === "portal" ? (
+            <>
+              <span aria-hidden className="sb-collapse-fade mt-1.5 mb-1 block border-t border-hairline" />
+              <ViewRow
+                dashboard={dashboardById("home")}
+                label="Back to Launchpad"
+                icon={Undo2}
+                active={false}
+                pending={target?.id === "home"}
+                busy={Boolean(target)}
+                collapsed={collapsed}
+                activeClassName={tone.switcherActive}
+                onSwitch={switchTo}
+                onPeek={prefetch}
+              />
+            </>
+          ) : null}
         </nav>
       </div>
 
@@ -147,5 +164,68 @@ export function ViewSwitcher({
           )
         : null}
     </>
+  );
+}
+
+/** One row in the switcher: a dashboard, or (in a portal) the way back to the Launchpad. */
+function ViewRow({
+  dashboard: d,
+  label = d.label,
+  icon: Icon = d.icon,
+  active,
+  pending,
+  busy,
+  collapsed,
+  activeClassName,
+  onSwitch,
+  onPeek,
+}: {
+  dashboard: Dashboard;
+  label?: string;
+  icon?: LucideIcon;
+  active: boolean;
+  pending: boolean;
+  /** A switch is under way: every row is disabled, the others dim. */
+  busy: boolean;
+  collapsed: boolean;
+  activeClassName: string;
+  onSwitch: (d: Dashboard) => void;
+  onPeek: (d: Dashboard) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSwitch(d)}
+      onPointerEnter={() => onPeek(d)}
+      onFocus={() => onPeek(d)}
+      disabled={busy}
+      aria-current={active ? "page" : undefined}
+      title={collapsed ? label : undefined}
+      className={cn(
+        "group relative flex items-center gap-2 overflow-hidden rounded px-2 py-1.5 text-left text-xs font-medium",
+        "transition-[color,background-color,transform,opacity] duration-200 ease-out motion-reduce:transition-none",
+        active
+          ? activeClassName
+          : "text-zinc-600 hover:translate-x-0.5 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100",
+        pending && "scale-[0.98]",
+        busy && !pending && "opacity-40",
+      )}
+    >
+      <Icon
+        aria-hidden
+        className={cn(
+          "relative z-10 size-3.5 shrink-0",
+          TONES[d.tone].switcherIcon,
+          pending && "animate-pulse motion-reduce:animate-none",
+        )}
+      />
+      <span className="sb-collapse-fade relative z-10 truncate">{label}</span>
+      {pending ? (
+        <span
+          aria-hidden
+          className="viewswitch-shimmer absolute inset-y-0 left-0 w-full bg-gradient-to-r from-white/0 via-white/60 to-white/0 motion-reduce:hidden dark:via-white/15"
+        />
+      ) : null}
+    </button>
   );
 }

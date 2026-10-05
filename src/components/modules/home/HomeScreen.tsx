@@ -10,6 +10,7 @@ import {
   ChevronDown,
   CircleCheck,
   HardHat,
+  Hourglass,
   Inbox,
   ShieldCheck,
   Sparkles,
@@ -44,7 +45,8 @@ import { buildMyDay, type MyDayItem } from "./my-day";
  * says "Due today" in words, not with a ring.
  */
 export function HomeScreen() {
-  const { jobs, portalUpdates, submissionDocs, submissionStatus, invoices, claims, go, openJob } = useLaunchpad();
+  const { jobs, reviewItems, submissionDocs, submissionStatus, invoices, claims, go, openJob } = useLaunchpad();
+  const heldForReview = reviewItems.filter((i) => i.status === "pending").length;
   const { requests: leave } = useLeave();
   const [query, setQuery] = React.useState("");
 
@@ -159,12 +161,12 @@ export function HomeScreen() {
             tone="ok"
           />
           <KpiCard
-            label="Portal updates"
-            value={portalUpdates.length}
-            icon={Sparkles}
+            label="Review queue"
+            value={heldForReview}
+            icon={Hourglass}
             tone="pending"
-            onClick={() => go("operations")}
-            hint="Waiting for review · tap to open"
+            onClick={() => go("operations", "review")}
+            hint="Waiting on a person · tap to open"
           />
         </KpiGrid>
       </Reveal>
@@ -265,11 +267,11 @@ export function HomeScreen() {
                 <CardTitle>Popular right now</CardTitle>
               </CardHeader>
               <CardContent>
-                {POPULAR.map(({ label: title, query }) => (
+                {POPULAR.map(({ label: title, query, cat }) => (
                   <CardRow key={title} className="py-0">
                     {/* Knowledge reads ?q= and opens straight on the article's search. */}
                     <Link
-                      href={`/knowledge?q=${encodeURIComponent(query)}`}
+                      href={`/knowledge?cat=${cat}&q=${encodeURIComponent(query)}`}
                       className="group flex w-full items-baseline gap-3 py-2 text-left"
                     >
                       <span className="text-[13px] font-medium text-tone-ink group-hover:underline">{title}</span>

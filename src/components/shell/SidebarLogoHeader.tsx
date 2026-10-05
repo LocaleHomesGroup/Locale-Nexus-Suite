@@ -26,11 +26,16 @@ export function SidebarLogoHeader({
   collapsed,
   caption = "Launchpad",
   captionClassName = "text-haven-700 dark:text-haven-300",
+  href = "/",
+  homeLabel = "Launchpad home",
 }: {
   collapsed: boolean;
-  /** Line under the logo — the dashboard you are in. */
+  /** Line under the logo — the space you are in ("Launchpad", "Client portal"). */
   caption?: string;
   captionClassName?: string;
+  /** Where the logo goes: Launchpad home, or a portal's own Overview. */
+  href?: string;
+  homeLabel?: string;
 }) {
   const [beat, setBeat] = React.useState(false);
 
@@ -46,9 +51,9 @@ export function SidebarLogoHeader({
     <div>
       <div className="relative">
         <Link
-          href="/"
-          aria-label="Locale Launchpad — Home"
-          data-rail-tip="Launchpad home"
+          href={href}
+          aria-label={`Locale — ${homeLabel}`}
+          data-rail-tip={homeLabel}
           onMouseEnter={() => {
             if (!collapsed && !beat) setBeat(true);
           }}

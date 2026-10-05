@@ -16,11 +16,12 @@ import {
   ORG_DEPARTMENTS,
   orgDepartment,
   orgDepartmentOf,
+  orgTone,
   type OrgBrand,
   type OrgDepartmentId,
   type OrgPerson,
 } from "./data";
-import { useOrg } from "./org-store";
+import { useOrg, type PendingKind } from "./org-store";
 import { AddPersonDialog, type AddTarget } from "./AddPersonDialog";
 
 /**
@@ -66,8 +67,6 @@ const WASH: Record<OrgBrand | "group", { box: string; ink: string }> = {
   group: { box: "border-border bg-canvas", ink: "text-muted-foreground" },
 };
 
-const avatarTone = (brands?: OrgBrand[]) => (brands?.length ? ORG_BRANDS[brands[0]].tone : "charcoal");
-
 const brandWords = (brands?: OrgBrand[]) =>
   brands?.length ? brands.map((b) => ORG_BRANDS[b].label).join(" and ") : "Group services";
 
@@ -75,7 +74,7 @@ interface ChartCtx {
   byId: Map<string, OrgPerson>;
   /** Seats drawn beneath a seat, in chart order. */
   reportsOf: (id: string) => OrgPerson[];
-  pending: Record<string, true>;
+  pending: Record<string, PendingKind>;
   counts: Record<OrgDepartmentId, number>;
   add: (target: AddTarget) => void;
   openDept: (id: OrgDepartmentId) => void;
@@ -818,7 +817,7 @@ function PersonNode({ person: p, root, side }: { person: OrgPerson; root?: boole
             <UserRound className="size-3.5" />
           </span>
         ) : (
-          <Avatar name={p.name!} tone={avatarTone(p.brands)} size="sm" />
+          <Avatar name={p.name!} tone={orgTone(p.brands)} size="sm" />
         )}
         <div className="min-w-0 flex-1">
           <p className="text-[13px] leading-tight font-semibold break-words">
@@ -836,7 +835,7 @@ function PersonNode({ person: p, root, side }: { person: OrgPerson; root?: boole
           ) : null}
           {adding ? (
             <Pill tone="neutral" className="mt-1.5 px-2 py-0">
-              Adding…
+              {pending[p.id] === "moving" ? "Moving…" : "Adding…"}
             </Pill>
           ) : p.isNew ? (
             <Pill tone="tone" className="mt-1.5 px-2 py-0">
@@ -893,14 +892,14 @@ function TeamBlock({ managerId, team, members }: { managerId: string; team: stri
               data-org-id={m.id}
               className={cn("flex items-center gap-2 rounded-md px-1.5 py-1", adding && "opacity-70")}
             >
-              <Avatar name={m.name ?? "?"} tone={avatarTone(m.brands)} size="xs" />
+              <Avatar name={m.name ?? "?"} tone={orgTone(m.brands)} size="xs" />
               <span className="min-w-0 flex-1 truncate text-[13px]" title={m.name ?? undefined}>
                 {m.name ?? "Vacant"}
                 {m.note ? <span className="text-muted-foreground"> ({m.note})</span> : null}
                 {m.role !== members[0].role ? <span className="sr-only"> · {m.role}</span> : null}
               </span>
               {adding ? (
-                <span className="text-xs text-subtle-foreground">Adding…</span>
+                <span className="text-xs text-subtle-foreground">{pending[m.id] === "moving" ? "Moving…" : "Adding…"}</span>
               ) : m.isNew ? (
                 <Pill tone="tone" className="px-1.5 py-0">
                   New

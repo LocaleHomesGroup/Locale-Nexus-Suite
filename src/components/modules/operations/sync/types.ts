@@ -54,6 +54,15 @@ export const HUBSPOT_STAGE_ORDER: string[] = CONSTRUCTION_MILESTONES.map((m) => 
   (s): s is string => Boolean(s),
 );
 
+/**
+ * Whether completing a milestone mapped to `stage` moves a deal sitting at
+ * `current` forward. A deal already at or past the stage stays where it is —
+ * the stage never moves backwards.
+ */
+export function movesStageForward(stage: string, current: string): boolean {
+  return HUBSPOT_STAGE_ORDER.indexOf(stage) > HUBSPOT_STAGE_ORDER.indexOf(current);
+}
+
 /** A fresh construction board: Date to Site done on the builder's site start, the rest open. */
 export function seedConstruction(siteStart: string): Milestone[] {
   return CONSTRUCTION_MILESTONES.map((name, i) => ({

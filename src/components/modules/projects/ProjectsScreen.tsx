@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import { Check } from "lucide-react";
+import { useTabParam } from "@/hooks/useTabParam";
 import { PageContainer, PageHeader } from "@/components/ui/page";
+import { TabPanels } from "@/components/ui/sliding-tabs";
 import { Card } from "@/components/ui/card";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { RateBar } from "@/components/ui/progress";
@@ -10,6 +12,7 @@ import { CountUp } from "@/components/ui/count-up";
 import { Avatar } from "@/components/ui/avatar";
 import { Reveal } from "@/components/ui/reveal";
 import { BOARD, PROJECTS, type ProjectState } from "./data";
+import { ProjectsOverview } from "./ProjectsOverview";
 
 /**
  * Projects — the mockup's `bm` (no tabs): one card per internal build with its
@@ -22,9 +25,23 @@ const STATE_TONE: Record<ProjectState, PillTone> = {
   Deploying: "haven",
 };
 
+const TABS = ["overview", "board"] as const;
+
+/** Projects — an Overview (the default) and the Project board, in the rail (`?tab=`). */
 export function ProjectsScreen() {
+  const [tab, , dir] = useTabParam(TABS, "overview");
   return (
     <PageContainer>
+      <TabPanels value={tab} dir={dir}>
+        {tab === "overview" ? <ProjectsOverview /> : <ProjectBoard />}
+      </TabPanels>
+    </PageContainer>
+  );
+}
+
+function ProjectBoard() {
+  return (
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Projects"
         description="Every internal build, its owner and its state — one glance."
@@ -87,6 +104,6 @@ export function ProjectsScreen() {
           ))}
         </div>
       </div>
-    </PageContainer>
+    </div>
   );
 }

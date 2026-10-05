@@ -22,7 +22,7 @@ export interface Milestone {
 }
 
 /**
- * Monday and CRM Dash disagree about one field. `hub` / `monday` are the
+ * Monday and Launchpad disagree about one field. `hub` / `monday` are the
  * sentences shown to people; `milestone` + the two dates are what a resolution
  * writes. An empty date means that system has none recorded.
  */
