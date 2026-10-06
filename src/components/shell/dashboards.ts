@@ -1,4 +1,5 @@
 import {
+  Archive,
   ArrowLeftRight,
   Banknote,
   BarChart3,
@@ -11,7 +12,6 @@ import {
   CircleUser,
   CalendarDays,
   ClipboardCheck,
-  ClipboardList,
   Clock,
   Columns3,
   DollarSign,
@@ -20,6 +20,7 @@ import {
   FileSpreadsheet,
   FileCheck2,
   FileText,
+  FolderKanban,
   HardHat,
   HeartPulse,
   IdCard,
@@ -46,7 +47,9 @@ import {
   Sheet,
   ShieldCheck,
   Sparkles,
+  SquareKanban,
   Tags,
+  Ticket as TicketIcon,
   Target,
   TrendingUp,
   Trophy,
@@ -306,16 +309,6 @@ export const DASHBOARDS: Dashboard[] = [
     ],
   },
   {
-    id: "projects",
-    label: "Projects",
-    title: "Projects dashboard",
-    href: "/projects",
-    icon: ClipboardList,
-    tone: "charcoal",
-    defaults: { tab: "overview" },
-    items: [overview("projects"), tab("projects", "board", "Project board", ClipboardList)],
-  },
-  {
     id: "knowledge",
     label: "Knowledge",
     title: "Knowledge base",
@@ -358,6 +351,25 @@ export const DASHBOARDS: Dashboard[] = [
     tone: "charcoal",
     defaults: { tab: "overview" },
     items: [overview("it"), tab("it", "helpdesk", "Help desk", LifeBuoy)],
+  },
+  {
+    id: "tickets",
+    label: "Tickets",
+    title: "Tickets board",
+    href: "/tickets",
+    icon: TicketIcon,
+    tone: "charcoal",
+    defaults: { tab: "overview" },
+    // HRIS's developer board as a dashboard: improvement asks for every
+    // dashboard, and the projects (once their own dashboard) as groups of
+    // tickets. Filters (?dash=, ?project=, ?priority=) and the open ticket
+    // (?ticket=) are query values, not rail items.
+    items: [
+      overview("tickets"),
+      tab("tickets", "board", "Board", SquareKanban),
+      tab("tickets", "projects", "Projects", FolderKanban),
+      tab("tickets", "archived", "Archived", Archive),
+    ],
   },
   {
     id: "admin",

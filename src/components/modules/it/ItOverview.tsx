@@ -3,13 +3,16 @@
 import { CircleAlert, CircleCheck, KeyRound, Laptop, LifeBuoy, ShieldCheck, Smartphone, Timer } from "lucide-react";
 import { DashboardOverview } from "../overview/DashboardOverview";
 import { ASSETS } from "../hr/data";
-import { PROJECTS } from "../projects/data";
+import { useTickets } from "@/state/tickets-store";
+import { PROJECT_BY_ID } from "../tickets/data";
+import { projectProgress } from "../tickets/logic";
 import { IT_SAMPLE, type Ticket } from "./data";
 
 /**
  * IT › Overview. Tickets come from the screen above it, so one raised on the
- * Help desk counts here. Devices are HR's asset register and LastPass is the
- * Projects list: IT reads them, it doesn't own them. Time to resolve and the
+ * Help desk counts here. Devices are HR's asset register and LastPass is a
+ * Tickets project, its progress counted from its tickets: IT reads them, it
+ * doesn't own them. Time to resolve and the
  * phishing module are samples (see `IT_SAMPLE`).
  */
 export function ItOverview({ tickets }: { tickets: Ticket[] }) {
@@ -19,7 +22,9 @@ export function ItOverview({ tickets }: { tickets: Ticket[] }) {
   const resolved = tickets.filter((t) => t.status === "Resolved");
   const repair = ASSETS.filter((a) => a.status === "In repair");
   const spare = ASSETS.filter((a) => a.status === "Available");
-  const lastPass = PROJECTS.find((p) => p.name.includes("LastPass"));
+  const { tickets: boardTickets } = useTickets();
+  const lastPass = PROJECT_BY_ID.lastpass;
+  const lastPassProgress = projectProgress(lastPass, boardTickets);
   const ids = (ts: Ticket[]) => (ts.length <= 2 ? ts.map((t) => `#${t.id}`).join(" and ") : `${ts.length} tickets`);
 
   return (
@@ -61,10 +66,12 @@ export function ItOverview({ tickets }: { tickets: Ticket[] }) {
         { label: "Spare devices", value: spare.length, sub: spare.length ? `${spare[0].name} · ${spare[0].tag}` : "none", icon: Laptop, to: "hr:assets" },
         {
           label: "LastPass rollout",
-          value: lastPass ? `${lastPass.progress}%` : "—",
-          sub: lastPass ? `${lastPass.state.toLowerCase()} · Projects` : "not started",
+          value: lastPassProgress.pct != null ? `${lastPassProgress.pct}%` : "—",
+          sub: lastPassProgress.total
+            ? `${lastPassProgress.done} of ${lastPassProgress.total} done · ${lastPass.state.toLowerCase()}`
+            : "no tickets yet",
           icon: KeyRound,
-          to: "projects:board",
+          to: "tickets:projects",
         },
         {
           label: "Phishing module",

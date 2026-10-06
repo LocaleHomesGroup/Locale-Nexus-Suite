@@ -6,7 +6,7 @@
  *   haven     Locale Homes      — Home, Operations, Sales; the Client portal
  *   nectar    Locale Financial  — Finance, Accounts, Accounting
  *   skyblue   Locale Wealth     — Wealth
- *   charcoal  master brand      — Marketing, HR, Projects, Knowledge, Leadership, IT, Admin;
+ *   charcoal  master brand      — Marketing, HR, Knowledge, Leadership, IT, Tickets, Admin;
  *                                 the Developer and Employee portals
  *
  * Flat fills only: the rail is a working surface, so it stays quiet and lets
