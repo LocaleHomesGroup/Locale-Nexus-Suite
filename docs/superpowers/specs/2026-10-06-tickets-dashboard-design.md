@@ -94,8 +94,7 @@ The four projects from the Projects dashboard, unchanged in name, owner and stat
   (`dash.persona ?? STAFF`) and passes it to `openNewTicket`. `TicketsProvider` sits outside
   `NavProvider`, so it can't work out which dashboard is current.
 - **Board edits** (move, save, reply, archive, restore) are made as `BOARD_ACTOR` in
-  `tickets/data.ts`, which is the same staff persona, Shannan Hart. It becomes `STAFF.name` once a
-  shared `STAFF` export lands on `main` (the in-flight Admin work adds one).
+  `tickets/data.ts`, which is `STAFF.name` from `dashboards.ts`: the same staff persona, Shannan Hart.
 - **Board owner** is `jan-kane-reroma` (Kane), the counterpart of HRIS's `TICKET_BOARD_OWNER`. New
   tickets go to Kane by default.
 - **Assignees** are the AI & Growth seats from `ORG_SEED`: Jan Kane Reroma, Jerry Delos Santos, Pablo
@@ -218,8 +217,8 @@ A single component handles both create and view, as in HRIS.
   - **Archive** asks for confirmation inline.
   - An archived ticket shows **Restore** instead, and its fields and reply box are read-only.
   - **Save changes** is disabled until something has changed.
-- It is built on the committed `Dialog`. The activity list scrolls on its own, inside a fixed
-  maximum height, so it doesn't depend on any uncommitted `Dialog` changes.
+- It uses `Dialog`'s `bodyClassName`, the way the deal dialog does: the fields pane and the activity
+  pane scroll on their own.
 
 ### Motion
 
@@ -264,6 +263,10 @@ A single component handles both create and view, as in HRIS.
 - **IT › Overview's "LastPass rollout" card** reads the LastPass project's progress from the tickets
   store ("33%", "1 of 3 done") and links to `tickets:projects`.
 - **Jarvis on Tickets** takes over the project questions; see section 5.
+- **Admin** (`modules/admin/data.ts`): its role blurbs are keyed by every dashboard, so `projects`
+  goes and `tickets` gets one ("Unlocks the Tickets board, its projects and archive."). The four
+  people granted `projects` (Sean O'Neill, Larnie Clark, Alison Carter, Pablo Lopez) are granted
+  `tickets` instead.
 - **Comments and docs:** `dashboard-tones.ts` (charcoal list) and the README's Modules table.
 
 ## 5. Wiring
@@ -298,32 +301,26 @@ A single component handles both create and view, as in HRIS.
 | `src/components/shell/assistant/jarvis-knowledge.ts` | `JarvisContext.tickets`. A `tickets` brief whose featured questions are "Which dashboards have open tickets?", "How are the projects going?" and "How do I raise a ticket?"; "What's the oldest open ticket?" answers when typed. The `projects` brief and its imports go. |
 | `src/components/shell/assistant/JarvisBubble.tsx` | Pass `tickets` from `useTickets()` into the context. |
 | `src/components/modules/it/ItOverview.tsx` | LastPass card from the tickets store, linking to `tickets:projects`. |
+| `src/components/modules/admin/data.ts` | Role blurb and grants: `projects` → `tickets`. |
 | `app/(dashboard)/projects/page.tsx` | Becomes the redirect. |
 | `src/components/shell/dashboard-tones.ts` | Comment only: Tickets in, Projects out of the charcoal list. |
 | `README.md` | Tickets row in, Projects row out of the Modules table, and a line on Suggest an improvement. |
 
 ### Working alongside the other sessions
 
-Two other sessions have uncommitted work in `C:\Users\Kane\Desktop\Locale-launchpad`:
-
-- **Sales pipeline:** `sales/**`, `ui/dialog.tsx` (`bodyClassName`), `UI-GUIDE.md`.
-- **Admin dashboard:** `modules/admin/**`, plus the same shared files this work touches:
-  `dashboards.ts`, `ModuleId`, `Sidebar.tsx`, `DashboardSwitchLoader.tsx`, `jarvis-knowledge.ts`
-  and `dashboard-tones.ts`.
-
-So:
+Other sessions work in `C:\Users\Kane\Desktop\Locale-launchpad` at the same time. While this was
+designed, the Sales pipeline and the Admin dashboard landed on `main` (commit `2bda04f`), so this
+work builds on both. `UI-GUIDE.md` still had someone's uncommitted edits.
 
 - This work runs in its own **git worktree** on branch **`feat/tickets-dashboard`**, cut from
-  `main`, with its own `node_modules` and dev server. It never edits the main working tree.
-- It uses only what's committed on `main`. The Sales drag hook and the dialog's `bodyClassName` are
-  not committed, so it has its own drag hook and doesn't use `bodyClassName`.
-- **Integration happens after both sessions commit.** Merge `main` into the branch, then:
-  - Resolve the insertion conflicts in the shared files by keeping both sides.
-  - Remap the Admin work's `projects` grants and description to `tickets`.
-  - Switch `BOARD_ACTOR` to `STAFF.name`.
-  - Optionally switch the Sales pipeline to the shared drag hook and the ticket dialog to
-    `bodyClassName`.
-  - Add a Tickets section to `UI-GUIDE.md`.
+  `main`, with its own `node_modules` (`npm ci`; `next.config.ts` pins Turbopack's root to the
+  project, so a linked `node_modules` won't do) and its own dev server. It never edits the main
+  working tree.
+- It doesn't edit `sales/**`. It has its own general drag hook in `src/hooks/`. **Follow-up:** point
+  the Sales pipeline at the shared hook and delete `sales/pipeline/use-board-drag.ts`.
+- **Integration:** when the branch is done, merge the latest `main` into it, resolve any conflicts in
+  the shared files by keeping both sides, re-run the checks, then merge into `main`. A Tickets
+  section in `UI-GUIDE.md` is added at that point, once nobody else has it open.
 
 ## 6. Verification
 
