@@ -113,6 +113,8 @@ import { PAYEE_IDS, PAY_RUN, personOf, type RunSummary } from "@/components/modu
 import { php, rateText } from "@/components/modules/accounting/fx";
 import type { PayRunView } from "@/components/modules/accounting/payrun-store";
 import { billsFor } from "@/components/modules/employee/parts";
+import { ROLE_BY_KEY, directory, pageOf } from "@/components/modules/admin/data";
+import { liveOf, type AdminState } from "@/components/modules/admin/admin-store";
 
 export interface JarvisAction {
   label: string;
@@ -148,6 +150,8 @@ export interface JarvisContext {
   people: OrgPerson[];
   /** Accounting's pay run and its summary, with the Employee portal's invoices folded in. */
   payRun: { view: PayRunView; run: RunSummary };
+  /** Admin's roles, section access and sign-outs. */
+  admin: AdminState;
 }
 
 export interface Faq {
@@ -452,9 +456,9 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         question: "What's in my pipeline?",
         keys: ["pipeline", "deals", "stage", "appointment"],
         answer: () => ({
-          text: `${plural(SEED_DEALS.length, "deal")} across the pipeline:`,
+          text: `${plural(SEED_DEALS.filter((d) => !d.lost).length, "deal")} across the pipeline:`,
           bullets: PIPELINE_STAGES.map((stage) => {
-            const deals = SEED_DEALS.filter((d) => d.stage === stage);
+            const deals = SEED_DEALS.filter((d) => d.stage === stage && !d.lost);
             return `${stage}: ${deals.length ? deals.map((d) => `${d.client} (${d.suburb}, ${d.value})`).join(", ") : "none"}.`;
           }),
           actions: [{ label: "Open Pipeline", href: "/sales?tab=pipeline" }],
@@ -465,7 +469,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
         question: "What happens when a deal is won?",
         keys: ["won", "sale won", "move a deal", "next stage"],
         answer: () => ({
-          text: "Open the deal card and move it to the next stage. When it reaches Sale won, the job is created in CRM Dash Sync automatically — Operations picks it up from there.",
+          text: "Drag the deal card to the next column, or open it and change its stage. When it reaches Sale won, the job is created in CRM Dash Sync automatically — Operations picks it up from there.",
           actions: [{ label: "Open Pipeline", href: "/sales?tab=pipeline" }],
         }),
       },
@@ -1209,6 +1213,81 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
     ],
     fallback: "On IT I can list open tickets and explain how to raise one or report phishing.",
   },
+  admin: {
+    subtitle: "Roles and the master list",
+    greeting: "I can tell you who's online, who holds which dashboard, and who doesn't have one yet.",
+    faqs: [
+      {
+        group: "Global Master List",
+        question: "Who's online right now?",
+        keys: ["online", "who's on", "logged in", "active now", "signed in"],
+        answer: (ctx) => {
+          const now = Date.now();
+          const on = directory(masterList(ctx.people), ctx.admin.offRoster)
+            .map((p) => ({ p, live: liveOf(p, ctx.admin, now) }))
+            .filter((x) => x.live.state !== "offline");
+          if (!on.length) return { text: "Nobody is online right now.", source: "Global Master List · sample" };
+          return {
+            text: `${plural(on.length, "person", "people")} online:`,
+            bullets: on.map(({ p, live }) => {
+              const page = live.at ? pageOf(live.at) : null;
+              return `${p.name}${page ? ` — ${page.dashboard.title} · ${page.section}` : ""}${live.state === "inactive" ? " (tab in the background)" : ""}.`;
+            }),
+            actions: [{ label: "Open the Global Master List", href: "/admin?tab=people&view=online" }],
+            source: "Global Master List · sample",
+          };
+        },
+      },
+      {
+        group: "Roles & permissions",
+        question: "Who has admin access?",
+        keys: ["admin access", "admins", "full access", "who is admin", "superuser"],
+        answer: (ctx) => {
+          const admins = directory(masterList(ctx.people), ctx.admin.offRoster).filter((p) =>
+            (ctx.admin.grants[p.key] ?? []).includes("admin"),
+          );
+          return {
+            text: admins.length
+              ? `${plural(admins.length, "person", "people")} ${admins.length === 1 ? "holds" : "hold"} Admin, which unlocks every dashboard:`
+              : "Nobody holds Admin right now.",
+            bullets: admins.map((p) => `${p.name}${p.row ? `, ${p.row.role}` : " (off-roster)"}.`),
+            actions: [{ label: "Open Roles & permissions", href: "/admin?tab=roles&role=admin" }],
+            source: "Roles & permissions · live",
+          };
+        },
+      },
+      {
+        group: "Roles & permissions",
+        question: "Who doesn't have a dashboard yet?",
+        keys: ["no dashboard", "no role", "no access", "without a role", "without access"],
+        answer: (ctx) => {
+          const none = directory(masterList(ctx.people), ctx.admin.offRoster).filter(
+            (p) => p.row && (ctx.admin.grants[p.key] ?? []).length === 0,
+          );
+          if (!none.length) {
+            return { text: "Everyone on the master list holds at least one dashboard.", source: "Roles & permissions · live" };
+          }
+          return {
+            text: `${plural(none.length, "person", "people")} on the master list ${none.length === 1 ? "has" : "have"} no dashboard yet, so Home is all they can open:`,
+            bullets: none.map((p) => (p.email ? `${p.name}, ${p.row!.role}.` : `${p.name}, ${p.row!.role} — no email yet, so nothing can be granted.`)),
+            actions: [{ label: "Open Roles & permissions", href: "/admin?tab=roles" }],
+            source: "Roles & permissions · live",
+          };
+        },
+      },
+      {
+        group: "Roles & permissions",
+        question: "How do I give someone a dashboard?",
+        keys: ["give", "grant", "assign", "provision", "permission"],
+        answer: () => ({
+          text: `Open Roles & permissions, pick the person and press Assign on the dashboard's role. A grant starts every section on Edit; narrow any section to View or Hidden in the grid underneath. Revoking signs them out so it takes effect. ${ROLE_BY_KEY.admin.label} unlocks everything, so it asks first.`,
+          actions: [{ label: "Open Roles & permissions", href: "/admin?tab=roles" }],
+        }),
+      },
+      ...USING("Admin"),
+    ],
+    fallback: "On Admin I can list who's online, who holds Admin, and who has no dashboard yet.",
+  },
   client: {
     subtitle: "Your home journey",
     greeting: "Hi — I can tell you where your build is up to, how your budget splits and why your builder was recommended.",
@@ -1547,6 +1626,7 @@ export const FEATURED: Record<ModuleId, readonly [string, string, string]> = {
   knowledge: ["Where's the deal submission checklist?", "How do I request leave?", "What's new this month?"],
   leadership: ["How are sales tracking this month?", "What does cash look like next month?", "Any sync risk I should know about?"],
   it: ["What tickets are open?", "How do I raise a ticket?", "How do I report a phishing email?"],
+  admin: ["Who's online right now?", "Who has admin access?", "Who doesn't have a dashboard yet?"],
   client: ["Where is my build up to?", "How does our budget split?", "Why was our builder recommended?"],
   developer: ["Which jobs are waiting on us?", "Why do clients pick another builder?", "What does Locale need with a sale?"],
   employee: ["What's my pay this week?", "What are my current rates?", "Who's in my department?"],

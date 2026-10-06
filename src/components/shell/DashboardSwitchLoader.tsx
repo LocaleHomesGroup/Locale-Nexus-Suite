@@ -52,6 +52,7 @@ const SHAPES: Record<ModuleId, Shape> = {
   knowledge: OVERVIEW,
   leadership: OVERVIEW,
   it: OVERVIEW,
+  admin: OVERVIEW,
   client: OVERVIEW,
   developer: OVERVIEW,
   employee: OVERVIEW,

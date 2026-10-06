@@ -171,6 +171,19 @@ Each module is its own **dashboard**, HRIS-style (`src/components/shell/dashboar
     portal's own store, so a decision or a payment shows in their History straight away (a paid
     invoice reads **Paid**). The other payees, their payment methods and past runs are sample
     figures (`accounting/data.ts`, `accounting/fx.ts`). The flow's name is `PAY_RUN`.
+- **Sales › Pipeline** is HRIS's Tickets board (`TicketsBoard`, `TicketCard`, `TicketDialog`) in Sales'
+  Haven tone. HRIS's black-and-red console look stays on `/tickets`.
+  - **Board:** four stage columns, each with a dot, a count and a value total. Each card shows the deal's
+    number, priority, client, value, package, next step, owner, updates and time in stage. Owner, priority
+    and search filters sit above, with a Board / Lost switch.
+  - **Moving:** drag a card between columns (`use-board-drag.ts`, pointer-based, no dnd-kit), or use
+    Alt+←/→ on a focused card. On a phone, tap the card and change its stage.
+  - **Updating:** a card opens the two-pane deal dialog. The fields sit on the left. On the right is the
+    deal's Updates thread, interleaved with its edit history.
+  - **Lost:** "Mark as lost" parks a deal under Lost, where it can be reopened, like HRIS's Archive.
+  - **Writes:** moves, saves, lost and reopen all go through `undoable()` (`deal-writes.ts`), and a card
+    reads "Syncing" until its window closes. Posting an update is immediate, like a ticket reply.
+  - **Sources:** the seed deals, updates and history are sample content (`sales/data.ts`, `seedDeals`).
 - **Rail order:** logo → Search → sections (full height, never squeezed into their own scroll box)
   → links → Inbox → Switch view; the middle scrolls as one block when the window is short, and
   the footer (theme switch, user card, sign out) is pinned.
@@ -224,7 +237,7 @@ on HRIS's Penny AI pattern with the Locale "L" as its chat head.
 | `Input`, `Textarea`, `Label`, `Field`, `SearchInput`, `Switch`, `Checkbox` | `input.tsx` | `SearchInput` shows a count + clear |
 | `SmoothSelect` | `select.tsx` | Use instead of native `<select>` |
 | `DatePicker`, `Calendar` | `date-picker.tsx` | HRIS's single-date picker: ISO `YYYY-MM-DD` values, Monday-first weeks, today marker, arrow-key grid, `min`/`max`, quick-pick `presets`. The panel is portalled, so it works inside a `Dialog`; Escape closes the panel only |
-| `Dialog` | `dialog.tsx` | HRIS § 10 motion. Icon + description that names side effects + outline Cancel + tinted confirm. `dismissible={false}` while a write is in flight |
+| `Dialog` | `dialog.tsx` | HRIS § 10 motion. Icon + description that names side effects + outline Cancel + tinted confirm. `dismissible={false}` while a write is in flight. `bodyClassName` swaps the body's padding and scroll for a two-pane dialog whose panes scroll on their own (the deal dialog) |
 | `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`, `Dash` | `table.tsx` | Tiny-caps heads, hairline rows, tone hover; `Dash` = empty cell |
 | `RateBar`, `ColumnBars`, `RingGauge` | `progress.tsx` | Transform-only, flat fills; tones `tone` (default) `neutral` + brand/status; `null` = unmeasured, drawn differently from 0 |
 | `EmptyState`, `NoMatches`, `ErrorState`, `Skeleton` | `states.tsx` | Three states, never merged (HRIS § 12) |

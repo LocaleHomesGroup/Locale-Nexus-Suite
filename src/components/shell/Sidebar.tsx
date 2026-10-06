@@ -20,6 +20,7 @@ import { RailTooltip } from "./RailTooltip";
 import {
   NOTIFICATIONS_HREF,
   NOTIFICATIONS_ICON,
+  STAFF,
   dashboardById,
   hrefFor,
   isItemActive,
@@ -211,9 +212,6 @@ export function Sidebar({ mobileOpen, onNavigate }: { mobileOpen: boolean; onNav
 }
 
 const EMPTY_PARAMS = new URLSearchParams();
-
-/** The signed-in staff member, shown on every Launchpad rail. */
-const STAFF = { name: "Shannan Hart", role: "Manager · all dashboards" };
 
 function LiveRailNav(props: Omit<RailNavProps, "params">) {
   const params = useSearchParams();

@@ -23,33 +23,249 @@ export const SALES_WON_MTD = 4;
 export const PIPELINE_STAGES = ["Appointment booked", "Appointment held", "Potential sale", "Sale won"] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
+/** HubSpot's deal priority property. */
+export const DEAL_PRIORITIES = ["high", "medium", "low"] as const;
+export type DealPriority = (typeof DEAL_PRIORITIES)[number];
+
+/** A note a consultant posts on the deal (the HRIS ticket's Updates thread). */
+export interface DealUpdate {
+  id: string;
+  author: string;
+  body: string;
+  /** Epoch ms. */
+  at: number;
+}
+
+/** The fields a deal's edit history tracks. */
+export type DealField = "client" | "notes" | "priority" | "stage" | "rep" | "suburb" | "value" | "pkg" | "nextStep";
+
+export interface DealChange {
+  field: DealField;
+  from: string;
+  to: string;
+}
+
+/** One line on a deal's edit history, interleaved with its updates. */
+export interface DealEvent {
+  id: string;
+  actor: string;
+  at: number;
+  action: "created" | "moved" | "updated" | "lost" | "reopened";
+  changes?: DealChange[];
+}
+
 export interface PipelineDeal {
   id: string;
+  /** HubSpot deal number, shown as "D-1042". */
+  no: number;
   stage: PipelineStage;
   client: string;
   suburb: string;
   /** Contract value as the mockup prints it — "$585k". */
   value: string;
-  /** Deal owner (the card shows their initials). */
+  /** Deal owner: the consultant who made the deal. */
   rep: string;
-  /** Time in the current stage — "2d", "today". */
-  days: string;
+  priority: DealPriority;
+  /** House and land package, "The Aspen · Forma". */
+  pkg: string;
+  /** Free-text details: what the clients want, finance, anything the next person should know. */
+  notes: string;
+  nextStep: string;
+  createdAt: number;
+  /** When it entered its current stage. */
+  stageSince: number;
+  /** Set when the deal is closed lost. It leaves the board but keeps its history and can be reopened. */
+  lost?: { at: number; by: string };
+  /** In its undo window: the HubSpot write hasn't gone yet. */
+  syncing?: boolean;
+  updates: DealUpdate[];
+  history: DealEvent[];
 }
 
-export const SEED_DEALS: PipelineDeal[] = [
-  { id: "d-whitmore", stage: "Appointment booked", client: "S. and A. Whitmore", suburb: "Baldivis", value: "$585k", rep: "A. Mercer", days: "2d" },
-  { id: "d-perera", stage: "Appointment booked", client: "N. Perera", suburb: "Alkimos", value: "$612k", rep: "K. Ellery", days: "1d" },
-  { id: "d-callahan", stage: "Appointment held", client: "G. Callahan", suburb: "Wellard", value: "$540k", rep: "D. Okafor", days: "4d" },
-  { id: "d-osei", stage: "Potential sale", client: "F. and R. Osei", suburb: "Yanchep", value: "$655k", rep: "A. Mercer", days: "6d" },
-  { id: "d-tran", stage: "Potential sale", client: "H. Tran", suburb: "Lakelands", value: "$598k", rep: "K. Ellery", days: "3d" },
-  { id: "d-mallillin", stage: "Sale won", client: "L. Mallillin", suburb: "Yanchep", value: "$630k", rep: "K. Ellery", days: "today" },
-];
+/** Still on the board: not won, not lost. */
+export const isOpenDeal = (d: PipelineDeal) => !d.lost && d.stage !== "Sale won";
 
-/** Open pipeline in $k: every deal not yet won ("$585k" → 585). */
+/** "$585k" → 585. */
+export const dealValueK = (d: PipelineDeal) => Number.parseFloat(d.value.replace(/[^\d.]/g, "")) || 0;
+
+const HOUR = 3_600_000;
+const DAY = 24 * HOUR;
+
+/**
+ * The board as it opens. Built from `now` at render time, not at module load,
+ * so the server's "2d ago" and the browser's agree. Updates, packages and
+ * next steps are sample content.
+ */
+export function seedDeals(now: number): PipelineDeal[] {
+  const ago = (ms: number) => now - ms;
+  let n = 0;
+  const ev = (actor: string, at: number, action: DealEvent["action"], changes?: DealChange[]): DealEvent => ({
+    id: `seed-ev-${n++}`,
+    actor,
+    at,
+    action,
+    changes,
+  });
+  const up = (author: string, at: number, body: string): DealUpdate => ({ id: `seed-up-${n++}`, author, at, body });
+  const moved = (actor: string, at: number, from: PipelineStage, to: PipelineStage) =>
+    ev(actor, at, "moved", [{ field: "stage", from, to }]);
+
+  return [
+    {
+      id: "d-whitmore",
+      no: 1047,
+      stage: "Appointment booked",
+      client: "S. and A. Whitmore",
+      suburb: "Baldivis",
+      value: "$585k",
+      rep: "A. Mercer",
+      priority: "medium",
+      pkg: "The Hartley · La Vida",
+      notes: "First home buyers. Want a 4x2 with a theatre and room for a boat. Comparing two lots in Baldivis.",
+      nextStep: "First appointment Thursday 4pm",
+      createdAt: ago(2 * DAY + 3 * HOUR),
+      stageSince: ago(2 * DAY + 3 * HOUR),
+      updates: [up("A. Mercer", ago(2 * DAY), "Booked the first appointment for Thursday 4pm at the Baldivis display.")],
+      history: [ev("A. Mercer", ago(2 * DAY + 3 * HOUR), "created")],
+    },
+    {
+      id: "d-perera",
+      no: 1049,
+      stage: "Appointment booked",
+      client: "N. Perera",
+      suburb: "Alkimos",
+      value: "$612k",
+      rep: "K. Ellery",
+      priority: "high",
+      pkg: "The Aspen · Forma",
+      notes: "Investor, second property. Wants to sign before the end of the month.",
+      nextStep: "Broker call with Locale Financial",
+      createdAt: ago(1 * DAY + 5 * HOUR),
+      stageSince: ago(1 * DAY + 5 * HOUR),
+      updates: [up("K. Ellery", ago(20 * HOUR), "Pre-approval with Locale Financial is in progress. Broker call booked for tomorrow.")],
+      history: [ev("K. Ellery", ago(1 * DAY + 5 * HOUR), "created")],
+    },
+    {
+      id: "d-callahan",
+      no: 1038,
+      stage: "Appointment held",
+      client: "G. Callahan",
+      suburb: "Wellard",
+      value: "$540k",
+      rep: "D. Okafor",
+      priority: "medium",
+      pkg: "The Marlow · Move Homes",
+      notes: "Downsizing. Single storey only, low-maintenance garden.",
+      nextStep: "Send costings for The Marlow",
+      createdAt: ago(9 * DAY),
+      stageSince: ago(4 * DAY + 2 * HOUR),
+      updates: [
+        up("D. Okafor", ago(4 * DAY), "Held the appointment. Comparing The Marlow against another builder's package, so I'm sending costings."),
+      ],
+      history: [
+        ev("D. Okafor", ago(9 * DAY), "created"),
+        moved("D. Okafor", ago(4 * DAY + 2 * HOUR), "Appointment booked", "Appointment held"),
+      ],
+    },
+    {
+      id: "d-osei",
+      no: 1031,
+      stage: "Potential sale",
+      client: "F. and R. Osei",
+      suburb: "Yanchep",
+      value: "$655k",
+      rep: "A. Mercer",
+      priority: "high",
+      pkg: "The Aspen · Forma",
+      notes: "Growing family, need a fourth bedroom near the living area. Bank valuation ordered.",
+      nextStep: "Chase the bank valuation",
+      createdAt: ago(16 * DAY),
+      stageSince: ago(6 * DAY + 1 * HOUR),
+      updates: [
+        up("A. Mercer", ago(6 * DAY), "Rapid costing sent. Waiting on their bank valuation."),
+        up("A. Mercer", ago(2 * DAY + 4 * HOUR), "They asked for a contribution toward the alfresco. Raised a discount request."),
+      ],
+      history: [
+        ev("A. Mercer", ago(16 * DAY), "created"),
+        moved("A. Mercer", ago(12 * DAY), "Appointment booked", "Appointment held"),
+        moved("A. Mercer", ago(6 * DAY + 1 * HOUR), "Appointment held", "Potential sale"),
+        ev("A. Mercer", ago(2 * DAY + 4 * HOUR), "updated", [{ field: "priority", from: "medium", to: "high" }]),
+      ],
+    },
+    {
+      id: "d-tran",
+      no: 1036,
+      stage: "Potential sale",
+      client: "H. Tran",
+      suburb: "Lakelands",
+      value: "$598k",
+      rep: "K. Ellery",
+      priority: "medium",
+      pkg: "The Score · La Vida",
+      notes: "Happy with the plan. Deciding between two lots in The Gardens.",
+      nextStep: "Confirm the lot by Friday",
+      createdAt: ago(11 * DAY),
+      stageSince: ago(3 * DAY + 6 * HOUR),
+      updates: [up("K. Ellery", ago(3 * DAY), "Lot on hold for them until Friday. Contract pack is ready to go once they pick.")],
+      history: [
+        ev("K. Ellery", ago(11 * DAY), "created"),
+        moved("K. Ellery", ago(7 * DAY), "Appointment booked", "Appointment held"),
+        moved("K. Ellery", ago(3 * DAY + 6 * HOUR), "Appointment held", "Potential sale"),
+      ],
+    },
+    {
+      id: "d-mallillin",
+      no: 1029,
+      stage: "Sale won",
+      client: "L. Mallillin",
+      suburb: "Yanchep",
+      value: "$630k",
+      rep: "K. Ellery",
+      priority: "low",
+      pkg: "The Halcyon · New Choice",
+      notes: "Contract signed and deposit paid. Lot 209, 15 Foreshore Vista.",
+      nextStep: "Hand over to Operations",
+      createdAt: ago(21 * DAY),
+      stageSince: ago(3 * HOUR),
+      updates: [up("K. Ellery", ago(2 * HOUR), "Contract signed and deposit received. Handing over to Operations.")],
+      history: [
+        ev("K. Ellery", ago(21 * DAY), "created"),
+        moved("K. Ellery", ago(15 * DAY), "Appointment booked", "Appointment held"),
+        moved("K. Ellery", ago(8 * DAY), "Appointment held", "Potential sale"),
+        moved("K. Ellery", ago(3 * HOUR), "Potential sale", "Sale won"),
+      ],
+    },
+    {
+      id: "d-haddad",
+      no: 1033,
+      stage: "Appointment held",
+      client: "M. Haddad",
+      suburb: "Byford",
+      value: "$520k",
+      rep: "D. Okafor",
+      priority: "low",
+      pkg: "The Marlow · Move Homes",
+      notes: "Went with an established home instead of building.",
+      nextStep: "",
+      createdAt: ago(14 * DAY),
+      stageSince: ago(10 * DAY),
+      lost: { at: ago(5 * DAY), by: "D. Okafor" },
+      updates: [up("D. Okafor", ago(5 * DAY), "They bought an established home in Byford. Closing this one.")],
+      history: [
+        ev("D. Okafor", ago(14 * DAY), "created"),
+        moved("D. Okafor", ago(10 * DAY), "Appointment booked", "Appointment held"),
+        ev("D. Okafor", ago(5 * DAY), "lost"),
+      ],
+    },
+  ];
+}
+
+/** For readers outside the board (Leadership, Jarvis), which only need stages and values. */
+export const SEED_DEALS: PipelineDeal[] = seedDeals(Date.now());
+
+/** Open pipeline in $k: every deal not yet won or lost ("$585k" → 585). */
 export function openPipelineK(deals: PipelineDeal[]): number {
-  return deals
-    .filter((d) => d.stage !== "Sale won")
-    .reduce((sum, d) => sum + (Number.parseFloat(d.value.replace(/[^\d.]/g, "")) || 0), 0);
+  return deals.filter(isOpenDeal).reduce((sum, d) => sum + dealValueK(d), 0);
 }
 
 /** 2990 → "$2.99m". */

@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   ALL_PLANS,
-  SEED_DEALS,
+  seedDeals,
   SEED_DISCOUNTS,
   SEED_LOTS,
   SEED_TEAM_TASKS,
@@ -47,7 +47,7 @@ interface SalesState {
 const Ctx = React.createContext<SalesState | null>(null);
 
 export function SalesStateProvider({ reselect, children }: { reselect: number; children: React.ReactNode }) {
-  const [deals, setDeals] = React.useState<PipelineDeal[]>(SEED_DEALS);
+  const [deals, setDeals] = React.useState<PipelineDeal[]>(() => seedDeals(Date.now()));
   const [todos, setTodos] = React.useState<Todo[]>(SEED_TODOS);
   const [plan, setPlan] = React.useState<string>(ALL_PLANS);
   const [discounts, setDiscounts] = React.useState<DiscountApproval[]>(SEED_DISCOUNTS);

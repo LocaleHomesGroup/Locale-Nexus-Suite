@@ -7,7 +7,7 @@ import { needsSync } from "../operations/jobs/filters";
 import { jobRef } from "../operations/review/review";
 import { invoicedThisMonth } from "../accounts/data";
 import { COMMISSION_PER_DEAL, TOTAL_SPEND, TOTAL_WON, k1 } from "../marketing/data";
-import { SALES_WON_MTD, SEED_DEALS, millionsFromK, openPipelineK } from "../sales/data";
+import { SALES_WON_MTD, SEED_DEALS, isOpenDeal, millionsFromK, openPipelineK } from "../sales/data";
 import { HR_KPIS } from "../hr/data";
 import { TICKET_SEED } from "../it/data";
 import { SEED_PACKAGES } from "../wealth/data";
@@ -24,7 +24,7 @@ export function LeadershipOverview() {
   const conflicts = jobs.filter(needsSync);
   const openTickets = TICKET_SEED.filter((t) => t.status !== "Resolved");
   const urgent = openTickets.filter((t) => t.priority === "High").length;
-  const openDeals = SEED_DEALS.filter((d) => d.stage !== "Sale won").length;
+  const openDeals = SEED_DEALS.filter(isOpenDeal).length;
   const packages = SEED_PACKAGES.filter((p) => p.thisMonth).length;
 
   return (

@@ -40,6 +40,7 @@ export function Dialog({
   dismissible = true,
   footer,
   className,
+  bodyClassName,
   children,
 }: {
   open: boolean;
@@ -52,6 +53,8 @@ export function Dialog({
   dismissible?: boolean;
   footer?: React.ReactNode;
   className?: string;
+  /** Replaces the body's padding and scroll, for a dialog whose panes scroll on their own. */
+  bodyClassName?: string;
   children?: React.ReactNode;
 }) {
   const reduce = useReducedMotion();
@@ -165,7 +168,7 @@ export function Dialog({
                 <X className="size-4" />
               </button>
             ) : null}
-            {children ? <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div> : null}
+            {children ? <div className={cn("min-h-0 flex-1 overflow-y-auto px-5 py-4", bodyClassName)}>{children}</div> : null}
             {footer ? (
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-hairline bg-canvas/70 px-5 py-3">
                 {footer}

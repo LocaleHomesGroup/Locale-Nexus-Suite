@@ -2,7 +2,7 @@
 
 import { BadgePercent, CalendarDays, HardHat, ListChecks, ListTodo, MapPinned, Trophy, Wallet } from "lucide-react";
 import { DashboardOverview } from "../overview/DashboardOverview";
-import { BUILD_HOMES, SALES_WON_MTD, millionsFromK, openPipelineK } from "./data";
+import { BUILD_HOMES, SALES_WON_MTD, isOpenDeal, millionsFromK, openPipelineK } from "./data";
 import { LAST_WEEK_FORECAST, SIGNED_THIS_WEEK } from "./week/data";
 import { useSalesState } from "./sales-state";
 
@@ -15,7 +15,7 @@ const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a +
 export function SalesOverview() {
   const { deals, todos, tasks, lots, discounts } = useSalesState();
 
-  const open = deals.filter((d) => d.stage !== "Sale won").length;
+  const open = deals.filter(isOpenDeal).length;
   const flagged = tasks.filter((t) => t.flag);
   const overdue = flagged.filter((t) => /overdue/i.test(t.due)).length;
   const signed = sum(SIGNED_THIS_WEEK);

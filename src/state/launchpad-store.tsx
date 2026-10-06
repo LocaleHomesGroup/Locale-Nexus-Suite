@@ -57,6 +57,7 @@ export type ModuleId =
   | "knowledge"
   | "leadership"
   | "it"
+  | "admin"
   | "client"
   | "developer"
   | "employee";

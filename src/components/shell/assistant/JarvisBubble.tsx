@@ -12,6 +12,7 @@ import { useLeave } from "@/components/modules/hr/leave-store";
 import { useOrg } from "@/components/modules/hr/org-store";
 import { useInvoices } from "@/components/modules/employee/invoice-store";
 import { useRun } from "@/components/modules/accounting/payrun-store";
+import { useAdmin } from "@/components/modules/admin/admin-store";
 import { dashboardById } from "../dashboards";
 import { useNavState } from "../nav-state";
 import {
@@ -98,6 +99,7 @@ export function JarvisBubble() {
   const { people } = useOrg();
   const { invoices: staffInvoices } = useInvoices();
   const payRun = useRun();
+  const admin = useAdmin();
   const dash = dashboardById(dashboardId);
   const brief = JARVIS[dash.id];
 
@@ -135,6 +137,7 @@ export function JarvisBubble() {
     staffInvoices,
     people,
     payRun,
+    admin,
   };
   const ctxRef = React.useRef<JarvisContext>(ctx);
   ctxRef.current = ctx;

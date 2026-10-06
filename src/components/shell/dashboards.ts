@@ -43,11 +43,14 @@ import {
   ScrollText,
   Send,
   Settings,
+  Sheet,
+  ShieldCheck,
   Sparkles,
   Tags,
   Target,
   TrendingUp,
   Trophy,
+  UserCog,
   UserPlus,
   UserRound,
   Users,
@@ -356,6 +359,23 @@ export const DASHBOARDS: Dashboard[] = [
     defaults: { tab: "overview" },
     items: [overview("it"), tab("it", "helpdesk", "Help desk", LifeBuoy)],
   },
+  {
+    id: "admin",
+    label: "Admin",
+    title: "Admin dashboard",
+    href: "/admin",
+    icon: ShieldCheck,
+    tone: "charcoal",
+    defaults: { tab: "overview" },
+    // HRIS's Admin view cut to the two screens the Launchpad needs before RBAC:
+    // who holds which dashboard (Roles & permissions) and the roster with who's
+    // online (Global Master List). HRIS's rail order.
+    items: [
+      overview("admin"),
+      tab("admin", "roles", "Roles & permissions", UserCog),
+      tab("admin", "people", "Global Master List", Sheet),
+    ],
+  },
 
   /* ── Portals ─────────────────────────────────────────────────────────── */
   {
@@ -454,6 +474,13 @@ export const DASHBOARD_GROUPS: { label: string; space: DashboardSpace; dashboard
   })),
   { label: "Portals", space: "portal", dashboards: dashboardsIn("portal") },
 ];
+
+/**
+ * The signed-in staff member, shown on every Launchpad rail. Not on the master
+ * list: the Admin dashboard shows them as an off-roster account, as HRIS does
+ * for an admin who isn't on payroll. The email is a placeholder.
+ */
+export const STAFF = { name: "Shannan Hart", role: "Manager · all dashboards", email: "shannanh@localegroup.au" };
 
 /** The inbox is shared by every dashboard — it sits under each rail's nav. */
 export const NOTIFICATIONS_HREF = "/notifications";
