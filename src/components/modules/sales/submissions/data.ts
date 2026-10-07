@@ -5,6 +5,7 @@
  * static copy and the status vocabulary both sides agree on.
  */
 import type { PillTone } from "@/components/ui/pill";
+import type { DocCategory, SubmissionDoc } from "@/data/jobs";
 import type { SubmissionStatus } from "@/state/launchpad-store";
 
 /** The Nguyen deal — the one Ops reviews (mockup id "S-118"). */
@@ -52,7 +53,19 @@ export const STEP_FACTS: Record<1 | 2 | 3, [label: string, value: string][]> = {
   ],
 };
 
-export const DOC_CATEGORIES = ["Build", "Land", "Finance"] as const;
+export const DOC_CATEGORIES = ["Build", "Land", "Finance"] as const satisfies readonly DocCategory[];
+
+/**
+ * Where one Documents tab stands. `outstanding` counts what blocks submission:
+ * required docs with no file plus anything Ops sent back. Zero = the tab is green.
+ */
+export function categoryProgress(docs: SubmissionDoc[], cat: DocCategory) {
+  const rows = docs.filter((d) => d.cat === cat);
+  const required = rows.filter((d) => d.req);
+  const uploaded = required.filter((d) => d.file).length;
+  const fixes = rows.filter((d) => isFixDoc(d.state)).length;
+  return { uploaded, total: required.length, fixes, outstanding: required.length - uploaded + fixes };
+}
 
 /* ── Shared status vocabulary ───────────────────────────────────────────
  * The mockup writes doc state "verified" / "fix" and submission status

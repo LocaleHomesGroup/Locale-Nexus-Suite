@@ -59,6 +59,26 @@ export function jobRef(job: Job | undefined): string {
   return job ? job.jobNo || job.client : "the job";
 }
 
+/** Everything the Review queue's search looks through for one item. */
+export function reviewHaystack(item: ReviewItem, job: Job | undefined): string {
+  return [
+    item.id,
+    item.milestone,
+    item.summary,
+    item.queuedBy,
+    item.source,
+    item.note,
+    item.decidedBy,
+    item.decisionNote,
+    job?.jobNo,
+    job?.client,
+    job?.builder,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 /** "Slab Down on 25211 set back from Completed to In Progress". */
 export function reviewSummary(job: Job | undefined, milestone: string, held: MilestoneState, proposed: MilestoneState): string {
   return proposed.status === "done"

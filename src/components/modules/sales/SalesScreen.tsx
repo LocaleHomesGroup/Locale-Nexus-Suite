@@ -12,7 +12,7 @@ import { UnderConstruction } from "./build/UnderConstruction";
 import { ExclusiveLand } from "./land/ExclusiveLand";
 import { Team } from "./team/Team";
 import { MyWeek } from "./week/MyWeek";
-import { RapidCosting } from "./costing/RapidCosting";
+import { Costing } from "./costing/Costing";
 import { DealSubmissions } from "./submissions/DealSubmissions";
 import { SalesOverview } from "./SalesOverview";
 
@@ -20,9 +20,9 @@ const TABS = ["overview", "pipeline", "clients", "week", "build", "costing", "su
 
 /**
  * Sales — the mockup's `gm`: an Overview (the default) and eight sections in `?tab=`,
- * listed in the Sales rail along with the "Open HomeScope" link. Each pane
- * renders its own PageHeader. Rapid costing, My week and My Deal Submissions
- * are built in their folders.
+ * listed in the Sales rail along with the link to the legacy HomeScope. Each
+ * pane renders its own PageHeader. Rapid costing (its Calculator and HomeScope
+ * views, in `?view=`), My week and My Deal Submissions are built in their folders.
  */
 export function SalesScreen() {
   const [tab, , dir] = useTabParam(TABS, "overview");
@@ -48,7 +48,7 @@ export function SalesScreen() {
           ) : tab === "build" ? (
             <UnderConstruction />
           ) : tab === "costing" ? (
-            <RapidCosting />
+            <Costing />
           ) : tab === "submissions" ? (
             <DealSubmissions />
           ) : tab === "land" ? (

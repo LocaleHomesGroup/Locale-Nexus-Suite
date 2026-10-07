@@ -210,19 +210,24 @@ export const DASHBOARDS: Dashboard[] = [
     href: "/sales",
     icon: TrendingUp,
     tone: "haven",
-    defaults: { tab: "overview" },
+    defaults: { tab: "overview", view: "calculator" },
     items: [
       overview("sales"),
       tab("sales", "pipeline", "Pipeline", Columns3),
       tab("sales", "clients", "My clients", Users),
       tab("sales", "week", "My week", CalendarDays),
       tab("sales", "build", "Under construction", HardHat),
-      tab("sales", "costing", "Rapid costing", Calculator),
+      // The in-the-room calculator, and HomeScope (the AWS estimator rebuilt
+      // step by step, ending in the quote PDF), nested as Doc formatter's views are.
+      tab("sales", "costing", "Rapid costing", Calculator, [
+        { key: "sales:costing:calculator", label: "Calculator", icon: Calculator, params: { tab: "costing", view: "calculator" } },
+        { key: "sales:costing:homescope", label: "HomeScope", icon: Home, params: { tab: "costing", view: "homescope" } },
+      ]),
       tab("sales", "submissions", "My Deal Submissions", FileCheck2),
       tab("sales", "land", "Exclusive land", MapPinned),
       tab("sales", "team", "Team", Trophy),
     ],
-    links: [{ label: "Open HomeScope", href: HOUSE_IMAGE_BASE, icon: Home }],
+    links: [{ label: "Legacy HomeScope", href: HOUSE_IMAGE_BASE, icon: Home }],
   },
   {
     id: "marketing",
