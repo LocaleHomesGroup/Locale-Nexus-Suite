@@ -211,7 +211,7 @@ export const DASHBOARDS: Dashboard[] = [
     items: [
       overview("sales"),
       tab("sales", "pipeline", "Pipeline", Columns3),
-      tab("sales", "clients", "My clients", Users),
+      tab("sales", "clients", "Clients", Users),
       tab("sales", "week", "My week", CalendarDays),
       tab("sales", "build", "Under construction", HardHat),
       tab("sales", "costing", "Rapid costing", Calculator),

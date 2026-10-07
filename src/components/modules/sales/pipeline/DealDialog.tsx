@@ -69,6 +69,7 @@ export function DealDialog({
   onReopen,
   onPost,
   onOpenJob,
+  ownerLocked = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -82,6 +83,8 @@ export function DealDialog({
   onReopen: (id: string) => void;
   onPost: (id: string, body: string) => void;
   onOpenJob: () => void;
+  /** The Sales portal: the deal stays the rep's. Managers reassign from the Sales dashboard. */
+  ownerLocked?: boolean;
 }) {
   const isCreate = deal === null;
   const lost = Boolean(deal?.lost);
@@ -258,7 +261,7 @@ export function DealDialog({
                     options={PIPELINE_STAGES.map((s) => ({ value: s, label: <StageLabel stage={s} /> }))}
                   />
                 </Field>
-                <OwnerField id={`${formId}-rep`} value={draft.rep} onChange={(v) => set("rep", v)} />
+                <OwnerField id={`${formId}-rep`} value={draft.rep} onChange={(v) => set("rep", v)} locked={ownerLocked} />
               </Cascade>
             ) : null}
 
@@ -299,7 +302,7 @@ export function DealDialog({
                 />
               </Field>
               {isCreate ? (
-                <OwnerField id={`${formId}-rep`} value={draft.rep} onChange={(v) => set("rep", v)} />
+                <OwnerField id={`${formId}-rep`} value={draft.rep} onChange={(v) => set("rep", v)} locked={ownerLocked} />
               ) : (
                 <NextStepField id={`${formId}-next`} value={draft.nextStep} onChange={(v) => set("nextStep", v)} />
               )}
@@ -358,7 +361,24 @@ function StageLabel({ stage }: { stage: PipelineStage }) {
   );
 }
 
-function OwnerField({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
+function OwnerField({
+  id,
+  value,
+  onChange,
+  locked,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  locked?: boolean;
+}) {
+  if (locked) {
+    return (
+      <Field label="Owner" htmlFor={id} hint="Managers reassign deals from the Sales dashboard.">
+        <Input id={id} value={value} readOnly aria-readonly className="bg-muted/40 text-muted-foreground" />
+      </Field>
+    );
+  }
   const reps = REPS.includes(value as (typeof REPS)[number]) ? [...REPS] : [...REPS, value];
   return (
     <Field label="Owner" htmlFor={id}>

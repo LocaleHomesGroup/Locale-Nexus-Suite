@@ -30,7 +30,7 @@ import {
   type PipelineDeal,
   type PipelineStage,
 } from "../data";
-import { useSalesState } from "../sales-state";
+import { scopeRep, useSalesScope, useSalesState } from "../sales-state";
 import { Footnote } from "../parts";
 import { DealCardBody, PRIORITY_STYLES, PriorityChip, STAGE_DOT, dealCardClass, dealNo, relativeTime } from "./DealCard";
 import { DealDialog } from "./DealDialog";
@@ -63,6 +63,8 @@ const totalLabel = (k: number) => (k >= 1000 ? millionsFromK(k) : `$${Math.round
  */
 export function Pipeline() {
   const { deals } = useSalesState();
+  // In the Sales portal the board is one rep's: their deals only, and no owner filter.
+  const rep = scopeRep(useSalesScope());
   const { jobs, openJob } = useLaunchpad();
   const writes = useDealWrites();
   const reduce = useReducedMotion();
@@ -110,10 +112,11 @@ export function Pipeline() {
     [owner, priority, q],
   );
 
-  const onBoard = React.useMemo(() => deals.filter((d) => !d.lost), [deals]);
+  const scoped = React.useMemo(() => (rep ? deals.filter((d) => d.rep === rep) : deals), [deals, rep]);
+  const onBoard = React.useMemo(() => scoped.filter((d) => !d.lost), [scoped]);
   const lost = React.useMemo(
-    () => deals.filter((d) => d.lost).sort((a, b) => (b.lost?.at ?? 0) - (a.lost?.at ?? 0)),
-    [deals],
+    () => scoped.filter((d) => d.lost).sort((a, b) => (b.lost?.at ?? 0) - (a.lost?.at ?? 0)),
+    [scoped],
   );
   const shownBoard = React.useMemo(() => onBoard.filter(matches), [onBoard, matches]);
   const shownLost = React.useMemo(() => lost.filter(matches), [lost, matches]);
@@ -168,8 +171,12 @@ export function Pipeline() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        title="Deal pipeline"
-        description="Every deal by stage, owned by the consultant who made it. Open a deal to update it. Won deals flow straight into Operations."
+        title={rep ? "My pipeline" : "Deal pipeline"}
+        description={
+          rep
+            ? "Your deals, from first appointment to sale won. Open a deal to update it. Won deals flow straight into Operations."
+            : "Every deal by stage, owned by the consultant who made it. Open a deal to update it. Won deals flow straight into Operations."
+        }
         actions={
           <Button onClick={newDeal}>
             <Plus aria-hidden /> New deal
@@ -202,25 +209,27 @@ export function Pipeline() {
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:ml-auto lg:w-auto">
-          <SmoothSelect
-            value={owner}
-            onChange={setOwner}
-            ariaLabel="Filter by owner"
-            className="sm:w-48"
-            options={[
-              { value: "all", label: "All owners" },
-              ...REPS.map((r) => ({
-                value: r,
-                label: (
-                  <span className="inline-flex items-center gap-2">
-                    <Avatar name={r} size="xs" />
-                    {r}
-                  </span>
-                ),
-                hint: r === CURRENT_REP ? "you" : undefined,
-              })),
-            ]}
-          />
+          {rep ? null : (
+            <SmoothSelect
+              value={owner}
+              onChange={setOwner}
+              ariaLabel="Filter by owner"
+              className="sm:w-48"
+              options={[
+                { value: "all", label: "All owners" },
+                ...REPS.map((r) => ({
+                  value: r,
+                  label: (
+                    <span className="inline-flex items-center gap-2">
+                      <Avatar name={r} size="xs" />
+                      {r}
+                    </span>
+                  ),
+                  hint: r === CURRENT_REP ? "you" : undefined,
+                })),
+              ]}
+            />
+          )}
           <SmoothSelect
             value={priority}
             onChange={setPriority}
@@ -332,8 +341,9 @@ export function Pipeline() {
         onClose={() => setDialogOpen(false)}
         deal={dialogDeal}
         job={dialogDeal ? jobFor(dialogDeal) : undefined}
+        ownerLocked={rep !== null}
         onCreate={(draft) => {
-          writes.createDeal(draft);
+          writes.createDeal(rep ? { ...draft, rep } : draft);
           setView("board");
         }}
         onSave={writes.saveDeal}
