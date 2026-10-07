@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpen,
   Briefcase,
+  BriefcaseBusiness,
   Building,
   Building2,
   Calculator,
@@ -61,6 +62,7 @@ import type { ModuleId } from "@/state/launchpad-store";
 import { CATEGORIES, CATEGORY_SLUGS } from "@/components/modules/knowledge/data";
 import { HOUSE_IMAGE_BASE } from "@/data/jobs";
 import { PAY_RUN } from "@/components/modules/accounting/data";
+import { CURRENT_REP } from "@/components/modules/sales/data";
 import type { DashboardTone } from "./dashboard-tones";
 
 /**
@@ -85,7 +87,9 @@ import type { DashboardTone } from "./dashboard-tones";
  * Locale clients, how it ranks and what Locale needs from it. The third is the
  * Employee portal, Simple HRIS's employee dashboard for Locale's own people:
  * their pay week, their rates, the invoices that pay them and their
- * department. A portal's rail has its own Switch view listing only the portals
+ * department. The fourth is the Sales portal: one consultant's own pipeline,
+ * clients, week, progress and deal submissions, where the Sales dashboard is
+ * the team's. A portal's rail has its own Switch view listing only the portals
  * (a client never sees a staff dashboard); the Launchpad's lists the portals
  * under its own dashboards, so staff can preview them.
  */
@@ -212,10 +216,8 @@ export const DASHBOARDS: Dashboard[] = [
       overview("sales"),
       tab("sales", "pipeline", "Pipeline", Columns3),
       tab("sales", "clients", "Clients", Users),
-      tab("sales", "week", "My week", CalendarDays),
       tab("sales", "build", "Under construction", HardHat),
       tab("sales", "costing", "Rapid costing", Calculator),
-      tab("sales", "submissions", "My Deal Submissions", FileCheck2),
       tab("sales", "land", "Exclusive land", MapPinned),
       tab("sales", "team", "Team", Trophy),
     ],
@@ -442,6 +444,28 @@ export const DASHBOARDS: Dashboard[] = [
       ]),
       tab("employee", "profile", "Profile", CircleUser),
       tab("employee", "department", "Department", Users),
+    ],
+  },
+  {
+    id: "consultant",
+    label: "Sales",
+    title: "Sales portal",
+    href: "/consultant",
+    icon: BriefcaseBusiness,
+    // Locale Homes is the brand a consultant sells for.
+    tone: "haven",
+    space: "portal",
+    persona: { name: CURRENT_REP, role: "Sales consultant · staff preview" },
+    defaults: { tab: "overview" },
+    // The sections that said "My" on the Sales dashboard, which is now the
+    // team's view, plus the consultant's progress.
+    items: [
+      overview("consultant"),
+      tab("consultant", "pipeline", "My pipeline", Columns3),
+      tab("consultant", "clients", "My clients", Users),
+      tab("consultant", "week", "My week", CalendarDays),
+      tab("consultant", "progress", "My progress", Target),
+      tab("consultant", "submissions", "My Deal Submissions", FileCheck2),
     ],
   },
 ];

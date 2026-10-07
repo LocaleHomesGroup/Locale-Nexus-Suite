@@ -60,7 +60,8 @@ export type ModuleId =
   | "admin"
   | "client"
   | "developer"
-  | "employee";
+  | "employee"
+  | "consultant";
 
 interface LaunchpadStore {
   jobs: Job[];

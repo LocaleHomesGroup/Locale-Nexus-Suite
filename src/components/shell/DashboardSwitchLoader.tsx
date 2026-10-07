@@ -56,6 +56,7 @@ const SHAPES: Record<ModuleId, Shape> = {
   client: OVERVIEW,
   developer: OVERVIEW,
   employee: OVERVIEW,
+  consultant: OVERVIEW,
 };
 
 const KPI_COLS: Record<number, string> = {

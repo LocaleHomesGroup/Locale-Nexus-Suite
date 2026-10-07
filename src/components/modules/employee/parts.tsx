@@ -10,29 +10,10 @@ import { Dash } from "@/components/ui/table";
 import { PAY_WEEKS, weekLabel, type InvoiceState, type StaffInvoice } from "./data";
 
 /**
- * Pieces the Employee portal's sections share: the greeting, HRIS's hidden
- * figures, the invoice status pill, and which week each invoice bills.
+ * Pieces the Employee portal's sections share: HRIS's hidden figures, the
+ * invoice status pill, and which week each invoice bills. The greeting is
+ * `useGreeting` in src/hooks, shared with the Sales portal.
  */
-
-/* ── Greeting ──────────────────────────────────────────────────────────── */
-
-const noSubscribe = () => () => {};
-
-/**
- * "Good afternoon" on the viewer's clock (HRIS's greeting). The server can't
- * know the viewer's time, so it renders "Welcome back" and the first client
- * render swaps in the real one.
- */
-export function useGreeting(): string {
-  return React.useSyncExternalStore(
-    noSubscribe,
-    () => {
-      const hour = new Date().getHours();
-      return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    },
-    () => "Welcome back",
-  );
-}
 
 /* ── Hidden values (HRIS HiddenValue) ──────────────────────────────────── */
 

@@ -1,4 +1,4 @@
-import { DASHBOARDS, DASHBOARD_GROUPS, STAFF, dashboardById, hrefForKey, type Dashboard } from "@/components/shell/dashboards";
+import { DASHBOARDS, DASHBOARD_GROUPS, STAFF, dashboardById, hrefForKey, spaceOf, type Dashboard } from "@/components/shell/dashboards";
 import type { DashboardTone } from "@/components/shell/dashboard-tones";
 import type { ModuleId } from "@/state/launchpad-store";
 import type { PillTone } from "@/components/ui/pill";
@@ -34,7 +34,7 @@ export interface Section {
 
 export interface Role {
   key: RoleKey;
-  /** "Sales". */
+  /** "Sales", or a portal's title: "Sales portal". */
   label: string;
   dashboard: Dashboard;
   blurb: string;
@@ -45,7 +45,7 @@ export interface Role {
 const BLURBS: Record<RoleKey, string> = {
   admin: "Full system access. Unlocks every dashboard, this one included.",
   operations: "Unlocks the Operations dashboard: jobs synced between HubSpot and Monday, and the review queue.",
-  sales: "Unlocks the Sales dashboard: the pipeline, clients, costing and deal submissions.",
+  sales: "Unlocks the Sales dashboard, the team's view: every rep's pipeline and clients, costing, land and Team.",
   marketing: "Unlocks the Marketing dashboard: performance, channels and attribution.",
   finance: "Unlocks the Finance dashboard and its health check.",
   accounts: "Unlocks the Accounts dashboard: builder invoicing, reports and expenses.",
@@ -59,6 +59,7 @@ const BLURBS: Record<RoleKey, string> = {
   client: "Unlocks the Client portal, where a buyer follows their home from enquiry to keys.",
   developer: "Unlocks the Developer portal, for a building company Locale sells for.",
   employee: "Unlocks the Employee portal: pay week, invoices, profile and department.",
+  consultant: "Unlocks the Sales portal: your own pipeline, clients, week, progress and deal submissions.",
 };
 
 /** Every dashboard but Home, in rail order. Derived, so a new dashboard is a new role. */
@@ -66,7 +67,8 @@ export const ROLES: Role[] = DASHBOARDS.filter((d) => d.id !== "home").map((d) =
   const key = d.id as RoleKey;
   return {
     key,
-    label: d.label,
+    // A portal's role is named for the portal, so "Sales portal" and "Sales" never read the same.
+    label: spaceOf(d) === "portal" ? d.title : d.label,
     dashboard: d,
     blurb: BLURBS[key],
     sections: key === "admin" ? [] : d.items.map((i) => ({ key: i.key, label: i.label })),
@@ -270,7 +272,7 @@ export const PRESENCE_SEED: Record<string, PresenceSeed> = {
   "jan-kane-reroma": { at: "admin:roles" },
   "sean-oneill": { at: "sales:pipeline" },
   "jasmin-bainbridge": { at: "sales:costing" },
-  "michael-fox": { at: "sales:submissions" },
+  "michael-fox": { at: "consultant:submissions" },
   "kate-grierson": { at: "sales:pipeline", inactive: true },
   "larnie-clark": { at: "operations:jobs" },
   "shannan-murray": { at: "operations:review" },

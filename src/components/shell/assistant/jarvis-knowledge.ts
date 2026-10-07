@@ -27,13 +27,24 @@ import { ANNOUNCEMENTS, CELEBRATIONS, COMING_UP } from "@/components/modules/hom
 import { buildMyDay } from "@/components/modules/home/my-day";
 import { PRICE_LISTS, MODELS_TRACKED } from "@/components/modules/operations/pricing/data";
 import {
-  SEED_DEALS,
+  CURRENT_REP,
   PIPELINE_STAGES,
   SALES_WON_QTD,
   SEED_LOTS,
   SEED_DISCOUNTS,
   HOLD_QUEUE_MAX,
+  isOpenDeal,
+  type PipelineDeal,
 } from "@/components/modules/sales/data";
+import { COMMISSION_PER_SALE, MONTH_TARGET, QUARTER_TARGET, STALE_DAYS } from "@/components/modules/sales/progress/data";
+import {
+  commissionEarned,
+  commissionPipeline,
+  staleDeals,
+  wonSoFar,
+  wonVsTarget,
+  type TargetProgress,
+} from "@/components/modules/sales/progress/progress";
 import { DISCOUNT_APPROVAL_THRESHOLD, COMMISSION_BASE } from "@/components/modules/sales/costing/data";
 import {
   CHANNELS,
@@ -152,6 +163,8 @@ export interface JarvisContext {
   payRun: { view: PayRunView; run: RunSummary };
   /** Admin's roles, section access and sign-outs. */
   admin: AdminState;
+  /** Sales' live deals (the shared Sales store): the dashboard's board and the portal's. */
+  deals: PipelineDeal[];
 }
 
 export interface Faq {
@@ -251,9 +264,9 @@ const PORTAL_USING = (portal: string): Faq[] => [
   {
     group: "Using the portal",
     question: "How do I switch views?",
-    keys: ["switch", "view", "client portal", "developer portal", "employee portal", "back to launchpad"],
+    keys: ["switch", "view", "client portal", "developer portal", "employee portal", "sales portal", "back to launchpad"],
     answer: () => ({
-      text: `Use “Switch view” in the sidebar. The portals have their own: Client, Developer and Employee, plus “Back to Launchpad” for the staff dashboards. You're in the ${portal}.`,
+      text: `Use “Switch view” in the sidebar. The portals have their own: Client, Developer, Employee and Sales, plus “Back to Launchpad” for the staff dashboards. You're in the ${portal}.`,
     }),
   },
 ];
@@ -448,17 +461,17 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
   },
 
   sales: {
-    subtitle: "Pipeline, clients and land",
-    greeting: "Ask me about your pipeline, land holds or the team's numbers.",
+    subtitle: "The team's pipeline, clients and land",
+    greeting: "Ask me about the pipeline, land holds or the team's numbers.",
     faqs: [
       {
         group: "Pipeline",
-        question: "What's in my pipeline?",
+        question: "What's in the pipeline?",
         keys: ["pipeline", "deals", "stage", "appointment"],
-        answer: () => ({
-          text: `${plural(SEED_DEALS.filter((d) => !d.lost).length, "deal")} across the pipeline:`,
+        answer: (ctx) => ({
+          text: `${plural(ctx.deals.filter((d) => !d.lost).length, "deal")} across the pipeline:`,
           bullets: PIPELINE_STAGES.map((stage) => {
-            const deals = SEED_DEALS.filter((d) => d.stage === stage && !d.lost);
+            const deals = ctx.deals.filter((d) => d.stage === stage && !d.lost);
             return `${stage}: ${deals.length ? deals.map((d) => `${d.client} (${d.suburb}, ${d.value})`).join(", ") : "none"}.`;
           }),
           actions: [{ label: "Open Pipeline", href: "/sales?tab=pipeline" }],
@@ -481,22 +494,6 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
           text: `Discounts up to ${aud(DISCOUNT_APPROVAL_THRESHOLD)} are within your discretion. Anything above that needs a manager — send it from Rapid costing with “Send for manager approval”.`,
           bullets: [`Commission base: ${aud(COMMISSION_BASE.Retail)} retail, ${aud(COMMISSION_BASE.Wholesale)} wholesale.`],
           actions: [{ label: "Open Rapid costing", href: "/sales?tab=costing" }],
-        }),
-      },
-      {
-        group: "My Deal Submissions",
-        question: "Where is my deal submission?",
-        keys: ["submission", "nguyen", "upload"],
-        answer: (ctx) => submissionAnswer(ctx, "/sales?tab=submissions"),
-      },
-      {
-        group: "My Deal Submissions",
-        question: "Which documents does Forma need?",
-        keys: ["documents", "forma", "checklist", "what do i need"],
-        answer: () => ({
-          text: "Forma's required documents:",
-          bullets: BUILDER_CHECKLISTS.Forma.filter((d) => d.req).map((d) => `${d.name} (${d.cat}).`),
-          actions: [{ label: "Start a submission", href: "/sales?tab=submissions" }],
         }),
       },
       {
@@ -546,7 +543,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
       ...USING("Sales"),
     ],
     fallback:
-      "On Sales I can answer about your pipeline, what happens when a deal is won, discounts, your deal submission and its documents, land holds and the quarter's leaders.",
+      "On Sales I can answer about the team's pipeline, what happens when a deal is won, discounts, land holds, the quarter's leaders and discounts waiting for approval.",
   },
 
   marketing: {
@@ -1604,6 +1601,100 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
     fallback:
       "In the Employee portal I can tell you this week's pay and your rates, which invoices are with Accounts, how to send one, and who's in your department.",
   },
+  consultant: {
+    subtitle: "Your pipeline, clients and progress",
+    greeting: `Hi ${CURRENT_REP}, ask me how you're tracking against target, which of your deals have gone stale, or what your commission pipeline is.`,
+    faqs: [
+      {
+        group: "My progress",
+        question: "How am I tracking against target?",
+        keys: ["target", "tracking", "on track", "how am i going", "how am i doing", "won this"],
+        answer: (ctx) => {
+          const won = wonSoFar(ctx.deals, CURRENT_REP);
+          const month = wonVsTarget(won.month, MONTH_TARGET);
+          const quarter = wonVsTarget(won.quarter, QUARTER_TARGET);
+          const line = (label: string, p: TargetProgress) =>
+            `${label}: ${p.won} of ${p.target}${p.hit ? ", target hit" : `, ${plural(p.target - p.won, "sale")} to go`}.`;
+          return {
+            text: month.hit && quarter.hit ? "You're on target for the month and the quarter:" : "Here's where you are against target:",
+            bullets: [line("This month (August to date)", month), line("This quarter", quarter)],
+            actions: [{ label: "Open My progress", href: "/consultant?tab=progress" }],
+            source: "HubSpot · sample targets until Sean sets them",
+          };
+        },
+      },
+      {
+        group: "My progress",
+        question: "Which of my deals have gone stale?",
+        keys: ["stale", "stuck", "sitting", "old deal", "14 days", "haven't moved"],
+        answer: (ctx) => {
+          const stale = staleDeals(ctx.deals, CURRENT_REP, Date.now());
+          return {
+            text: stale.length
+              ? `${plural(stale.length, "deal")} ${stale.length === 1 ? "has" : "have"} sat in ${stale.length === 1 ? "its" : "their"} stage ${STALE_DAYS} days or more:`
+              : `Nothing stale. Every one of your open deals moved in the last ${STALE_DAYS} days.`,
+            bullets: stale.map(
+              ({ deal, days }) =>
+                `${deal.client} (${deal.suburb}, ${deal.value}): ${days} days in ${deal.stage}. Next step: ${deal.nextStep || "none set"}.`,
+            ),
+            actions: [{ label: "Open My pipeline", href: "/consultant?tab=pipeline" }],
+            source: "HubSpot deals · live",
+          };
+        },
+      },
+      {
+        group: "My progress",
+        question: "What's my commission pipeline?",
+        keys: ["commission", "earn", "earned", "money"],
+        answer: (ctx) => {
+          const open = ctx.deals.filter((d) => d.rep === CURRENT_REP && isOpenDeal(d)).length;
+          const quarter = wonSoFar(ctx.deals, CURRENT_REP).quarter;
+          return {
+            text: `${aud(commissionPipeline(ctx.deals, CURRENT_REP))} across ${plural(open, "open deal")}, and ${aud(commissionEarned(quarter))} earned on ${plural(quarter, "sale")} this quarter.`,
+            bullets: [`Both at a flat ${aud(COMMISSION_PER_SALE)} a sale until Alison Carter confirms the commission formula.`],
+            actions: [{ label: "Open My progress", href: "/consultant?tab=progress" }],
+            source: "Placeholder rate",
+          };
+        },
+      },
+      {
+        group: "My pipeline",
+        question: "What's in my pipeline?",
+        keys: ["pipeline", "deals", "stage", "appointment"],
+        answer: (ctx) => {
+          const mine = ctx.deals.filter((d) => d.rep === CURRENT_REP && !d.lost);
+          return {
+            text: `${plural(mine.filter(isOpenDeal).length, "open deal")} in your pipeline:`,
+            bullets: PIPELINE_STAGES.map((stage) => {
+              const deals = mine.filter((d) => d.stage === stage);
+              return `${stage}: ${deals.length ? deals.map((d) => `${d.client} (${d.suburb}, ${d.value})`).join(", ") : "none"}.`;
+            }),
+            actions: [{ label: "Open My pipeline", href: "/consultant?tab=pipeline" }],
+            source: "HubSpot deals · live",
+          };
+        },
+      },
+      {
+        group: "My Deal Submissions",
+        question: "Where is my deal submission?",
+        keys: ["submission", "nguyen", "upload"],
+        answer: (ctx) => submissionAnswer(ctx, "/consultant?tab=submissions"),
+      },
+      {
+        group: "My Deal Submissions",
+        question: "Which documents does Forma need?",
+        keys: ["documents", "forma", "checklist", "what do i need"],
+        answer: () => ({
+          text: "Forma's required documents:",
+          bullets: BUILDER_CHECKLISTS.Forma.filter((d) => d.req).map((d) => `${d.name} (${d.cat}).`),
+          actions: [{ label: "Start a submission", href: "/consultant?tab=submissions" }],
+        }),
+      },
+      ...PORTAL_USING("Sales portal"),
+    ],
+    fallback:
+      "In the Sales portal I can tell you how you're tracking against target, which of your deals have gone stale, your commission pipeline, what's in your pipeline, and where your deal submission is up to.",
+  },
 };
 
 /**
@@ -1615,7 +1706,7 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
 export const FEATURED: Record<ModuleId, readonly [string, string, string]> = {
   home: ["What needs me today?", "Are any jobs out of sync?", "What's coming up this fortnight?"],
   operations: ["Which jobs have sync conflicts?", "What's waiting in the review queue?", "Where is the Nguyen submission up to?"],
-  sales: ["What's in my pipeline?", "Which lots can I hold?", "Where is my deal submission?"],
+  sales: ["What's in the pipeline?", "Which lots can I hold?", "Who's leading sales this quarter?"],
   marketing: ["What's our cost per deal?", "Which channel converts best?", "Can we trust the attribution?"],
   finance: ["What does the health check do?", "What's asked about income?", "Where do the answers go?"],
   accounts: ["Which invoices are waiting for approval?", "What does cash flow look like?", "Any expense claims to approve?"],
@@ -1630,6 +1721,7 @@ export const FEATURED: Record<ModuleId, readonly [string, string, string]> = {
   client: ["Where is my build up to?", "How does our budget split?", "Why was our builder recommended?"],
   developer: ["Which jobs are waiting on us?", "Why do clients pick another builder?", "What does Locale need with a sale?"],
   employee: ["What's my pay this week?", "What are my current rates?", "Who's in my department?"],
+  consultant: ["How am I tracking against target?", "Which of my deals have gone stale?", "What's my commission pipeline?"],
 };
 
 /** A dashboard's three FAQ entries. Throws if a featured question has no answer behind it. */

@@ -3,7 +3,7 @@
  * dashboard shares one shell, and the accent is the only thing that changes.
  * Locale's accents are its own sub-brand system:
  *
- *   haven     Locale Homes      — Home, Operations, Sales; the Client portal
+ *   haven     Locale Homes      — Home, Operations, Sales; the Client and Sales portals
  *   nectar    Locale Financial  — Finance, Accounts, Accounting
  *   skyblue   Locale Wealth     — Wealth
  *   charcoal  master brand      — Marketing, HR, Projects, Knowledge, Leadership, IT, Admin;

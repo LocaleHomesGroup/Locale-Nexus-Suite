@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AlertCircle, ArrowRight, BadgeDollarSign, Clock, FileText, Hourglass, Plus, UserRoundPen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useGreeting } from "@/hooks/useGreeting";
 import { EASE_OUT, EASE_SWAP, RISE_VARIANTS, rowDelay } from "@/lib/motion";
 import { hrefForKey } from "@/components/shell/dashboards";
 import { PageHeader } from "@/components/ui/page";
@@ -36,7 +37,7 @@ import {
   type StaffInvoice,
 } from "./data";
 import { useInvoices } from "./invoice-store";
-import { EyeToggle, HiddenValue, StatusPill, billsFor, invoiceByWeek, statusLabel, uninvoicedWeeks, useGreeting } from "./parts";
+import { EyeToggle, HiddenValue, StatusPill, billsFor, invoiceByWeek, statusLabel, uninvoicedWeeks } from "./parts";
 import { InvoiceDialog } from "./InvoiceSheet";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

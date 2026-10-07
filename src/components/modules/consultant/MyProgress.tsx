@@ -212,18 +212,19 @@ function FunnelCard({ deals, rep, stale }: { deals: PipelineDeal[]; rep: string;
           <TableHeader>
             <TableRow className="hover:bg-transparent dark:hover:bg-transparent">
               <TableHead className="pl-0">Deals</TableHead>
-              <TableHead>Now</TableHead>
-              <TableHead>Reached</TableHead>
-              <TableHead className="pr-0 text-right">Conversion</TableHead>
+              <TableHead className="px-2 sm:px-3">Now</TableHead>
+              <TableHead className="px-2 sm:px-3">Reached</TableHead>
+              <TableHead className="pr-0 pl-2 text-right sm:pl-3">Conversion</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {steps.map((s) => (
               <TableRow key={s.stage}>
-                <TableCell className="py-2 pl-0 font-medium whitespace-nowrap">{s.stage}</TableCell>
-                <TableCell className="py-2 tabular-nums">{s.now || <Dash />}</TableCell>
-                <TableCell className="py-2 tabular-nums">{s.reached || <Dash />}</TableCell>
-                <TableCell className="py-2 pr-0 text-right tabular-nums">
+                {/* On a phone the stage wraps ("Appointment / booked") and the gaps narrow, so Conversion stays in view. */}
+                <TableCell className="py-2 pl-0 font-medium sm:whitespace-nowrap">{s.stage}</TableCell>
+                <TableCell className="px-2 py-2 tabular-nums sm:px-3">{s.now || <Dash />}</TableCell>
+                <TableCell className="px-2 py-2 tabular-nums sm:px-3">{s.reached || <Dash />}</TableCell>
+                <TableCell className="py-2 pr-0 pl-2 text-right tabular-nums sm:pl-3">
                   {s.conversion === null ? <Dash /> : percent(s.conversion)}
                 </TableCell>
               </TableRow>
