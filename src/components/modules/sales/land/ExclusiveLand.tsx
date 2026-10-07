@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Clock, ExternalLink, Lock, Users } from "lucide-react";
+import { Clock, ExternalLink, HandCoins, Lock, Users } from "lucide-react";
 import { useLaunchpad, confirm } from "@/state/launchpad-store";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page";
@@ -36,11 +36,18 @@ function ordinal(n: number): string {
   return n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`;
 }
 
+/** "Any builder", or the builder the lot is packaged with. */
+function builderLabel(builder: string): string {
+  return builder === "Any builder" ? builder : `Builder: ${builder}`;
+}
+
 /**
- * Sales › Exclusive land — lots builders allocate to Locale only. A rep can
- * place a 24-hour hold on an available lot, or join the queue (three holds
- * per lot) behind someone else's. Every change is what updates the Exclusive
- * Land board in Monday.
+ * Exclusive land, on the Sales Manager dashboard and in the Sales Representative
+ * portal: lots land developers give Locale alone to sell. A rep can place a
+ * 24-hour hold on an available lot, or join the queue (three holds per lot)
+ * behind someone else's. The holder marks the lot sold once the client's
+ * deposit is in; otherwise the hold lapses. Every change is what updates the
+ * Exclusive Land board in Monday.
  */
 export function ExclusiveLand() {
   const { lots, setLots } = useSalesState();
@@ -48,6 +55,8 @@ export function ExclusiveLand() {
   const [estate, setEstate] = React.useState<EstateFilter>("All estates");
   const [holdLot, setHoldLot] = React.useState<LandLot | null>(null);
   const [holdOpen, setHoldOpen] = React.useState(false);
+  const [soldLot, setSoldLot] = React.useState<LandLot | null>(null);
+  const [soldOpen, setSoldOpen] = React.useState(false);
   const [client, setClient] = React.useState("");
   const clientId = React.useId();
 
@@ -77,6 +86,23 @@ export function ExclusiveLand() {
     notify(`24-hour hold placed on ${holdLot.lot} · Exclusive Land board updated`);
   };
 
+  const startSold = (lot: LandLot) => {
+    setSoldLot(lot);
+    setSoldOpen(true);
+  };
+
+  const markSold = () => {
+    if (!soldLot) return;
+    const queued = (soldLot.queue ?? 1) > 1;
+    patch(soldLot.id, { status: "sold", expires: undefined, queue: undefined, queuedAt: undefined });
+    setSoldOpen(false);
+    confirm(
+      `Sold · ${soldLot.lot}`,
+      queued ? "Deposit received. The reps in the hold queue are told it's gone." : "Deposit received. It's off the available list for every rep.",
+    );
+    notify(`${soldLot.lot} sold · deposit received`);
+  };
+
   const releaseHold = (lot: LandLot) => {
     patch(lot.id, { status: "available", holder: undefined, expires: undefined, queue: undefined, mine: false });
     confirm(`Hold released · ${lot.lot}`, "The lot is available again on the Monday board.");
@@ -100,7 +126,7 @@ export function ExclusiveLand() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Exclusive land"
-        description="Lots allocated exclusively to Locale by our builders. Place a 24-hour hold to lock one in for your client — up to three holds queue per lot."
+        description="Lots land developers have given Locale alone to sell. Place a 24-hour hold to lock one in for your client, and up to three holds queue per lot."
         actions={<span className="text-xs text-subtle-foreground">Synced from the Exclusive Land board in Monday</span>}
       />
 
@@ -124,6 +150,7 @@ export function ExclusiveLand() {
                 <LotCard
                   lot={lot}
                   onHold={() => startHold(lot)}
+                  onSold={() => startSold(lot)}
                   onRelease={() => releaseHold(lot)}
                   onJoin={() => joinQueue(lot)}
                   onLeave={() => leaveQueue(lot)}
@@ -135,8 +162,8 @@ export function ExclusiveLand() {
         )}
 
         <Footnote className="text-xs">
-          Holds auto-expire after 24 hours and the next rep in the queue is notified. Placing a hold updates the Monday
-          board instantly.
+          Holds auto-expire after 24 hours unless the client&apos;s deposit is in, and the next rep in the queue is
+          notified. Placing a hold updates the Monday board instantly.
         </Footnote>
       </div>
 
@@ -147,7 +174,7 @@ export function ExclusiveLand() {
         title="Place 24-hour hold"
         description={
           holdLot
-            ? `${holdLot.lot} is locked to you for 24 hours and the Exclusive Land board in Monday updates straight away. If it isn't converted, the hold expires and the next rep in the queue is notified.`
+            ? `${holdLot.lot} is locked to you for 24 hours and the Exclusive Land board in Monday updates straight away. If no deposit comes in, the hold expires and the next rep in the queue is notified.`
             : undefined
         }
         footer={
@@ -163,15 +190,7 @@ export function ExclusiveLand() {
       >
         {holdLot ? (
           <div className="flex flex-col gap-3">
-            <div className="rounded-lg border border-border bg-canvas px-3 py-2.5">
-              <p className="text-[13px] font-semibold">{holdLot.lot}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {holdLot.estate} · Exclusive: {holdLot.builder}
-              </p>
-              <p className="mt-1 text-[13px] font-semibold text-foreground tabular-nums">
-                {holdLot.price}
-              </p>
-            </div>
+            <LotSummary lot={holdLot} />
             <Field label="For client" htmlFor={clientId} hint="Optional — shows on the hold in Monday.">
               <Input
                 id={clientId}
@@ -187,6 +206,44 @@ export function ExclusiveLand() {
           </div>
         ) : null}
       </Dialog>
+
+      <Dialog
+        open={soldOpen}
+        onClose={() => setSoldOpen(false)}
+        icon={HandCoins}
+        title="Mark as sold"
+        description={
+          soldLot
+            ? `Only once the client's deposit is in. ${soldLot.lot} moves to Sold for every rep, and any holds queued behind yours end.`
+            : undefined
+        }
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setSoldOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="brand" onClick={markSold}>
+              <HandCoins aria-hidden /> Deposit received
+            </Button>
+          </>
+        }
+      >
+        {soldLot ? <LotSummary lot={soldLot} holder /> : null}
+      </Dialog>
+    </div>
+  );
+}
+
+/** The lot at the top of a dialog: address, estate, builder and price, and who holds it when asked. */
+function LotSummary({ lot, holder = false }: { lot: LandLot; holder?: boolean }) {
+  return (
+    <div className="rounded-lg border border-border bg-canvas px-3 py-2.5">
+      <p className="text-[13px] font-semibold">{lot.lot}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        {lot.estate} · {builderLabel(lot.builder)}
+      </p>
+      <p className="mt-1 text-[13px] font-semibold text-foreground tabular-nums">{lot.price}</p>
+      {holder && lot.holder ? <p className="mt-1 text-xs text-muted-foreground">Held by {lot.holder}</p> : null}
     </div>
   );
 }
@@ -194,6 +251,7 @@ export function ExclusiveLand() {
 function LotCard({
   lot,
   onHold,
+  onSold,
   onRelease,
   onJoin,
   onLeave,
@@ -201,6 +259,7 @@ function LotCard({
 }: {
   lot: LandLot;
   onHold: () => void;
+  onSold: () => void;
   onRelease: () => void;
   onJoin: () => void;
   onLeave: () => void;
@@ -229,7 +288,7 @@ function LotCard({
         </span>
       </div>
       <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
-        {lot.estate} · Exclusive: {lot.builder}
+        {lot.estate} · {builderLabel(lot.builder)}
       </p>
       <p className="text-[13px] font-semibold text-foreground tabular-nums">{lot.price}</p>
       <p className="my-0.5 text-xs text-muted-foreground tabular-nums">{lot.specs}</p>
@@ -267,9 +326,14 @@ function LotCard({
           </Button>
         ) : null}
         {lot.status === "hold" && lot.mine ? (
-          <Button size="sm" variant="outline" onClick={onRelease}>
-            Release hold
-          </Button>
+          <>
+            <Button size="sm" onClick={onSold}>
+              Deposit received
+            </Button>
+            <Button size="sm" variant="outline" onClick={onRelease}>
+              Release hold
+            </Button>
+          </>
         ) : null}
         {lot.status === "hold" && !lot.mine && !lot.queuedAt ? (
           <Button

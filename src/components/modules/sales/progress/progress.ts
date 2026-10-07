@@ -35,9 +35,14 @@ export function wonToDate(rep: string, inSession: number): { month: number; quar
   return { month: month + inSession, quarter: quarter + inSession };
 }
 
+/** `wonInSession` against the board as seeded. */
+export function wonThisSession(deals: readonly PipelineDeal[], rep: string): number {
+  return wonInSession(deals, SEED_BOARD, rep);
+}
+
 /** `wonToDate` for the live board. */
 export function wonSoFar(deals: readonly PipelineDeal[], rep: string): { month: number; quarter: number } {
-  return wonToDate(rep, wonInSession(deals, SEED_BOARD, rep));
+  return wonToDate(rep, wonThisSession(deals, rep));
 }
 
 export interface TargetProgress {

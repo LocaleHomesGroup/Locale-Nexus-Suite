@@ -1,5 +1,13 @@
 import { Banknote, Landmark, Wallet, type LucideIcon } from "lucide-react";
-import { EMPLOYEE_RECORDS, ORG_SEED, orgDepartment, orgDepartmentOf } from "@/components/modules/hr/data";
+import {
+  EMPLOYEE_RECORDS,
+  ORG_SEED,
+  leaveUsed,
+  orgDepartment,
+  orgDepartmentOf,
+  type LeaveRequest,
+  type LeaveType,
+} from "@/components/modules/hr/data";
 import { php, rateOn, toPhp } from "@/components/modules/accounting/fx";
 
 /**
@@ -412,3 +420,21 @@ export function missingDetails(sender: SenderDetails, payment: PaymentMethod | n
   if (!paymentComplete(payment)) missing.push("how you'd like to be paid");
   return missing;
 }
+
+/* ── Leave ─────────────────────────────────────────────────────────────── */
+
+/**
+ * Your yearly allowance for each leave type that draws on a balance (HRIS's
+ * leave types; Bereavement and Other are granted case by case). Placeholders,
+ * like the rates, until Horilla's balances are connected.
+ */
+export const LEAVE_ALLOWANCE: Partial<Record<LeaveType, number>> = { Vacation: 10, Sick: 5, Personal: 3 };
+
+/** Days of a type you can still ask for: the allowance less what's pending or approved. Null when it has no balance. */
+export function leaveAvailable(requests: LeaveRequest[], type: LeaveType): number | null {
+  const allowance = LEAVE_ALLOWANCE[type];
+  return allowance === undefined ? null : allowance - leaveUsed(requests, EMPLOYEE.name, type);
+}
+
+/** How far back sick leave can be filed: you're often off before you can say so. */
+export const SICK_BACKDATE_DAYS = 14;

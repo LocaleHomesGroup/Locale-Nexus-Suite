@@ -59,7 +59,7 @@ const BLURBS: Record<RoleKey, string> = {
   client: "Unlocks the Client portal, where a buyer follows their home from enquiry to keys.",
   developer: "Unlocks the Developer portal, for a building company Locale sells for.",
   employee: "Unlocks the Employee portal: pay week, invoices, profile and department.",
-  consultant: "Unlocks the Sales Representative portal: your own pipeline, clients, week, progress and deal submissions.",
+  consultant: "Unlocks the Sales Representative portal: your own pipeline, clients, week, progress and deal submissions, plus Exclusive land.",
 };
 
 /** Every dashboard but Home, in rail order. Derived, so a new dashboard is a new role. */

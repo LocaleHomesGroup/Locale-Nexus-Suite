@@ -11,11 +11,12 @@ import { Pipeline } from "../sales/pipeline/Pipeline";
 import { MyClients } from "../sales/clients/MyClients";
 import { MyWeek } from "../sales/week/MyWeek";
 import { DealSubmissions } from "../sales/submissions/DealSubmissions";
+import { ExclusiveLand } from "../sales/land/ExclusiveLand";
 import { ConsultantOverview } from "./ConsultantOverview";
 import { MyProgress } from "./MyProgress";
 import { useChangesRequested } from "./use-changes-requested";
 
-const TABS = ["overview", "pipeline", "clients", "week", "progress", "submissions"] as const;
+const TABS = ["overview", "pipeline", "clients", "week", "progress", "submissions", "land"] as const;
 
 /** One consultant's Sales. A module constant, so the view context stays the same object. */
 const SCOPE: SalesScope = { kind: "rep", rep: CURRENT_REP };
@@ -53,6 +54,8 @@ export function ConsultantScreen() {
             <MyWeek />
           ) : tab === "progress" ? (
             <MyProgress />
+          ) : tab === "land" ? (
+            <ExclusiveLand />
           ) : (
             <DealSubmissions />
           )}

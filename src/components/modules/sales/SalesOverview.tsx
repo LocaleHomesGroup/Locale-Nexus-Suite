@@ -56,7 +56,7 @@ export function SalesOverview() {
           icon: HardHat,
           to: "sales:build",
         },
-        { label: "Clients", value: jobs.length, sub: `${building} in construction`, icon: Users, to: "sales:clients" },
+        { label: "All clients", value: jobs.length, sub: `${building} in construction`, icon: Users, to: "sales:clients" },
         { label: "Lots available", value: count("available"), sub: `${count("hold")} on hold · ${count("sold")} sold`, icon: MapPinned, to: "sales:land" },
         {
           label: "Discounts to approve",

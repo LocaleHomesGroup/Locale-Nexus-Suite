@@ -42,9 +42,11 @@ import {
   commissionPipeline,
   staleDeals,
   wonSoFar,
+  wonThisSession,
   wonVsTarget,
   type TargetProgress,
 } from "@/components/modules/sales/progress/progress";
+import { RECORD_PERIODS, commissionRecord, periodLabel, saleDates } from "@/components/modules/sales/progress/commission";
 import { DISCOUNT_APPROVAL_THRESHOLD, COMMISSION_BASE } from "@/components/modules/sales/costing/data";
 import {
   CHANNELS,
@@ -960,7 +962,9 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
             bullets: pending.map((r) => {
               const off = othersOff(r, ctx.leave);
               const cover = off.length ? `${plural(off.length, "other")} off then` : "no one else off then";
-              return `${r.name}: ${r.type.toLowerCase()}, ${r.when} (${r.length}). Balance after: ${formatDays(balanceAfter(r))}; ${cover}.`;
+              const after = balanceAfter(r);
+              const balance = after === null ? "No balance to draw on" : `Balance after: ${formatDays(after)}`;
+              return `${r.name}: ${r.type.toLowerCase()}, ${r.when} (${r.length}). ${balance}; ${cover}.`;
             }),
             actions: [{ label: "Open Leave", href: "/hr?tab=leave" }],
             source: "Horilla · live",
@@ -1690,6 +1694,30 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
             bullets: [`Both at a flat ${aud(COMMISSION_PER_SALE)} a sale until Alison Carter confirms the commission formula.`],
             actions: [{ label: "Open My progress", href: "/consultant?tab=progress" }],
             source: "Placeholder rate",
+          };
+        },
+      },
+      {
+        group: "My progress",
+        question: "What's my highest commission?",
+        keys: ["highest commission", "highest", "personal best", "record", "best day", "best week", "best month", "best year"],
+        answer: (ctx) => {
+          const dates = saleDates(CURRENT_REP, wonThisSession(ctx.deals, CURRENT_REP));
+          const now = { day: "Today", week: "This week", month: "This month", year: "This year" } as const;
+          const bullets = RECORD_PERIODS.flatMap((p) => {
+            const r = commissionRecord(dates, p);
+            if (!r) return [];
+            const chase =
+              r.status === "new" ? "a new record" : r.status === "matched" ? "level with it" : `${aud(r.gap)} to match it`;
+            return [
+              `Best ${p}: ${aud(r.best.amount)}, ${periodLabel(r.best.key, p)} (${plural(r.best.sales, "sale")}). ${now[p]}: ${aud(r.current.amount)}, ${chase}.`,
+            ];
+          });
+          return {
+            text: bullets.length ? "Your highest commission, and where you are now:" : "No sales yet. Your first one sets your first record.",
+            bullets,
+            actions: [{ label: "Open Overview", href: "/consultant" }],
+            source: `Sample history · flat ${aud(COMMISSION_PER_SALE)} a sale`,
           };
         },
       },

@@ -12,6 +12,7 @@ import {
   Calculator,
   CircleUser,
   CalendarDays,
+  CalendarPlus,
   ClipboardCheck,
   Clock,
   Columns3,
@@ -218,7 +219,7 @@ export const DASHBOARDS: Dashboard[] = [
     items: [
       overview("sales"),
       tab("sales", "pipeline", "Pipeline", Columns3),
-      tab("sales", "clients", "Clients", Users),
+      tab("sales", "clients", "All clients", Users),
       tab("sales", "build", "Under construction", HardHat),
       // The in-the-room calculator, and HomeScope (the AWS estimator rebuilt
       // step by step, ending in the quote PDF), nested as Doc formatter's views are.
@@ -453,11 +454,18 @@ export const DASHBOARDS: Dashboard[] = [
     defaults: { tab: "overview", view: "new" },
     // HRIS's employee rail without KPI Results and MESA; its contractor
     // Invoices (New Invoice and History) nested, as Doc formatter's views are.
+    // Leave nests HRIS's New request and My requests, plus Approvals: the
+    // department head's queue, previewed here until roles arrive.
     items: [
       overview("employee"),
       tab("employee", "invoices", "Invoices", FileText, [
         { key: "employee:invoices:new", label: "New invoice", icon: FilePlus2, params: { tab: "invoices", view: "new" } },
         { key: "employee:invoices:history", label: "History", icon: History, params: { tab: "invoices", view: "history" } },
+      ]),
+      tab("employee", "leave", "Leave", CalendarDays, [
+        { key: "employee:leave:new", label: "File leave", icon: CalendarPlus, params: { tab: "leave", view: "new" } },
+        { key: "employee:leave:requests", label: "My requests", icon: History, params: { tab: "leave", view: "requests" } },
+        { key: "employee:leave:approvals", label: "Approvals", icon: ClipboardCheck, params: { tab: "leave", view: "approvals" } },
       ]),
       tab("employee", "profile", "Profile", CircleUser),
       tab("employee", "department", "Department", Users),
@@ -475,7 +483,8 @@ export const DASHBOARDS: Dashboard[] = [
     persona: { name: CURRENT_REP, role: "Sales rep · staff preview" },
     defaults: { tab: "overview" },
     // The sections that said "My" on the Sales Manager dashboard, which is now the
-    // team's view, plus the consultant's progress.
+    // team's view, plus the consultant's progress. Exclusive land is shared with the
+    // dashboard: reps place the holds, so it's here too (Meeting3).
     items: [
       overview("consultant"),
       tab("consultant", "pipeline", "My pipeline", Columns3),
@@ -483,6 +492,7 @@ export const DASHBOARDS: Dashboard[] = [
       tab("consultant", "week", "My week", CalendarDays),
       tab("consultant", "progress", "My progress", Target),
       tab("consultant", "submissions", "My Deal Submissions", FileCheck2),
+      tab("consultant", "land", "Exclusive land", MapPinned),
     ],
   },
 ];

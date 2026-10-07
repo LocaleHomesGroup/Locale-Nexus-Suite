@@ -10,6 +10,8 @@
 
 **Spec:** [docs/Meeting2.md](../../Meeting2.md), mainly "Action Items / Next Steps" and "What this call means for this prototype".
 
+> **Note (2026-10-06): the Sales portal, once `feat/sales-portal` is merged.** My clients and My week now show in the Sales portal (`/consultant`), not on the Sales dashboard. Their files haven't moved (`sales/clients/`, `sales/week/`). `MyClients.tsx` now has a rep view and a team view: Task 1's grouping by builder belongs in the rep view (`RepClients`). The test runner is already on `main`, so Task 1 Step 1 is only the branch. `src/hooks/useNow.ts` already exists with Task 2's code. Task 2's `useNavBadge("sales:week", ...)` goes in `consultant/ConsultantScreen.tsx` as `"consultant:week"`. `sales-state.tsx` changed shape: its provider is in `app/(dashboard)/layout.tsx`, and `reselect` and the scope are on `SalesViewProvider`.
+
 ## Scope
 
 **In this plan** (Meeting2 action-item rows in brackets):

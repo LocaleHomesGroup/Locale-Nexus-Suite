@@ -91,6 +91,8 @@ interface LaunchpadStore {
   /** Add a notification (newest first). `kind: "red"` marks it as needing action. */
   notify: (msg: string, kind?: NotificationKind) => void;
   dismissNotification: (index: number) => void;
+  /** Drop every notification with exactly this message: what it asked for has been dealt with. */
+  resolveNotification: (msg: string) => void;
   clearNotifications: () => void;
 
   /**
@@ -266,6 +268,9 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
   const dismissNotification = useCallback((index: number) => {
     setNotifications((prev) => prev.filter((_, i) => i !== index));
   }, []);
+  const resolveNotification = useCallback((msg: string) => {
+    setNotifications((prev) => (prev.some((n) => n.msg === msg) ? prev.filter((n) => n.msg !== msg) : prev));
+  }, []);
   const clearNotifications = useCallback(() => setNotifications([]), []);
 
   const go = useCallback<LaunchpadStore["go"]>(
@@ -288,6 +293,7 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
       notifications,
       notify,
       dismissNotification,
+      resolveNotification,
       clearNotifications,
       reviewItems,
       setReviewItems,
@@ -317,6 +323,7 @@ export function LaunchpadProvider({ children }: { children: React.ReactNode }) {
       notifications,
       notify,
       dismissNotification,
+      resolveNotification,
       clearNotifications,
       reviewItems,
       submissionDocs,

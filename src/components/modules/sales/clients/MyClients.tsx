@@ -64,7 +64,7 @@ function TeamClients() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Clients" description="Every rep's clients in preconstruction and construction." />
+      <PageHeader title="All clients" description="Every rep's clients in preconstruction and construction." />
       {groups.length === 0 ? (
         <EmptyState
           icon={Users}

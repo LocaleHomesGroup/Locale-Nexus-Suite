@@ -596,12 +596,22 @@ export const ATTENDANCE_FOOTNOTE = `${ATTENDANCE_TO_VALIDATE} attendance records
 
 /* ── Leave ─────────────────────────────────────────────────────────────── */
 
-export type LeaveStatus = "Pending" | "Approved" | "Declined";
+/**
+ * Leave types, HRIS's set: what an employee picks as the reason they're out.
+ * Vacation, Sick and Personal draw on a balance; Bereavement and Other are
+ * granted case by case, so they carry none.
+ */
+export const LEAVE_TYPES = ["Vacation", "Sick", "Personal", "Bereavement", "Other"] as const;
+export type LeaveType = (typeof LEAVE_TYPES)[number];
+
+export const BALANCE_TYPES: readonly LeaveType[] = ["Vacation", "Sick", "Personal"];
+
+export type LeaveStatus = "Pending" | "Approved" | "Declined" | "Cancelled";
 
 export interface LeaveRequest {
   id: string;
   name: string;
-  type: string;
+  type: LeaveType;
   when: string;
   length: string;
   status: LeaveStatus;
@@ -610,47 +620,178 @@ export interface LeaveRequest {
   /** First and last day away (ISO dates), for the cover check. */
   start: string;
   end: string;
-  /** The requester's own balance for this leave type before the request, in days (Horilla). */
-  balance: number;
+  /** The requester's balance for this type before the request, in days (Horilla); null when the type has none. */
+  balance: number | null;
+  /** Requests filed in the Employee portal say whose they are, which department and who decides them. */
+  seatId?: string;
+  department?: OrgDepartmentId;
+  approver?: string;
+  /** The requester's note to their manager. */
+  reason?: string;
+  /** ISO dates. */
+  filed?: string;
+  decidedBy?: string;
+  decidedOn?: string;
 }
 
+/** The leave calendar's "today": the Employee portal's (see EMPLOYEE_TODAY). */
+export const LEAVE_TODAY = "2026-10-04";
+
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** ISO dates are read as UTC, so a date never shifts with the viewer's time zone. */
+const utcDay = (iso: string) => new Date(`${iso}T00:00:00Z`);
+
+/** Monday to Friday from `start` to `end`, both included. Public holidays aren't known here. */
+export function workingDays(start: string, end: string): number {
+  let n = 0;
+  for (const d = utcDay(start); d <= utcDay(end); d.setUTCDate(d.getUTCDate() + 1)) {
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6) n++;
+  }
+  return n;
+}
+
+/** "16 Oct", "19–23 Oct", "30 Sep – 2 Oct". */
+export function leaveWhen(start: string, end: string): string {
+  const [s, e] = [utcDay(start), utcDay(end)];
+  const dm = (d: Date) => `${d.getUTCDate()} ${MONTHS_SHORT[d.getUTCMonth()]}`;
+  if (start === end) return dm(s);
+  if (s.getUTCMonth() === e.getUTCMonth() && s.getUTCFullYear() === e.getUTCFullYear()) return `${s.getUTCDate()}–${dm(e)}`;
+  return `${dm(s)} – ${dm(e)}`;
+}
+
+export const leaveLength = (days: number) => `${days} ${days === 1 ? "day" : "days"}`;
+
+/**
+ * Who decides a seat's leave: the head of its department. A head's own leave
+ * goes to their manager; the managing director's goes to no one here.
+ */
+export function leaveApprover(people: OrgPerson[], seatId: string): OrgPerson | null {
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const head = byId.get(orgDepartment(orgDepartmentOf(people, seatId)).headId);
+  if (head && head.id !== seatId) return head;
+  const self = byId.get(seatId);
+  return self?.managerId ? (byId.get(self.managerId) ?? null) : null;
+}
+
+/** Leave that still stands: waiting on a decision or approved. */
+const live = (r: LeaveRequest) => r.status === "Pending" || r.status === "Approved";
+
+/** Days of a type someone has taken or asked for. */
+export function leaveUsed(requests: LeaveRequest[], name: string, type: LeaveType): number {
+  return requests.filter((r) => r.name === name && r.type === type && live(r)).reduce((n, r) => n + r.days, 0);
+}
+
+/** Someone's own pending or approved leave that falls on any of these days. */
+export function leaveOverlap(requests: LeaveRequest[], name: string, start: string, end: string): LeaveRequest | undefined {
+  return requests.find((r) => r.name === name && live(r) && r.start <= end && r.end >= start);
+}
+
+/** A queue's order: pending soonest first (what to decide next), then the rest newest first. */
+export function leaveOrder(a: LeaveRequest, b: LeaveRequest): number {
+  const ap = a.status === "Pending";
+  const bp = b.status === "Pending";
+  if (ap !== bp) return ap ? -1 : 1;
+  return ap ? a.start.localeCompare(b.start) : b.start.localeCompare(a.start);
+}
+
+/** A seeded request from its dates: the when, length and working days follow from them. */
+function filedLeave(
+  seatId: string,
+  type: LeaveType,
+  start: string,
+  end: string,
+  status: LeaveStatus,
+  balance: number | null,
+  extra: Partial<LeaveRequest> = {},
+): LeaveRequest {
+  const seat = ORG_SEED.find((p) => p.id === seatId)!;
+  const days = workingDays(start, end);
+  return {
+    id: `${seatId}-${start}`,
+    name: seat.name!,
+    type,
+    when: leaveWhen(start, end),
+    length: leaveLength(days),
+    status,
+    days,
+    start,
+    end,
+    balance,
+    seatId,
+    department: orgDepartmentOf(ORG_SEED, seatId),
+    approver: leaveApprover(ORG_SEED, seatId)?.name ?? undefined,
+    ...extra,
+  };
+}
+
+const decided = (filed: string, decidedOn: string) => ({ filed, decidedOn, decidedBy: "Jerry Delos Santos" });
+
+/**
+ * AI & Growth's year so far, so its head's Approvals run past a page. Sample
+ * requests with made-up dates (Horilla isn't connected); balances follow
+ * placeholder allowances of Vacation 15, Sick 5 and Personal 3, and Kane's
+ * follow LEAVE_ALLOWANCE in the Employee portal.
+ */
+const AI_GROWTH_LEAVE: LeaveRequest[] = [
+  filedLeave("pablo-lopez", "Personal", "2026-02-02", "2026-02-02", "Declined", 3, { reason: "Car service", ...decided("2026-01-28", "2026-01-29") }),
+  filedLeave("pablo-lopez", "Sick", "2026-03-12", "2026-03-13", "Approved", 5, decided("2026-03-12", "2026-03-12")),
+  filedLeave("pablo-lopez", "Vacation", "2026-04-13", "2026-04-17", "Approved", 15, decided("2026-03-23", "2026-03-24")),
+  filedLeave("pablo-lopez", "Sick", "2026-06-09", "2026-06-09", "Approved", 3, decided("2026-06-09", "2026-06-09")),
+  filedLeave("pablo-lopez", "Vacation", "2026-08-24", "2026-08-28", "Approved", 10, { reason: "Family trip", ...decided("2026-08-03", "2026-08-04") }),
+  filedLeave("pablo-lopez", "Personal", "2026-09-21", "2026-09-21", "Approved", 3, decided("2026-09-14", "2026-09-15")),
+  filedLeave("pablo-lopez", "Vacation", "2026-12-21", "2026-12-23", "Approved", 5, decided("2026-10-01", "2026-10-02")),
+  filedLeave("pablo-lopez", "Personal", "2026-11-06", "2026-11-06", "Pending", 2, { reason: "Graduation", filed: "2026-10-03" }),
+  filedLeave("andre-mikhail-serra", "Vacation", "2026-03-09", "2026-03-11", "Cancelled", 15, { filed: "2026-02-20" }),
+  filedLeave("andre-mikhail-serra", "Sick", "2026-05-18", "2026-05-18", "Approved", 5, decided("2026-05-18", "2026-05-18")),
+  filedLeave("andre-mikhail-serra", "Vacation", "2026-07-06", "2026-07-10", "Approved", 15, { reason: "Family trip", ...decided("2026-06-15", "2026-06-16") }),
+  filedLeave("andre-mikhail-serra", "Personal", "2026-08-14", "2026-08-14", "Declined", 3, { reason: "Errands", ...decided("2026-08-10", "2026-08-11") }),
+  filedLeave("andre-mikhail-serra", "Vacation", "2026-10-19", "2026-10-23", "Pending", 10, { reason: "Holiday", filed: "2026-10-02" }),
+  filedLeave("andre-mikhail-serra", "Other", "2026-10-30", "2026-10-30", "Pending", null, { reason: "Moving house", filed: "2026-10-02" }),
+  filedLeave("jan-kane-reroma", "Sick", "2026-10-01", "2026-10-01", "Approved", 5, decided("2026-10-01", "2026-10-01")),
+  filedLeave("jan-kane-reroma", "Personal", "2026-10-16", "2026-10-16", "Pending", 3, { reason: "Passport appointment", filed: "2026-10-03" }),
+  filedLeave("jan-kane-reroma", "Vacation", "2026-12-22", "2026-12-24", "Pending", 10, { reason: "Christmas with family", filed: "2026-10-03" }),
+];
+
+/** HR's own queue (people off the org chart), then AI & Growth's. */
 export const LEAVE_SEED: LeaveRequest[] = [
   {
-    id: "mercer-aug",
+    id: "mercer-nov",
     name: "A. Mercer",
-    type: "Annual leave",
-    when: "17–21 Aug",
+    type: "Vacation",
+    when: "11–13 Nov",
     length: "3 days",
     status: "Pending",
     days: 3,
-    start: "2026-08-17",
-    end: "2026-08-21",
+    start: "2026-11-11",
+    end: "2026-11-13",
     balance: 11.6,
   },
   {
-    id: "ellery-aug",
+    id: "ellery-oct",
     name: "K. Ellery",
-    type: "Personal leave",
-    when: "8 Aug",
+    type: "Personal",
+    when: "23 Oct",
     length: "1 day",
     status: "Pending",
     days: 1,
-    start: "2026-08-08",
-    end: "2026-08-08",
+    start: "2026-10-23",
+    end: "2026-10-23",
     balance: 4,
   },
   {
-    id: "hart-sep",
+    id: "hart-nov",
     name: "S. Hart",
-    type: "Annual leave",
-    when: "14–18 Sep",
+    type: "Vacation",
+    when: "16–20 Nov",
     length: "5 days",
     status: "Approved",
     days: 5,
-    start: "2026-09-14",
-    end: "2026-09-18",
+    start: "2026-11-16",
+    end: "2026-11-20",
     balance: 17.4,
   },
+  ...AI_GROWTH_LEAVE,
 ];
 
 /** Leave already approved in Horilla outside this queue: the team calendar. */
@@ -663,9 +804,8 @@ export interface TeamAbsence {
 }
 
 export const TEAM_LEAVE: TeamAbsence[] = [
-  { name: "D. Okafor", type: "Annual leave", when: "19–20 Aug", start: "2026-08-19", end: "2026-08-20" },
-  { name: "Kellie Rowe", type: "Annual leave", when: "21 Aug", start: "2026-08-21", end: "2026-08-21" },
-  { name: "Pablo Lopez", type: "Annual leave", when: "24–28 Aug", start: "2026-08-24", end: "2026-08-28" },
+  { name: "D. Okafor", type: "Vacation", when: "19–20 Oct", start: "2026-10-19", end: "2026-10-20" },
+  { name: "Kellie Rowe", type: "Vacation", when: "30 Oct", start: "2026-10-30", end: "2026-10-30" },
 ];
 
 /** Everyone booked off: the team calendar plus requests approved in the queue, soonest first. */
@@ -675,23 +815,33 @@ export function bookedLeave(queue: LeaveRequest[]): TeamAbsence[] {
     .sort((a, b) => a.start.localeCompare(b.start));
 }
 
+/** Booked leave that hasn't ended yet. */
+export const upcomingLeave = (queue: LeaveRequest[]) => bookedLeave(queue).filter((a) => a.end >= LEAVE_TODAY);
+
 /** Who else is away while this request would be: the approver's cover check. */
-export function othersOff(req: LeaveRequest, queue: LeaveRequest[]): TeamAbsence[] {
+export function othersOff(req: Pick<LeaveRequest, "name" | "start" | "end">, queue: LeaveRequest[]): TeamAbsence[] {
   return bookedLeave(queue).filter((a) => a.name !== req.name && a.start <= req.end && a.end >= req.start);
 }
 
-/** The requester's balance once this request is taken, in days. */
-export function balanceAfter(req: LeaveRequest): number {
-  return Math.round((req.balance - req.days) * 10) / 10;
+/** The requester's balance once this request is taken, in days; null when the type has none. */
+export function balanceAfter(req: Pick<LeaveRequest, "balance" | "days">): number | null {
+  return req.balance === null ? null : Math.round((req.balance - req.days) * 10) / 10;
 }
+
+/**
+ * The staff inbox's call to action for a request filed in the Employee
+ * portal. It's resolved (dropped) once the request is decided or withdrawn.
+ */
+export const leaveNotice = (r: LeaveRequest) =>
+  `Leave to approve: ${r.name}, ${r.type.toLowerCase()} ${r.when} (${r.length}). Waiting on ${r.approver ?? "their manager"} (Employee portal)`;
 
 /** "8.6 days" — leave balances always carry one decimal, as Horilla shows them. */
 export const formatDays = (n: number) => `${n.toFixed(1)} days`;
 
 /** The approver's own balances (S. Hart), shown apart from the approval queue. */
 export const LEAVE_BALANCES: { label: string; value: string }[] = [
-  { label: "Annual leave", value: "12.4 days" },
-  { label: "Personal leave", value: "6.0 days" },
+  { label: "Vacation", value: "12.4 days" },
+  { label: "Personal", value: "6.0 days" },
   { label: "Long service", value: "accruing" },
 ];
 

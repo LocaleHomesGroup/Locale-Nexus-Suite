@@ -64,6 +64,8 @@ export interface KpiCardProps {
    * lose its meaning on a phone.
    */
   wrapLabel?: boolean;
+  /** A small visual at the tile's right edge: a progress ring beside a target figure. */
+  aside?: React.ReactNode;
   className?: string;
 }
 
@@ -81,6 +83,7 @@ export function KpiCard({
   pulse = false,
   size = "md",
   wrapLabel = false,
+  aside,
   className,
 }: KpiCardProps) {
   const interactive = typeof onClick === "function";
@@ -152,6 +155,7 @@ export function KpiCard({
           <span className="truncate text-xs text-subtle-foreground">{sub}</span>
         ) : null}
       </span>
+      {aside ? <span className="mr-1 ml-auto shrink-0">{aside}</span> : null}
     </>
   );
 
