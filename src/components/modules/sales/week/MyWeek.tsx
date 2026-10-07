@@ -13,12 +13,10 @@ import { Pill } from "@/components/ui/pill";
 import { Input } from "@/components/ui/input";
 import { Reveal } from "@/components/ui/reveal";
 import { CountUp } from "@/components/ui/count-up";
-import { LAST_WEEK, LAST_WEEK_FORECAST, SCORECARD_BUILDERS, SIGNED_THIS_WEEK, type ScorecardBuilder } from "./data";
-
-type Forecast = Record<ScorecardBuilder, string>;
-
-const initialForecast = (): Forecast =>
-  Object.fromEntries(SCORECARD_BUILDERS.map((b) => [b, String(LAST_WEEK_FORECAST[b])])) as Forecast;
+import { LAST_WEEK, SCORECARD_BUILDERS, SIGNED_THIS_WEEK, type ScorecardBuilder } from "./data";
+import { forecastTotal, useSalesState } from "../sales-state";
+import { FORECAST_HISTORY } from "../progress/data";
+import { forecastStreak } from "../progress/progress";
 
 /**
  * Sales → My week (mockup `cm`). The weekly scorecard that replaces the Monday
@@ -28,11 +26,17 @@ const initialForecast = (): Forecast =>
 export function MyWeek() {
   const { notify } = useLaunchpad();
   const reduce = useReducedMotion();
-  const [forecast, setForecast] = React.useState<Forecast>(initialForecast);
-  const [submitted, setSubmitted] = React.useState(false);
+  // In the Sales store, so the portal's Overview reads what the rep submitted.
+  const {
+    weekForecast: forecast,
+    setWeekForecast: setForecast,
+    weekSubmitted: submitted,
+    setWeekSubmitted: setSubmitted,
+  } = useSalesState();
+  const streak = forecastStreak(FORECAST_HISTORY);
 
   const totalSigned = SCORECARD_BUILDERS.reduce((sum, b) => sum + SIGNED_THIS_WEEK[b], 0);
-  const totalForecast = SCORECARD_BUILDERS.reduce((sum, b) => sum + (Number(forecast[b]) || 0), 0);
+  const totalForecast = forecastTotal(forecast);
   const signedRows = SCORECARD_BUILDERS.filter((b) => SIGNED_THIS_WEEK[b] > 0);
 
   const step = (b: ScorecardBuilder, delta: 1 | -1) =>
@@ -97,8 +101,12 @@ export function MyWeek() {
               </TotalRow>
               <p className="mt-3 rounded-lg border border-tone-line bg-tone-soft px-3 py-2.5 text-xs leading-relaxed">
                 Last week you forecast <strong className="font-semibold tabular-nums">{LAST_WEEK.forecast}</strong> and
-                signed <strong className="font-semibold tabular-nums">{LAST_WEEK.signed}</strong>. Your forecasts have
-                been within one for six weeks running.
+                signed <strong className="font-semibold tabular-nums">{LAST_WEEK.signed}</strong>.{" "}
+                {streak > 1
+                  ? `Your forecasts have been within one for ${streak} weeks running.`
+                  : streak === 1
+                    ? "That's within one."
+                    : "That's more than one out."}
               </p>
             </CardContent>
           </Card>

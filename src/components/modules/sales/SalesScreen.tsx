@@ -5,7 +5,7 @@ import { useTabParam } from "@/hooks/useTabParam";
 import { useNavReselect } from "@/components/shell/nav-state";
 import { PageContainer } from "@/components/ui/page";
 import { TabPanels } from "@/components/ui/sliding-tabs";
-import { SalesStateProvider } from "./sales-state";
+import { SalesViewProvider, TEAM_SCOPE } from "./sales-state";
 import { Pipeline } from "./pipeline/Pipeline";
 import { MyClients } from "./clients/MyClients";
 import { UnderConstruction } from "./build/UnderConstruction";
@@ -34,7 +34,7 @@ export function SalesScreen() {
   useNavReselect("sales:", () => setReselect((n) => n + 1));
 
   return (
-    <SalesStateProvider reselect={reselect}>
+    <SalesViewProvider scope={TEAM_SCOPE} reselect={reselect}>
       <PageContainer>
         <TabPanels value={tab} dir={dir}>
           {tab === "overview" ? (
@@ -58,6 +58,6 @@ export function SalesScreen() {
           )}
         </TabPanels>
       </PageContainer>
-    </SalesStateProvider>
+    </SalesViewProvider>
   );
 }
