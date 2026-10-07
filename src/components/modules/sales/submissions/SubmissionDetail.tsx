@@ -2,31 +2,16 @@
 
 import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import {
-  ArrowLeft,
-  Check,
-  Circle,
-  DollarSign,
-  Folder,
-  House,
-  Lock,
-  Map as MapIcon,
-  Send,
-  Sparkles,
-  TriangleAlert,
-  Upload,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, Check, DollarSign, Lock, Map as MapIcon, Send, Sparkles, TriangleAlert, Users } from "lucide-react";
 import type { SubmissionDoc } from "@/data/jobs";
 import { useLaunchpad, confirm, type SubmissionStatus } from "@/state/launchpad-store";
 import { cn } from "@/lib/utils";
 import { DURATION, EASE_OUT, EASE_SWAP, PANEL_VARIANTS } from "@/lib/motion";
 import { PageHeader } from "@/components/ui/page";
-import { Card, CardContent, CardDescription, CardHeader, CardMeta, CardRow, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardRow, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import {
-  DOC_CATEGORIES,
   NGUYEN_BUILDER,
   NGUYEN_CLIENT,
   STEP_FACTS,
@@ -36,20 +21,22 @@ import {
   isChangesRequested,
   isFixDoc,
   isSubmitted,
-  isVerifiedDoc,
   plural,
   statusLabel,
   statusTone,
   surnameOf,
 } from "./data";
+import { DocumentsStep, useDocTab } from "./DocumentsStep";
 
 const STEP_ICON = { 1: Users, 2: MapIcon, 3: DollarSign } as const;
-const CATEGORY_ICON = { Build: House, Land: MapIcon, Finance: DollarSign } as const;
 
 /**
  * One deal submission, from the rep's side (mockup `rc`): a five-step form
  * where each step unlocks the next, required documents block submission until
  * uploaded, and anything Ops sends back shows up here as a red row to re-upload.
+ * Documents splits into Build, Land and Finance tabs (DocumentsStep); the
+ * stepper goes green as steps complete and Documents stays red while anything
+ * blocks submission.
  * The Nguyen submission passes the store's docs/status, so Operations →
  * Submission review sees every upload and the "review" hand-off.
  */
@@ -79,6 +66,7 @@ export function SubmissionDetail({
   const [step, setStepState] = React.useState(4);
   const [furthest, setFurthest] = React.useState(4);
   const [dir, setDir] = React.useState(0);
+  const docTab = useDocTab(docs);
 
   const surname = surnameOf(client);
   const requiredUploaded = docs.filter((d) => d.req && d.file).length;
@@ -123,7 +111,7 @@ export function SubmissionDetail({
         <PageHeader
           className="w-full"
           title={client}
-          description="Each step must be complete before the next unlocks. Required documents block submission until uploaded."
+          description="Each step must be complete before the next unlocks. Green is complete; red blocks submission until it's cleared."
           actions={
             <>
               <Pill tone="neutral">{builder}</Pill>
@@ -171,7 +159,8 @@ export function SubmissionDetail({
         ) : null}
       </AnimatePresence>
 
-      {/* ── Stepper: one charcoal indicator glides to the current step ── */}
+      {/* ── Stepper: one charcoal indicator glides to the current step;
+             complete steps are green, Documents is red while anything blocks ── */}
       <nav aria-label="Submission steps">
         <ol className="flex flex-wrap gap-1.5">
           {SUBMISSION_STEPS.map((name, i) => {
@@ -180,6 +169,7 @@ export function SubmissionDetail({
             // Documents only counts as complete while nothing is outstanding;
             // Review and submit opens the moment every document is in.
             const done = submitted || (n < furthest && (n !== 4 || ready));
+            const blocked = !submitted && n === 4 && !ready;
             const locked = !submitted && (n === 5 ? !ready : n > furthest);
             return (
               <li key={name}>
@@ -193,8 +183,10 @@ export function SubmissionDetail({
                     current
                       ? "border-transparent font-semibold text-primary-foreground"
                       : done
-                        ? "border-tone-line bg-tone-soft text-foreground hover:bg-tone-tint"
-                        : locked
+                        ? "border-emerald-200 bg-emerald-50 text-foreground hover:bg-emerald-100/70 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15"
+                        : blocked
+                          ? "border-rose-200 bg-rose-50 font-medium text-rose-700 hover:bg-rose-100/70 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
+                          : locked
                           ? "cursor-not-allowed border-border bg-card text-subtle-foreground"
                           : "border-border bg-card text-foreground hover:border-tone-line hover:bg-tone-soft/70",
                   )}
@@ -210,14 +202,26 @@ export function SubmissionDetail({
                   <span
                     className={cn(
                       "flex size-[17px] items-center justify-center rounded-full text-[10px] font-semibold tabular-nums",
-                      done || current ? "bg-tone-fill text-tone-on-fill" : "bg-muted text-muted-foreground",
+                      done
+                        ? "bg-emerald-600 text-white dark:bg-emerald-500"
+                        : blocked
+                          ? "bg-rose-600 text-white dark:bg-rose-500"
+                          : current
+                            ? "bg-tone-fill text-tone-on-fill"
+                            : "bg-muted text-muted-foreground",
                     )}
                     aria-hidden
                   >
-                    {done ? <Check className="size-2.5" /> : locked ? <Lock className="size-2.5" /> : n}
+                    {done ? <Check className="size-2.5" strokeWidth={3} /> : locked ? <Lock className="size-2.5" /> : n}
                   </span>
                   {name}
-                  {locked ? <span className="sr-only"> (locked)</span> : done ? <span className="sr-only"> (complete)</span> : null}
+                  {locked ? (
+                    <span className="sr-only"> (locked)</span>
+                  ) : done ? (
+                    <span className="sr-only"> (complete)</span>
+                  ) : blocked ? (
+                    <span className="sr-only"> ({plural(outstanding, "item")} outstanding)</span>
+                  ) : null}
                 </button>
               </li>
             );
@@ -239,59 +243,14 @@ export function SubmissionDetail({
             {step <= 3 ? (
               <StepFacts step={step as 1 | 2 | 3} onContinue={() => goTo(step + 1)} />
             ) : step === 4 ? (
-              <Card className="border-tone-line">
-                <CardHeader>
-                  <Folder className="size-4 text-tone-ink" aria-hidden />
-                  <CardTitle as="h3" className="text-sm">
-                    Documents
-                  </CardTitle>
-                  <CardMeta
-                    className={cn(
-                      "text-xs font-semibold",
-                      ready ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300",
-                    )}
-                  >
-                    Required: {requiredUploaded} of {requiredTotal} uploaded
-                  </CardMeta>
-                  <CardDescription className="text-xs text-subtle-foreground">
-                    Red rows are non-negotiable and block submission. Files are renamed on upload:{" "}
-                    <span className="font-mono text-xs">Surname_Ref.pdf</span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                  {DOC_CATEGORIES.map((cat) => {
-                    const Icon = CATEGORY_ICON[cat];
-                    const rows = docs.filter((d) => d.cat === cat);
-                    if (rows.length === 0) return null;
-                    return (
-                      <section key={cat} aria-label={`${cat} documents`}>
-                        <p className="flex items-center gap-1.5 py-1 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                          <Icon className="size-3" aria-hidden /> {cat}
-                        </p>
-                        <ul className="flex flex-col gap-1">
-                          {rows.map((d) => (
-                            <DocRow key={d.ref} doc={d} onUpload={() => upload(d.ref)} />
-                          ))}
-                        </ul>
-                      </section>
-                    );
-                  })}
-                  <Button
-                    size="lg"
-                    className="mt-1 w-full"
-                    disabled={!ready}
-                    onClick={() => ready && goTo(5)}
-                  >
-                    {ready ? (
-                      "Continue to review and submit"
-                    ) : (
-                      <>
-                        <Lock /> Continue locked · {plural(outstanding, "item")} outstanding
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
+              <DocumentsStep
+                docs={docs}
+                tab={docTab.tab}
+                dir={docTab.dir}
+                onTab={docTab.setTab}
+                onUpload={upload}
+                onContinue={() => goTo(5)}
+              />
             ) : (
               <Card className="border-tone-line">
                 <CardHeader>
@@ -388,72 +347,5 @@ function FactRow({ label, value }: { label: string; value: string }) {
         <p className="text-xs text-muted-foreground">{value}</p>
       </div>
     </CardRow>
-  );
-}
-
-/**
- * A checklist row. Red = blocking (a required doc with no file, or one Ops sent
- * back); Haven = verified by Ops; white = uploaded, not yet reviewed; muted =
- * optional and empty.
- */
-function DocRow({ doc, onUpload }: { doc: SubmissionDoc; onUpload: () => void }) {
-  const fix = isFixDoc(doc.state);
-  const verified = isVerifiedDoc(doc.state);
-  const blocking = (doc.req && !doc.file) || fix;
-  const canUpload = !doc.file || fix;
-  return (
-    <li
-      className={cn(
-        "flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 transition-colors duration-200",
-        blocking
-          ? "border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10"
-          : verified
-            ? "border-tone-line bg-tone-soft"
-            : doc.file
-              ? "border-hairline bg-card"
-              : "border-hairline bg-muted/60 dark:bg-white/[0.03]",
-      )}
-    >
-      {fix ? (
-        <TriangleAlert className="size-3.5 shrink-0 text-rose-600 dark:text-rose-400" aria-label="Sent back by Ops" />
-      ) : doc.file ? (
-        <Check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Uploaded" />
-      ) : (
-        <Circle className="size-3.5 shrink-0 text-subtle-foreground" aria-label="Not uploaded" />
-      )}
-      <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "text-xs",
-            blocking ? "font-medium text-rose-700 dark:text-rose-300" : "text-foreground",
-          )}
-        >
-          {doc.name}{" "}
-          {!doc.req ? <span className="text-xs font-normal text-subtle-foreground">· if applicable</span> : null}
-        </p>
-        <p className="truncate text-xs text-muted-foreground">
-          {fix ? (
-            <span className="text-rose-700 dark:text-rose-300">Ops: {doc.fixNote}</span>
-          ) : verified ? (
-            <>
-              <span className="font-mono">{doc.file}</span> · verified by Ops
-            </>
-          ) : (
-            <span className="font-mono">{doc.file || doc.ref}</span>
-          )}
-        </p>
-      </div>
-      {canUpload ? (
-        <Button
-          size="xs"
-          variant={blocking ? "default" : "outline"}
-          className={cn(!blocking && "text-tone-ink")}
-          aria-label={`${fix ? "Re-upload" : "Upload"} ${doc.name}`}
-          onClick={onUpload}
-        >
-          <Upload /> {fix ? "Re-upload" : "Upload"}
-        </Button>
-      ) : null}
-    </li>
   );
 }

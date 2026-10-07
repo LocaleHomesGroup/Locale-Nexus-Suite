@@ -184,6 +184,43 @@ Each module is its own **dashboard**, HRIS-style (`src/components/shell/dashboar
   - **Writes:** moves, saves, lost and reopen all go through `undoable()` (`deal-writes.ts`), and a card
     reads "Syncing" until its window closes. Posting an update is immediate, like a ticket reply.
   - **Sources:** the seed deals, updates and history are sample content (`sales/data.ts`, `seedDeals`).
+- **Sales › Rapid costing** has two views nested in the rail (`?view=`): **Calculator**, the in-the-room
+  costing, and **HomeScope**, Locale's AWS estimator rebuilt step for step. The rail's "Legacy HomeScope"
+  link still opens the AWS app.
+  - **Steps:** HomeScope's eleven (Client, Builder, Model, Spec range, Elevation, Site costs, Site costs
+    variations, Colour, Pricing, Variations, Summary), then **Quote PDF**. The shell is the Pay run's wizard:
+    a step strip, a progress bar, Back and Continue. Continue names what's missing; any reached step reopens
+    from the strip; changing builder clears every step after it, as HomeScope does.
+  - **Price:** HomeScope's maths in `costing/homescope/pricing.ts`: base (model in range + elevation +
+    colour, or an edited figure) + site cost + site cost variations + variation charges − credits. Delayed
+    titles are priced past the builder's price hold (fixed, percent or cumulative; on the preliminary
+    contract for New Choice; inside the base for LaVida). A sticky card beside the steps carries the price.
+  - **Saving:** Summary's Save quote keeps the quote in Launchpad as `HS-####`; Load existing quote reopens
+    it at its summary. Nothing is written to Monday.
+  - **Quote PDF:** a Locale Homes document: the Homes logo on a charcoal band, the quote number in the
+    Homes arch, Libre Baskerville headings and Manrope body, embedded from `public/fonts/pdf` (OFL). It is
+    written by `src/lib/pdf.ts` (no dependency) from `quote-doc.ts`, which the on-screen preview also reads.
+  - **Sources:** `costing/homescope/catalogue.json` is a snapshot of HomeScope's Monday boards for four
+    builders. HubSpot contacts are sample people named for the Pipeline's clients; the staff list is HR's
+    Sales department.
+- **Admin** (`/admin`, Charcoal) is HRIS's Admin view, cut to its Roles & permissions and Global Master List
+  (`AdminRoles`, `AdminGlobalMasterList`). The rail is Overview · Roles & permissions · Global Master List.
+  It is the shape of RBAC before RBAC: nothing it grants gates anything yet.
+  - **Roles:** one role per dashboard, derived from `DASHBOARDS`, so a new dashboard is a new role. Home is
+    everyone's. Admin unlocks every dashboard and asks first. Roles are grouped as Switch view groups dashboards.
+  - **Section access:** a grant provisions Edit on every rail section of that dashboard, as HRIS's grant route
+    does. The grid under a granted role sets each section to Hidden, View or Edit, with bulk All: Edit, All: View
+    and Hide all.
+  - **Writes:** Assign and Revoke go through `undoable()`. An assignment shows at once; a revoke keeps the role
+    until the window closes, then signs the person out if they're online. A section's level applies at once.
+  - **Directory:** HR's live master list plus off-roster accounts. "Add by email" adds a client, a developer
+    contact or a service account. The signed-in staff member (`STAFF`, `dashboards.ts`) is off-roster and an
+    admin, and shows as "You".
+  - **Global Master List:** the roster with live status (online, inactive, offline), the page each person has
+    open, and Ping, Watch screen (disabled until there are sessions) and Force logout. "Manage access" opens
+    their roles.
+  - **Sources:** `admin/admin-store.ts`. Grants, section limits and who's online are sample data
+    (`admin/data.ts`).
 - **Rail order:** logo → Search → sections (full height, never squeezed into their own scroll box)
   → links → Inbox → Switch view; the middle scrolls as one block when the window is short, and
   the footer (theme switch, user card, sign out) is pinned.
@@ -197,7 +234,7 @@ Each module is its own **dashboard**, HRIS-style (`src/components/shell/dashboar
   - Haven: Home, Operations and Sales, and the Client portal.
   - Nectar: Finance, Accounts and Accounting.
   - Sky Blue: Wealth.
-  - Charcoal (master brand): Marketing, HR, Projects, Knowledge, Leadership and IT, and the Developer and Employee portals.
+  - Charcoal (master brand): Marketing, HR, Projects, Knowledge, Leadership, IT and Admin, and the Developer and Employee portals.
 - **Rail badges and reselect** (`nav-state.tsx`):
   - A module publishes counts with `useNavBadge("hr:leave", { count, tone: "pending" })`.
   - It listens for a re-click on the open section with `useNavReselect("sales:", reset)`.

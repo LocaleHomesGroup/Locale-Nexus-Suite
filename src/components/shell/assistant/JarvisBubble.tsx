@@ -13,6 +13,7 @@ import { useOrg } from "@/components/modules/hr/org-store";
 import { useInvoices } from "@/components/modules/employee/invoice-store";
 import { useRun } from "@/components/modules/accounting/payrun-store";
 import { useAdmin } from "@/components/modules/admin/admin-store";
+import { useTickets } from "@/state/tickets-store";
 import { useSalesState } from "@/components/modules/sales/sales-state";
 import { dashboardById } from "../dashboards";
 import { useNavState } from "../nav-state";
@@ -101,6 +102,7 @@ export function JarvisBubble() {
   const { invoices: staffInvoices } = useInvoices();
   const payRun = useRun();
   const admin = useAdmin();
+  const { tickets } = useTickets();
   const { deals } = useSalesState();
   const dash = dashboardById(dashboardId);
   const brief = JARVIS[dash.id];
@@ -140,6 +142,7 @@ export function JarvisBubble() {
     people,
     payRun,
     admin,
+    tickets,
     deals,
   };
   const ctxRef = React.useRef<JarvisContext>(ctx);

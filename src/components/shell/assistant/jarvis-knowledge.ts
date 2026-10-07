@@ -78,7 +78,8 @@ import {
   ASSETS,
   ATTENDANCE,
 } from "@/components/modules/hr/data";
-import { PROJECTS, BOARD } from "@/components/modules/projects/data";
+import { PROJECTS as TICKET_PROJECTS, dashboardName, formatTicketNo, seatName, type Ticket } from "@/components/modules/tickets/data";
+import { ageLabel, openByDashboard, projectProgress, ticketStats } from "@/components/modules/tickets/logic";
 import { CATEGORIES, MATERIALS } from "@/components/modules/knowledge/data";
 import {
   OVERVIEW_KPIS,
@@ -163,6 +164,8 @@ export interface JarvisContext {
   payRun: { view: PayRunView; run: RunSummary };
   /** Admin's roles, section access and sign-outs. */
   admin: AdminState;
+  /** The Tickets board (its store), archived tickets included. */
+  tickets: Ticket[];
   /** Sales' live deals (the shared Sales store): the dashboard's board and the portal's. */
   deals: PipelineDeal[];
 }
@@ -1016,36 +1019,6 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
     fallback: "On HR I can answer about headcount, who's away, leave waiting for approval, your balances, open roles, onboarding and equipment.",
   },
 
-  projects: {
-    subtitle: "Internal builds and delivery",
-    greeting: "I can tell you where each internal build is at.",
-    faqs: [
-      {
-        group: "Project board",
-        question: "What's in build right now?",
-        keys: ["build", "project", "status", "progress"],
-        answer: () => ({ text: `${plural(PROJECTS.length, "project")} on the board:`, bullets: PROJECTS.map((p) => `${p.name} — ${p.state}, ${p.progress}% (${p.owner}).`) }),
-      },
-      {
-        group: "Project board",
-        question: "What's closest to done?",
-        keys: ["closest", "done", "finish", "ship", "deploy"],
-        answer: () => {
-          const top = [...PROJECTS].sort((a, b) => b.progress - a.progress)[0];
-          return { text: `${top.name} is furthest along at ${top.progress}% — ${top.state.toLowerCase()}, owned by ${top.owner}.` };
-        },
-      },
-      {
-        group: "Project board",
-        question: "What's on the to-do list?",
-        keys: ["to do", "todo", "next", "board", "in progress"],
-        answer: () => ({ text: "The project board:", bullets: BOARD.map((c) => `${c.column}: ${c.items.join("; ")}.`) }),
-      },
-      ...USING("Projects"),
-    ],
-    fallback: "On Projects I can answer about what's in build, what's closest to done and what's on the board.",
-  },
-
   knowledge: {
     subtitle: "Procedures and builder guides",
     greeting: "Ask me how something's done — I'll find the document.",
@@ -1209,6 +1182,69 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
       ...USING("IT"),
     ],
     fallback: "On IT I can list open tickets and explain how to raise one or report phishing.",
+  },
+  tickets: {
+    subtitle: "Improvements and projects",
+    greeting: "I can tell you which dashboards have open tickets, how the projects are going, and how to raise one.",
+    faqs: [
+      {
+        group: "Board",
+        question: "Which dashboards have open tickets?",
+        keys: ["which dashboard", "open tickets", "dashboards have", "most tickets", "where are"],
+        answer: (ctx) => {
+          const rows = openByDashboard(ctx.tickets);
+          if (!rows.length) return { text: "No dashboard has an open ticket right now.", source: "Tickets board · live" };
+          const open = rows.reduce((n, r) => n + r.count, 0);
+          return {
+            text: `${plural(open, "open ticket")} across ${plural(rows.length, "dashboard")}, most first:`,
+            bullets: rows.map((r) => `${dashboardName(r.dashboard)}: ${r.count}.`),
+            actions: rows.slice(0, 2).map((r) => ({ label: `Open ${dashboardName(r.dashboard)}'s tickets`, href: `/tickets?tab=board&dash=${r.dashboard}` })),
+            source: "Tickets board · live",
+          };
+        },
+      },
+      {
+        group: "Projects",
+        question: "How are the projects going?",
+        keys: ["project", "progress", "how far", "closest", "build"],
+        answer: (ctx) => ({
+          text: `${plural(TICKET_PROJECTS.length, "project")}, each counted from its tickets:`,
+          bullets: TICKET_PROJECTS.map((p) => {
+            const pr = projectProgress(p, ctx.tickets);
+            return pr.total
+              ? `${p.name} — ${pr.done} of ${pr.total} done (${pr.pct}%), ${p.state.toLowerCase()}, ${seatName(p.owner)}.`
+              : `${p.name} — no tickets yet, ${p.state.toLowerCase()}, ${seatName(p.owner)}.`;
+          }),
+          actions: [{ label: "Open Projects", href: "/tickets?tab=projects" }],
+          source: "Tickets board · live",
+        }),
+      },
+      {
+        group: "Raising",
+        question: "How do I raise a ticket?",
+        keys: ["raise", "new ticket", "suggest", "improvement", "request a change", "feedback"],
+        answer: () => ({
+          text: "Press “Suggest an improvement” under Feedback in any dashboard's sidebar. It opens a new ticket with that dashboard already picked, without leaving the page. On the board, “New ticket” does the same. It lands in To Do, assigned to Jan Kane Reroma unless you pick someone else.",
+          actions: [{ label: "Open the board", href: "/tickets?tab=board" }],
+        }),
+      },
+      {
+        group: "Board",
+        question: "What's the oldest open ticket?",
+        keys: ["oldest", "longest", "waiting longest", "stale"],
+        answer: (ctx) => {
+          const oldest = ticketStats(ctx.tickets, Date.now()).oldestOpen;
+          if (!oldest) return { text: "Nothing is open.", source: "Tickets board · live" };
+          return {
+            text: `${formatTicketNo(oldest.no)} “${oldest.title}” has been open ${ageLabel(oldest.createdAt)}, on ${dashboardName(oldest.dashboard)}, assigned to ${seatName(oldest.assignee) ?? "nobody"}.`,
+            actions: [{ label: `Open ${formatTicketNo(oldest.no)}`, href: `/tickets?tab=board&ticket=${oldest.no}` }],
+            source: "Tickets board · live",
+          };
+        },
+      },
+      ...USING("Tickets"),
+    ],
+    fallback: "On Tickets I can list which dashboards have open tickets, how each project is going, the oldest open ticket, and how to raise one.",
   },
   admin: {
     subtitle: "Roles and the master list",
@@ -1713,10 +1749,10 @@ export const FEATURED: Record<ModuleId, readonly [string, string, string]> = {
   accounting: ["Which invoices are waiting on me?", "What rate is this pay run using?", "Who can't be paid this run?"],
   wealth: ["What's the median price in Baldivis?", "Which suburb has the best yield?", "What packages were made recently?"],
   hr: ["Which leave requests need approval?", "Who's away or not in yet?", "Which roles are we hiring for?"],
-  projects: ["What's in build right now?", "What's closest to done?", "What's on the to-do list?"],
   knowledge: ["Where's the deal submission checklist?", "How do I request leave?", "What's new this month?"],
   leadership: ["How are sales tracking this month?", "What does cash look like next month?", "Any sync risk I should know about?"],
   it: ["What tickets are open?", "How do I raise a ticket?", "How do I report a phishing email?"],
+  tickets: ["Which dashboards have open tickets?", "How are the projects going?", "How do I raise a ticket?"],
   admin: ["Who's online right now?", "Who has admin access?", "Who doesn't have a dashboard yet?"],
   client: ["Where is my build up to?", "How does our budget split?", "Why was our builder recommended?"],
   developer: ["Which jobs are waiting on us?", "Why do clients pick another builder?", "What does Locale need with a sale?"],

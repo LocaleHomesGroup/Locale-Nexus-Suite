@@ -3,7 +3,8 @@ node_modules/
 out/
 next-env.d.ts
 *.tsbuildinfo
-.env*.local
+.env*
+!.env.example
 .DS_Store
 
 # Brand source assets — kept locally, not published (repo is public)

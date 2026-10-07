@@ -1,14 +1,9 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
-import { ScreenSkeleton } from "@/components/ui/screen-skeleton";
-import { ProjectsScreen } from "@/components/modules/projects/ProjectsScreen";
+import { permanentRedirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Projects" };
-
+/**
+ * The Projects dashboard moved into Tickets: each project is a group of
+ * tickets now, and its progress comes from them. Old links land there.
+ */
 export default function Page() {
-  return (
-    <Suspense fallback={<ScreenSkeleton tabs={false} />}>
-      <ProjectsScreen />
-    </Suspense>
-  );
+  permanentRedirect("/tickets?tab=projects");
 }

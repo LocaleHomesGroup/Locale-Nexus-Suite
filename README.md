@@ -40,10 +40,10 @@ an assistant bubble (bottom-right) with three FAQ questions about that dashboard
 | `/accounting` | Accounting | `payrun` (Pay run: Rate → Invoices → Validation → Dispatch) · `history` |
 | `/wealth` | Wealth | — |
 | `/hr` | HR | `dashboard` · `people` · `attendance` · `leave` · `recruitment` · `performance` · `assets` |
-| `/projects` | Projects | — |
 | `/knowledge` | Knowledge | — |
 | `/leadership` | Leadership | `overview` · `custom` |
 | `/it` | IT | — |
+| `/tickets` | Tickets | `board` · `projects` · `archived` (filters `&dash=` · `&project=` · `&priority=`; `&ticket=` opens one). `/projects` redirects to `projects` |
 | `/notifications` | Notifications inbox | — |
 | `/client` | Client portal | `finance` · `options` · `build` · `documents` · `messages` |
 | `/developer` | Developer portal | `clients` · `updates` · `insights` · `products` · `terms` |
@@ -53,6 +53,9 @@ an assistant bubble (bottom-right) with three FAQ questions about that dashboard
 Sections live in the URL, so Home's shortcuts deep-link (for example `/hr?tab=leave`). Doc
 formatter's views (`&view=`) and Knowledge's categories (`?cat=`) are sidebar items too.
 Collapse the sidebar with its pull-tab or Ctrl+B / ⌘B.
+
+Every staff dashboard, and the Employee portal, has **Suggest an improvement** under Feedback in its
+sidebar. It raises a ticket on the Tickets board against that dashboard without leaving the page.
 
 ## Layout
 

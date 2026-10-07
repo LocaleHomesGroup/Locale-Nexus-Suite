@@ -12,18 +12,19 @@ import { MyClients } from "./clients/MyClients";
 import { UnderConstruction } from "./build/UnderConstruction";
 import { ExclusiveLand } from "./land/ExclusiveLand";
 import { Team } from "./team/Team";
-import { RapidCosting } from "./costing/RapidCosting";
+import { Costing } from "./costing/Costing";
 import { SalesOverview } from "./SalesOverview";
 import { portalHrefFor } from "./moved-tabs";
 
 const TABS = ["overview", "pipeline", "clients", "build", "costing", "land", "team"] as const;
 
 /**
- * Sales: the team's view. An Overview (the default) and six sections in
- * `?tab=`, listed in the Sales rail with the "Open HomeScope" link. Each pane
- * renders its own PageHeader. A consultant's own Sales (My week, My Deal
- * Submissions, and the board and clients in their scope) is the Sales Representative portal,
- * modules/consultant.
+ * Sales Manager: the team's view. An Overview (the default) and six sections in
+ * `?tab=`, listed in the Sales rail with the link to the legacy HomeScope. Each
+ * pane renders its own PageHeader. Costing has its Calculator and HomeScope
+ * views in `?view=`. A consultant's own Sales (My week, My Deal Submissions,
+ * and the board and clients in their scope) is the Sales Representative
+ * portal, modules/consultant.
  */
 export function SalesScreen() {
   const [tab, , dir] = useTabParam(TABS, "overview");
@@ -55,7 +56,7 @@ export function SalesScreen() {
           ) : tab === "build" ? (
             <UnderConstruction />
           ) : tab === "costing" ? (
-            <RapidCosting />
+            <Costing />
           ) : tab === "land" ? (
             <ExclusiveLand />
           ) : (

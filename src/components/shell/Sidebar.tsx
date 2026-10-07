@@ -5,11 +5,12 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { ExternalLink, LogOut } from "lucide-react";
+import { ExternalLink, Lightbulb, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EASE_SWAP } from "@/lib/motion";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import { useLaunchpad } from "@/state/launchpad-store";
+import { useTickets } from "@/state/tickets-store";
 import { Avatar } from "@/components/ui/avatar";
 import { CollapsibleSidebarShell, SidebarCollapsedDot, SidebarFocusTile } from "./CollapsibleSidebarShell";
 import { SidebarLogoHeader } from "./SidebarLogoHeader";
@@ -242,6 +243,7 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, isMobile, onNaviga
   const reduce = useReducedMotion();
   const { badges, fireReselect } = useNavState();
   const { notifications } = useLaunchpad();
+  const { openNewTicket } = useTickets();
   const urgent = notifications.some((n) => n.kind === "red");
   const onDashRoot = pathname === dash.href;
   const currentView = viewKey(dash, params.entries());
@@ -413,6 +415,43 @@ function RailNav({ dash, tone, params, collapsed, mobileOpen, isMobile, onNaviga
           </nav>
         </>
       )}
+
+      {/* Raise a ticket against this dashboard without leaving it. Not on the
+          Client and Developer portals, which preview outsiders' views; the Employee
+          and Sales Representative portals are staff's own. */}
+      {spaceOf(dash) === "launchpad" || dash.id === "employee" || dash.id === "consultant" ? (
+        <>
+          <p className="sb-collapse-fade mt-5 mb-1.5 px-2.5 text-[10px] font-semibold tracking-[0.12em] text-subtle-foreground uppercase">
+            Feedback
+          </p>
+          <div className="flex flex-col gap-px">
+            {(() => {
+              const index = order++;
+              return (
+                <button
+                  type="button"
+                  data-rail-tip="Suggest an improvement"
+                  onClick={() => {
+                    onNavigate();
+                    openNewTicket({ dashboard: dash.id === "tickets" ? null : dash.id, raisedBy: (dash.persona ?? STAFF).name });
+                  }}
+                  style={isMobile ? { ...DRAWER_ROW_TRANSITION, transitionDelay: mobileOpen ? `${60 + index * 30}ms` : "0ms" } : undefined}
+                  className={cn(
+                    "group/row sb-row relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-[7px] text-sm font-[450] text-zinc-700 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset dark:text-zinc-300",
+                    collapsed && "md:ring-0!",
+                    mobileOpen ? "translate-x-0 opacity-100" : "-translate-x-6 opacity-0 md:translate-x-0 md:opacity-100",
+                    tone.navHover,
+                  )}
+                >
+                  <SidebarFocusTile collapsed={collapsed} />
+                  <Lightbulb className="relative size-[15px] shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+                  <span className="sb-collapse-fade min-w-0 flex-1 truncate text-left">Suggest an improvement</span>
+                </button>
+              );
+            })()}
+          </div>
+        </>
+      ) : null}
     </>
   );
 }

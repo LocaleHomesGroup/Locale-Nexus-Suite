@@ -1,4 +1,5 @@
 import {
+  Archive,
   ArrowLeftRight,
   Banknote,
   BarChart3,
@@ -12,7 +13,6 @@ import {
   CircleUser,
   CalendarDays,
   ClipboardCheck,
-  ClipboardList,
   Clock,
   Columns3,
   DollarSign,
@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   FileCheck2,
   FileText,
+  FolderKanban,
   HardHat,
   HeartPulse,
   IdCard,
@@ -47,7 +48,9 @@ import {
   Sheet,
   ShieldCheck,
   Sparkles,
+  SquareKanban,
   Tags,
+  Ticket as TicketIcon,
   Target,
   TrendingUp,
   Trophy,
@@ -211,17 +214,22 @@ export const DASHBOARDS: Dashboard[] = [
     href: "/sales",
     icon: TrendingUp,
     tone: "haven",
-    defaults: { tab: "overview" },
+    defaults: { tab: "overview", view: "calculator" },
     items: [
       overview("sales"),
       tab("sales", "pipeline", "Pipeline", Columns3),
       tab("sales", "clients", "Clients", Users),
       tab("sales", "build", "Under construction", HardHat),
-      tab("sales", "costing", "Rapid costing", Calculator),
+      // The in-the-room calculator, and HomeScope (the AWS estimator rebuilt
+      // step by step, ending in the quote PDF), nested as Doc formatter's views are.
+      tab("sales", "costing", "Rapid costing", Calculator, [
+        { key: "sales:costing:calculator", label: "Calculator", icon: Calculator, params: { tab: "costing", view: "calculator" } },
+        { key: "sales:costing:homescope", label: "HomeScope", icon: Home, params: { tab: "costing", view: "homescope" } },
+      ]),
       tab("sales", "land", "Exclusive land", MapPinned),
       tab("sales", "team", "Team", Trophy),
     ],
-    links: [{ label: "Open HomeScope", href: HOUSE_IMAGE_BASE, icon: Home }],
+    links: [{ label: "Legacy HomeScope", href: HOUSE_IMAGE_BASE, icon: Home }],
   },
   {
     id: "marketing",
@@ -308,16 +316,6 @@ export const DASHBOARDS: Dashboard[] = [
     ],
   },
   {
-    id: "projects",
-    label: "Projects",
-    title: "Projects dashboard",
-    href: "/projects",
-    icon: ClipboardList,
-    tone: "charcoal",
-    defaults: { tab: "overview" },
-    items: [overview("projects"), tab("projects", "board", "Project board", ClipboardList)],
-  },
-  {
     id: "knowledge",
     label: "Knowledge",
     title: "Knowledge base",
@@ -360,6 +358,25 @@ export const DASHBOARDS: Dashboard[] = [
     tone: "charcoal",
     defaults: { tab: "overview" },
     items: [overview("it"), tab("it", "helpdesk", "Help desk", LifeBuoy)],
+  },
+  {
+    id: "tickets",
+    label: "Tickets",
+    title: "Tickets board",
+    href: "/tickets",
+    icon: TicketIcon,
+    tone: "charcoal",
+    defaults: { tab: "overview" },
+    // HRIS's developer board as a dashboard: improvement asks for every
+    // dashboard, and the projects (once their own dashboard) as groups of
+    // tickets. Filters (?dash=, ?project=, ?priority=) and the open ticket
+    // (?ticket=) are query values, not rail items.
+    items: [
+      overview("tickets"),
+      tab("tickets", "board", "Board", SquareKanban),
+      tab("tickets", "projects", "Projects", FolderKanban),
+      tab("tickets", "archived", "Archived", Archive),
+    ],
   },
   {
     id: "admin",
