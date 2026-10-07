@@ -180,7 +180,7 @@ export function directory(rows: MasterRow[], offRoster: readonly string[]): Prin
 const DEPARTMENT_ROLES: Record<OrgDepartmentId, RoleKey[]> = {
   leadership: ["leadership"],
   finance: ["finance"],
-  sales: ["sales"],
+  sales: ["sales", "consultant"],
   marketing: ["marketing"],
   accounts: ["accounts", "accounting"],
   ai: ["it"],
@@ -217,7 +217,11 @@ function seedRoles(row: MasterRow): RoleKey[] {
 
 /** Sections a sample grant narrows from Edit, to show the grid in use. */
 const SECTION_LIMITS: { who: (row: MasterRow) => boolean; section: string; access: Access }[] = [
-  { who: (r) => r.role === "New Home Advocate", section: "sales:team", access: "view" },
+  // New Home Advocates work from the Sales portal. On the dashboard they keep the shared tools:
+  // Under construction, Rapid costing and Exclusive land.
+  { who: (r) => r.role === "New Home Advocate", section: "sales:pipeline", access: "hidden" },
+  { who: (r) => r.role === "New Home Advocate", section: "sales:clients", access: "hidden" },
+  { who: (r) => r.role === "New Home Advocate", section: "sales:team", access: "hidden" },
   { who: (r) => r.role === "Finance Broker", section: "finance:overview", access: "view" },
   { who: (r) => r.id === "maria-soriano", section: "hr:people", access: "view" },
   { who: (r) => r.id === "maria-soriano", section: "hr:recruitment", access: "hidden" },
@@ -273,7 +277,7 @@ export const PRESENCE_SEED: Record<string, PresenceSeed> = {
   "sean-oneill": { at: "sales:pipeline" },
   "jasmin-bainbridge": { at: "sales:costing" },
   "michael-fox": { at: "consultant:submissions" },
-  "kate-grierson": { at: "sales:pipeline", inactive: true },
+  "kate-grierson": { at: "consultant:pipeline", inactive: true },
   "larnie-clark": { at: "operations:jobs" },
   "shannan-murray": { at: "operations:review" },
   "aled-smith": { at: "accounting:payrun" },
