@@ -193,6 +193,27 @@ export function seedDeals(now: number): PipelineDeal[] {
       ],
     },
     {
+      id: "d-lindqvist",
+      no: 1041,
+      stage: "Appointment held",
+      client: "M. Lindqvist",
+      suburb: "Byford",
+      value: "$548k",
+      rep: "A. Mercer",
+      priority: "low",
+      pkg: "The Marlow · Move Homes",
+      notes: "Second home buyers. Liked the Marlow at the display; waiting on a bank valuation before going further.",
+      nextStep: "Follow up on the valuation",
+      createdAt: ago(24 * DAY),
+      // Well past the 14-day stale line, so My progress has one to show.
+      stageSince: ago(17 * DAY),
+      updates: [up("A. Mercer", ago(17 * DAY), "Appointment held at the Byford display. Waiting on their bank valuation.")],
+      history: [
+        ev("A. Mercer", ago(24 * DAY), "created"),
+        moved("A. Mercer", ago(17 * DAY), "Appointment booked", "Appointment held"),
+      ],
+    },
+    {
       id: "d-tran",
       no: 1036,
       stage: "Potential sale",

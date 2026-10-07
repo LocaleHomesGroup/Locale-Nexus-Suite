@@ -44,6 +44,7 @@ import {
 import { useSalesState } from "../sales-state";
 import { Footnote, Legend, ManagersOnly, StackedBar } from "../parts";
 import { WeeklyScorecard } from "./WeeklyScorecard";
+import { commissionPipeline } from "../progress/progress";
 
 const aud = (n: number) => `$${n.toLocaleString("en-AU")}`;
 
@@ -54,7 +55,7 @@ const aud = (n: number) => `$${n.toLocaleString("en-AU")}`;
  */
 export function Team() {
   const { notify } = useLaunchpad();
-  const { discounts, setDiscounts, tasks, setTasks } = useSalesState();
+  const { deals, discounts, setDiscounts, tasks, setTasks } = useSalesState();
   const reduce = useReducedMotion();
 
   const [overdueOnly, setOverdueOnly] = React.useState(false);
@@ -362,6 +363,7 @@ export function Team() {
           <CardHeader>
             <CardTitle>Stage report by rep</CardTitle>
             <ManagersOnly />
+            <Pill tone="neutral">Placeholder rate</Pill>
             <CardMeta>Values are commission payable, not contract value</CardMeta>
           </CardHeader>
           <CardContent className="flex min-w-0 flex-col gap-3">
@@ -377,7 +379,7 @@ export function Team() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {STAGE_REPORT_DEALS.map(([rep, counts, pipeline]) => (
+                {STAGE_REPORT_DEALS.map(([rep, counts]) => (
                   <TableRow key={rep}>
                     <TableCell className="py-2 pl-0 font-semibold whitespace-nowrap">{rep}</TableCell>
                     {counts.map((n, ci) => (
@@ -386,7 +388,7 @@ export function Team() {
                       </TableCell>
                     ))}
                     <TableCell className="py-2 pr-0 text-right font-semibold text-foreground tabular-nums">
-                      {pipeline}
+                      {aud(commissionPipeline(deals, rep))}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -432,8 +434,9 @@ export function Team() {
             </Table>
 
             <Footnote>
-              Deals from the HubSpot sales pipeline; leads from HubSpot lead stages. Both mirrored live. Commission
-              values on this card are visible to managers and leadership only — sales consultants never see them.
+              Deals from the HubSpot sales pipeline; leads from HubSpot lead stages. Both mirrored live. The whole
+              team&apos;s commission is visible to managers and leadership only; a consultant sees only their own, in the
+              Sales portal.
             </Footnote>
           </CardContent>
         </Card>
