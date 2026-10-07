@@ -436,7 +436,7 @@ export function Team() {
             <Footnote>
               Deals from the HubSpot sales pipeline; leads from HubSpot lead stages. Both mirrored live. The whole
               team&apos;s commission is visible to managers and leadership only; a consultant sees only their own, in the
-              Sales portal.
+              Sales Representative portal.
             </Footnote>
           </CardContent>
         </Card>

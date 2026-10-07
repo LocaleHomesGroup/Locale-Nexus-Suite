@@ -1,5 +1,5 @@
 /**
- * Sales progress: the figures My progress (the Sales portal) and Team's
+ * Sales progress: the figures My progress (the Sales Representative portal) and Team's
  * commission column read that nothing in the prototype records yet. Each one
  * is named once, here. Static prototype data: nothing is fetched.
  */

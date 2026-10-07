@@ -18,8 +18,8 @@ import { LAST_WEEK_FORECAST, SCORECARD_BUILDERS, type ScorecardBuilder } from ".
 
 /**
  * Sales' shared state: the deals, to-dos, tasks, lots, discounts and the
- * week's forecast behind both the Sales dashboard (the team's view) and the
- * Sales portal (one consultant's). The provider sits in the dashboard layout,
+ * week's forecast behind both the Sales Manager dashboard (the team's view) and the
+ * Sales Representative portal (one consultant's). The provider sits in the dashboard layout,
  * beside the Launchpad and portal stores, so a deal moved in one view is
  * moved in the other, and it all lasts until a reload, as jobs do.
  *

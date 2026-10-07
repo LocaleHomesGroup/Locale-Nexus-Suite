@@ -1,5 +1,5 @@
 /**
- * Sections that moved from the Sales dashboard to the Sales portal. An old link
+ * Sections that moved from the Sales Manager dashboard to the Sales Representative portal. An old link
  * to one (a bookmark, a shared URL) lands on the portal's, not on Overview.
  */
 const MOVED_TO_PORTAL: Record<string, string> = {

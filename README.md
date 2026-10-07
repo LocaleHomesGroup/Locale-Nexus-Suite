@@ -33,7 +33,7 @@ an assistant bubble (bottom-right) with three FAQ questions about that dashboard
 | `/` | Home | — |
 | `/operations` | Operations | `jobs` (CRM Dash Sync) · `submissions` · `pricing` · `formatter` |
 | `/operations/jobs/[id]` | Job detail | — |
-| `/sales` | Sales (the team's view) | `pipeline` · `clients` · `build` · `costing` · `land` · `team` |
+| `/sales` | Sales Manager (the team's view) | `pipeline` · `clients` · `build` · `costing` · `land` · `team` |
 | `/marketing` | Marketing | `performance` · `channels` · `attribution` |
 | `/finance` | Finance | — |
 | `/accounts` | Accounts | `invoicing` · `reports` · `expenses` |
@@ -48,7 +48,7 @@ an assistant bubble (bottom-right) with three FAQ questions about that dashboard
 | `/client` | Client portal | `finance` · `options` · `build` · `documents` · `messages` |
 | `/developer` | Developer portal | `clients` · `updates` · `insights` · `products` · `terms` |
 | `/employee` | Employee portal | `invoices` (`&view=new` · `history`) · `profile` · `department` |
-| `/consultant` | Sales portal (one consultant's own) | `pipeline` · `clients` · `week` · `progress` · `submissions` |
+| `/consultant` | Sales Representative portal (one consultant's own) | `pipeline` · `clients` · `week` · `progress` · `submissions` |
 
 Sections live in the URL, so Home's shortcuts deep-link (for example `/hr?tab=leave`). Doc
 formatter's views (`&view=`) and Knowledge's categories (`?cat=`) are sidebar items too.

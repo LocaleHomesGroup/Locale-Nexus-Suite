@@ -15,7 +15,7 @@ const LAST_WEEK_TEAM = FORECAST["Last week"]
  * Sales › Overview: the team's figures. Deals, tasks, lots and discounts come
  * from the shared Sales store and clients from the Launchpad's jobs, so moving
  * a deal or approving a discount shows here at once. A consultant's own
- * figures are on the Sales portal's Overview.
+ * figures are on the Sales Representative portal's Overview.
  */
 export function SalesOverview() {
   const { jobs } = useLaunchpad();

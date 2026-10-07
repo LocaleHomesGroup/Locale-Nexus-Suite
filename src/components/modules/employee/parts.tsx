@@ -12,7 +12,7 @@ import { PAY_WEEKS, weekLabel, type InvoiceState, type StaffInvoice } from "./da
 /**
  * Pieces the Employee portal's sections share: HRIS's hidden figures, the
  * invoice status pill, and which week each invoice bills. The greeting is
- * `useGreeting` in src/hooks, shared with the Sales portal.
+ * `useGreeting` in src/hooks, shared with the Sales Representative portal.
  */
 
 /* ── Hidden values (HRIS HiddenValue) ──────────────────────────────────── */

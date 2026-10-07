@@ -8,8 +8,8 @@ import { SalesStateProvider } from "@/components/modules/sales/sales-state";
  * navigations, so the store (jobs, audit log, notifications) survives moving
  * between modules. The portals (Client, Developer) live here too, so what a
  * builder sends a client in one portal is waiting in the other. Sales' deals,
- * to-dos and lots live here as well, so the Sales dashboard and the Sales
- * portal show the same board.
+ * to-dos and lots live here as well, so the Sales Manager dashboard and the Sales
+ * Representative portal show the same board.
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (

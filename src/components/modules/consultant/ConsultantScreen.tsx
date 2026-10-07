@@ -21,7 +21,7 @@ const TABS = ["overview", "pipeline", "clients", "week", "progress", "submission
 const SCOPE: SalesScope = { kind: "rep", rep: CURRENT_REP };
 
 /**
- * The Sales portal: one consultant's own Sales, where the Sales dashboard is
+ * The Sales Representative portal: one consultant's own Sales, where the Sales Manager dashboard is
  * the team's. My pipeline, My clients, My week and My Deal Submissions are the
  * Sales sections in the rep's scope, on the same store as the dashboard; the
  * Overview and My progress are the portal's own.

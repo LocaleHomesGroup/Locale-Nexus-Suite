@@ -22,7 +22,7 @@ const TABS = ["overview", "pipeline", "clients", "build", "costing", "land", "te
  * Sales: the team's view. An Overview (the default) and six sections in
  * `?tab=`, listed in the Sales rail with the "Open HomeScope" link. Each pane
  * renders its own PageHeader. A consultant's own Sales (My week, My Deal
- * Submissions, and the board and clients in their scope) is the Sales portal,
+ * Submissions, and the board and clients in their scope) is the Sales Representative portal,
  * modules/consultant.
  */
 export function SalesScreen() {

@@ -87,8 +87,8 @@ import type { DashboardTone } from "./dashboard-tones";
  * Locale clients, how it ranks and what Locale needs from it. The third is the
  * Employee portal, Simple HRIS's employee dashboard for Locale's own people:
  * their pay week, their rates, the invoices that pay them and their
- * department. The fourth is the Sales portal: one consultant's own pipeline,
- * clients, week, progress and deal submissions, where the Sales dashboard is
+ * department. The fourth is the Sales Representative portal: one consultant's own pipeline,
+ * clients, week, progress and deal submissions, where the Sales Manager dashboard is
  * the team's. A portal's rail has its own Switch view listing only the portals
  * (a client never sees a staff dashboard); the Launchpad's lists the portals
  * under its own dashboards, so staff can preview them.
@@ -113,9 +113,9 @@ export interface NavItem {
 
 export interface Dashboard {
   id: ModuleId;
-  /** Rail caption and switcher label: "Sales". */
+  /** Rail caption and switcher label: "Sales Manager". */
   label: string;
-  /** Switch-loader heading: "Sales dashboard". */
+  /** Switch-loader heading: "Sales Manager dashboard". */
   title: string;
   href: string;
   icon: LucideIcon;
@@ -206,8 +206,8 @@ export const DASHBOARDS: Dashboard[] = [
   },
   {
     id: "sales",
-    label: "Sales",
-    title: "Sales dashboard",
+    label: "Sales Manager",
+    title: "Sales Manager dashboard",
     href: "/sales",
     icon: TrendingUp,
     tone: "haven",
@@ -448,16 +448,16 @@ export const DASHBOARDS: Dashboard[] = [
   },
   {
     id: "consultant",
-    label: "Sales",
-    title: "Sales portal",
+    label: "Sales Representative",
+    title: "Sales Representative",
     href: "/consultant",
     icon: BriefcaseBusiness,
     // Locale Homes is the brand a consultant sells for.
     tone: "haven",
     space: "portal",
-    persona: { name: CURRENT_REP, role: "Sales consultant · staff preview" },
+    persona: { name: CURRENT_REP, role: "Sales rep · staff preview" },
     defaults: { tab: "overview" },
-    // The sections that said "My" on the Sales dashboard, which is now the
+    // The sections that said "My" on the Sales Manager dashboard, which is now the
     // team's view, plus the consultant's progress.
     items: [
       overview("consultant"),

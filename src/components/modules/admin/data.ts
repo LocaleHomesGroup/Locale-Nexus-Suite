@@ -34,7 +34,7 @@ export interface Section {
 
 export interface Role {
   key: RoleKey;
-  /** "Sales", or a portal's title: "Sales portal". */
+  /** "Sales Manager", or a portal's title: "Client portal", "Sales Representative". */
   label: string;
   dashboard: Dashboard;
   blurb: string;
@@ -45,7 +45,7 @@ export interface Role {
 const BLURBS: Record<RoleKey, string> = {
   admin: "Full system access. Unlocks every dashboard, this one included.",
   operations: "Unlocks the Operations dashboard: jobs synced between HubSpot and Monday, and the review queue.",
-  sales: "Unlocks the Sales dashboard, the team's view: every rep's pipeline and clients, costing, land and Team.",
+  sales: "Unlocks the Sales Manager dashboard, the team's view: every rep's pipeline and clients, costing, land and Team.",
   marketing: "Unlocks the Marketing dashboard: performance, channels and attribution.",
   finance: "Unlocks the Finance dashboard and its health check.",
   accounts: "Unlocks the Accounts dashboard: builder invoicing, reports and expenses.",
@@ -59,7 +59,7 @@ const BLURBS: Record<RoleKey, string> = {
   client: "Unlocks the Client portal, where a buyer follows their home from enquiry to keys.",
   developer: "Unlocks the Developer portal, for a building company Locale sells for.",
   employee: "Unlocks the Employee portal: pay week, invoices, profile and department.",
-  consultant: "Unlocks the Sales portal: your own pipeline, clients, week, progress and deal submissions.",
+  consultant: "Unlocks the Sales Representative portal: your own pipeline, clients, week, progress and deal submissions.",
 };
 
 /** Every dashboard but Home, in rail order. Derived, so a new dashboard is a new role. */
@@ -67,7 +67,8 @@ export const ROLES: Role[] = DASHBOARDS.filter((d) => d.id !== "home").map((d) =
   const key = d.id as RoleKey;
   return {
     key,
-    // A portal's role is named for the portal, so "Sales portal" and "Sales" never read the same.
+    // A portal's role is named by its title ("Client portal", "Sales Representative"),
+    // so it never reads like a Launchpad dashboard's.
     label: spaceOf(d) === "portal" ? d.title : d.label,
     dashboard: d,
     blurb: BLURBS[key],
@@ -217,7 +218,7 @@ function seedRoles(row: MasterRow): RoleKey[] {
 
 /** Sections a sample grant narrows from Edit, to show the grid in use. */
 const SECTION_LIMITS: { who: (row: MasterRow) => boolean; section: string; access: Access }[] = [
-  // New Home Advocates work from the Sales portal. On the dashboard they keep the shared tools:
+  // New Home Advocates work from the Sales Representative portal. On the dashboard they keep the shared tools:
   // Under construction, Rapid costing and Exclusive land.
   { who: (r) => r.role === "New Home Advocate", section: "sales:pipeline", access: "hidden" },
   { who: (r) => r.role === "New Home Advocate", section: "sales:clients", access: "hidden" },
@@ -293,7 +294,7 @@ export const PRESENCE_SEED: Record<string, PresenceSeed> = {
 // Every seat above must point at a real section (hrefForKey throws otherwise).
 for (const p of Object.values(PRESENCE_SEED)) hrefForKey(p.at);
 
-/** The page behind a rail key: "Sales dashboard" and "Pipeline". */
+/** The page behind a rail key: "Sales Manager dashboard" and "Pipeline". */
 export function pageOf(at: string): { dashboard: Dashboard; section: string } {
   const dashboard = dashboardById(at.split(":")[0]);
   const item = dashboard.items.flatMap((i) => [i, ...(i.children ?? [])]).find((i) => i.key === at);

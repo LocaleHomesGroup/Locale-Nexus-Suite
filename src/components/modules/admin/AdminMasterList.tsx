@@ -91,7 +91,7 @@ const SELF = offRosterKey(STAFF.email);
 
 let pickedMemory: string | null = null;
 
-/** "Sales dashboard · Pipeline", or the last-seen line while offline. */
+/** "Sales Manager dashboard · Pipeline", or the last-seen line while offline. */
 function statusLine(live: Live): string {
   if (live.at) {
     const { dashboard, section } = pageOf(live.at);

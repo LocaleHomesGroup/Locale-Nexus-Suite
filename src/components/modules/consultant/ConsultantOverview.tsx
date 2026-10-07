@@ -16,7 +16,7 @@ const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a +
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * Sales portal › Overview: one consultant's figures, each card a link to the
+ * Sales Representative portal › Overview: one consultant's figures, each card a link to the
  * section it comes from. Deals, tasks, to-dos and the week's forecast come
  * from the shared Sales store, so a deal moved on either board shows here at
  * once.

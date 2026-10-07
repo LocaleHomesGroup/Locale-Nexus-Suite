@@ -36,7 +36,7 @@ import {
 const signedThisWeek = Object.values(SIGNED_THIS_WEEK).reduce((a, b) => a + b, 0);
 
 /**
- * Sales portal › My progress: how one consultant is tracking. Sales won
+ * Sales Representative portal › My progress: how one consultant is tracking. Sales won
  * against target, forecast accuracy, their funnel with stale deals, and
  * commission. Deals are live from the Sales store; targets, the forecast
  * history and the commission rate are placeholders (sales/progress/data.ts).

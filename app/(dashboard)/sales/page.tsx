@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ScreenSkeleton } from "@/components/ui/screen-skeleton";
 import { SalesScreen } from "@/components/modules/sales/SalesScreen";
 
-export const metadata: Metadata = { title: "Sales" };
+export const metadata: Metadata = { title: "Sales Manager" };
 
 export default function Page() {
   return (

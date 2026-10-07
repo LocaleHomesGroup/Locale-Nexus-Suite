@@ -83,7 +83,7 @@ export function DealDialog({
   onReopen: (id: string) => void;
   onPost: (id: string, body: string) => void;
   onOpenJob: () => void;
-  /** The Sales portal: the deal stays the rep's. Managers reassign from the Sales dashboard. */
+  /** The Sales Representative portal: the deal stays the rep's. Managers reassign from the Sales Manager dashboard. */
   ownerLocked?: boolean;
 }) {
   const isCreate = deal === null;
@@ -374,7 +374,7 @@ function OwnerField({
 }) {
   if (locked) {
     return (
-      <Field label="Owner" htmlFor={id} hint="Managers reassign deals from the Sales dashboard.">
+      <Field label="Owner" htmlFor={id} hint="Managers reassign deals from the Sales Manager dashboard.">
         <Input id={id} value={value} readOnly aria-readonly className="bg-muted/40 text-muted-foreground" />
       </Field>
     );

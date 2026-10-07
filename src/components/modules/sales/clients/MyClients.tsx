@@ -20,8 +20,8 @@ import { groupByRep } from "./group-by-rep";
  * Clients: the jobs from the shared store, so a milestone synced in
  * Operations moves the bar here. A card opens the job in Operations.
  *
- * In the Sales portal it's one rep's My clients: their jobs, their to-dos and
- * the tasks their manager set them. On the Sales dashboard it's the team's
+ * In the Sales Representative portal it's one rep's My clients: their jobs, their to-dos and
+ * the tasks their manager set them. On the Sales Manager dashboard it's the team's
  * Clients: every rep's jobs, grouped by rep.
  */
 export function MyClients() {
@@ -240,7 +240,9 @@ function TasksCard({ rep }: { rep: string }) {
             ))}
           </ul>
         )}
-        <p className="mt-2 text-xs text-subtle-foreground">Set by your manager on the Sales dashboard&apos;s Team page.</p>
+        <p className="mt-2 text-xs text-subtle-foreground">
+          Set by your manager on the Sales Manager dashboard&apos;s Team page.
+        </p>
       </CardContent>
     </Card>
   );

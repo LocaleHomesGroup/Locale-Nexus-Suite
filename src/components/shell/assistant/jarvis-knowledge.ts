@@ -264,9 +264,9 @@ const PORTAL_USING = (portal: string): Faq[] => [
   {
     group: "Using the portal",
     question: "How do I switch views?",
-    keys: ["switch", "view", "client portal", "developer portal", "employee portal", "sales portal", "back to launchpad"],
+    keys: ["switch", "view", "client portal", "developer portal", "employee portal", "sales representative", "sales portal", "back to launchpad"],
     answer: () => ({
-      text: `Use “Switch view” in the sidebar. The portals have their own: Client, Developer, Employee and Sales, plus “Back to Launchpad” for the staff dashboards. You're in the ${portal}.`,
+      text: `Use “Switch view” in the sidebar. The portals have their own: Client, Developer, Employee and Sales Representative, plus “Back to Launchpad” for the staff dashboards. You're in the ${portal}.`,
     }),
   },
 ];
@@ -540,10 +540,10 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
           actions: [{ label: "Open Team", href: "/sales?tab=team" }],
         }),
       },
-      ...USING("Sales"),
+      ...USING("Sales Manager"),
     ],
     fallback:
-      "On Sales I can answer about the team's pipeline, what happens when a deal is won, discounts, land holds, the quarter's leaders and discounts waiting for approval.",
+      "On the Sales Manager dashboard I can answer about the team's pipeline, what happens when a deal is won, discounts, land holds, the quarter's leaders and discounts waiting for approval.",
   },
 
   marketing: {
@@ -1690,10 +1690,10 @@ export const JARVIS: Record<ModuleId, DashboardBrief> = {
           actions: [{ label: "Start a submission", href: "/consultant?tab=submissions" }],
         }),
       },
-      ...PORTAL_USING("Sales portal"),
+      ...PORTAL_USING("Sales Representative portal"),
     ],
     fallback:
-      "In the Sales portal I can tell you how you're tracking against target, which of your deals have gone stale, your commission pipeline, what's in your pipeline, and where your deal submission is up to.",
+      "In the Sales Representative portal I can tell you how you're tracking against target, which of your deals have gone stale, your commission pipeline, what's in your pipeline, and where your deal submission is up to.",
   },
 };
 

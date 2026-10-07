@@ -1,5 +1,5 @@
 /**
- * Sales progress rules, pure (no React). What My progress, the Sales portal's
+ * Sales progress rules, pure (no React). What My progress, the Sales Representative portal's
  * Overview, Team's commission column and Jarvis quote. Every figure is for
  * one rep, from the live deals in the Sales store.
  */

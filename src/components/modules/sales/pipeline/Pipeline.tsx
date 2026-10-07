@@ -63,7 +63,7 @@ const totalLabel = (k: number) => (k >= 1000 ? millionsFromK(k) : `$${Math.round
  */
 export function Pipeline() {
   const { deals } = useSalesState();
-  // In the Sales portal the board is one rep's: their deals only, and no owner filter.
+  // In the Sales Representative portal the board is one rep's: their deals only, and no owner filter.
   const rep = scopeRep(useSalesScope());
   const { jobs, openJob } = useLaunchpad();
   const writes = useDealWrites();
