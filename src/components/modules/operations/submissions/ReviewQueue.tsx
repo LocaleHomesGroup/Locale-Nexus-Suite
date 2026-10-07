@@ -79,9 +79,9 @@ export function ReviewQueue({ onOpen }: { onOpen: () => void }) {
         actions={
           <>
             <p className="max-w-[200px] text-xs leading-snug text-subtle-foreground sm:text-right">
-              Reps start submissions in Sales. Use this only when entering one for a rep.
+              Reps start submissions in the Sales Representative portal. Use this only when entering one for a rep.
             </p>
-            <Button variant="outline" onClick={() => go("sales", "submissions")}>
+            <Button variant="outline" onClick={() => go("consultant", "submissions")}>
               <Pencil className="size-3.5" aria-hidden /> Start on behalf of a rep
             </Button>
           </>
