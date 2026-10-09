@@ -18,7 +18,7 @@ import {
   type PeriodTotal,
   type RecordPeriod,
 } from "../sales/progress/commission";
-import { BAR, IN_PROGRESS } from "./CommissionChart";
+import { BAR, IN_PROGRESS } from "../sales/parts";
 
 const PERIODS: TabItem<RecordPeriod>[] = [
   { value: "day", label: "Day" },

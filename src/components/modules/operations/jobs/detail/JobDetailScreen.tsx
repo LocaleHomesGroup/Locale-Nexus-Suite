@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, BookOpen } from "lucide-react";
 import type { Job, Milestone } from "@/data/jobs";
 import { useLaunchpad } from "@/state/launchpad-store";
+import { useJobs, useLiveState } from "@/state/live-data";
+import { LiveNote } from "@/components/ui/live-note";
+import { LiveDocumentsCard } from "./LiveDocumentsCard";
+import { JobReadOnly } from "./read-only";
 import { cn } from "@/lib/utils";
 import { PageContainer, PageHeader } from "@/components/ui/page";
 import { Card } from "@/components/ui/card";
@@ -39,8 +43,13 @@ function BackLink() {
 /** /operations/jobs/[id] — one job, mirrored from HubSpot and Monday (mockup `h === "detail"`). */
 export function JobDetailScreen({ id }: { id: string }) {
   const router = useRouter();
-  const { jobs } = useLaunchpad();
-  const job = jobs.find((j) => String(j.id) === id);
+  const { jobs, live } = useJobs();
+  const { jobs: sampleJobs } = useLaunchpad();
+  // Whether LiveNote has anything to say (not with no database). Its block wrapper is only rendered then.
+  const noted = useLiveState().kind !== "off";
+  const liveJob = jobs.find((j) => String(j.id) === id);
+  // Screens still on sample data (Home, the portals) link to sample jobs: those still open.
+  const job = liveJob ?? (live ? sampleJobs.find((j) => String(j.id) === id) : undefined);
 
   if (!job) {
     return (
@@ -49,17 +58,34 @@ export function JobDetailScreen({ id }: { id: string }) {
         <Card>
           <ErrorState
             title="Job not found"
-            message={`No job with ID "${id}" is mirrored in CRM dash sync. The link may be out of date.`}
+            message={
+              <>
+                {`No job with ID "${id}" is mirrored in CRM dash sync. The link may be out of date.`}
+                {/* With the database down that is the likely reason, so say so, on a line of its own. With no database there
+                    is no note and no wrapper: an empty block span would still add its top margin to the message. */}
+                {noted ? (
+                  <span className="mt-1.5 block">
+                    <LiveNote />
+                  </span>
+                ) : null}
+              </>
+            }
             onBack={() => router.push("/operations?tab=jobs")}
           />
         </Card>
       </PageContainer>
     );
   }
-  return <JobDetail job={job} />;
+  // A live job is read only. The page switches its left column off, and its cards say so (JobReadOnly).
+  const readOnly = live && liveJob !== undefined;
+  return (
+    <JobReadOnly.Provider value={readOnly}>
+      <JobDetail job={job} live={readOnly} />
+    </JobReadOnly.Provider>
+  );
 }
 
-function JobDetail({ job }: { job: Job }) {
+function JobDetail({ job, live }: { job: Job; live: boolean }) {
   const { activity, updateJob, logActivity } = useLaunchpad();
   const { syncMilestone, syncDetails, handOver, resolveConflict, fileReview, trailForJob, viewTrail } =
     useOperationsSync();
@@ -147,6 +173,7 @@ function JobDetail({ job }: { job: Job }) {
           title={title}
           actions={
             <>
+              {live ? <LiveNote readOnly /> : null}
               <SyncBadge sync={job.sync} className="text-[13px]" />
               {trail ? (
                 <Button variant="link" size="sm" className="h-auto text-xs" onClick={() => viewTrail(trail.id)}>
@@ -158,10 +185,16 @@ function JobDetail({ job }: { job: Job }) {
         />
         <div className="flex flex-wrap items-center gap-1.5">
           <Pill tone="neutral">{job.builder}</Pill>
-          <Pill tone="neutral">
-            Record ID <span className="font-mono text-xs">{job.recordId}</span>
-          </Pill>
-          <Pill tone="neutral">HubSpot · {job.hsStage}</Pill>
+          {/* A live job's record ID is its real HubSpot deal id, or empty when Monday has none: then there is nothing to say.
+              (`live` here is the same flag the page provides as JobReadOnly.) */}
+          {live && !job.recordId ? null : (
+            <>
+              <Pill tone="neutral">
+                Record ID <span className="font-mono text-xs">{job.recordId}</span>
+              </Pill>
+              <Pill tone="neutral">HubSpot · {job.hsStage}</Pill>
+            </>
+          )}
           <MondayPill job={job} long />
         </div>
       </div>
@@ -195,7 +228,8 @@ function JobDetail({ job }: { job: Job }) {
       ) : null}
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-        <div className="flex min-w-0 flex-col gap-5">
+        {/* A live job is Monday's: no editing during the Dash Sync hold, as the note above says. */}
+        <fieldset disabled={live} className="flex min-w-0 flex-col gap-5">
           <Reveal index={1}>
             <DealDetailsCard job={job} />
           </Reveal>
@@ -230,11 +264,11 @@ function JobDetail({ job }: { job: Job }) {
               <ConstructionCard job={job} editor={editor} />
             </Reveal>
           ) : null}
-        </div>
+        </fieldset>
 
         <div className="flex min-w-0 flex-col gap-5">
           <Reveal index={2}>
-            <DocumentsCard job={job} />
+            {live ? <LiveDocumentsCard job={job} /> : <DocumentsCard job={job} />}
           </Reveal>
           <Reveal index={3}>
             <AuditLog entries={history} />

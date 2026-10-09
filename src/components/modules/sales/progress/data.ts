@@ -54,9 +54,11 @@ export const HISTORY_AS_OF = "2026-08-07";
 /**
  * Each rep's sales won by month ("2026-07"), as days of the month; a day
  * listed twice is two sales that day. Placeholder, not confirmed: sample
- * history, January 2024 to date. A. Mercer's July and August agree with
- * HubSpot's quarter (7) and month (1) to date, and September 2025 is the gap
- * their sale streak starts after. Commission is these sales at
+ * history, January 2024 to date (K. Ellery from June 2024, when they
+ * started). Every rep's July and August agree with HubSpot's quarter and
+ * month to date (SALES_WON_QTD, STAGE_REPORT_DEALS). A. Mercer's sale streak
+ * starts after September 2025, K. Ellery's after January 2025 and
+ * D. Okafor's after February 2026. Commission is these sales at
  * COMMISSION_PER_SALE.
  */
 export const SALE_DAYS: Record<string, Record<string, readonly number[]>> = {
@@ -93,5 +95,68 @@ export const SALE_DAYS: Record<string, Record<string, readonly number[]>> = {
     "2026-06": [4, 11, 18, 25],
     "2026-07": [2, 9, 14, 14, 16, 23],
     "2026-08": [4],
+  },
+  "K. Ellery": {
+    "2024-06": [20],
+    "2024-07": [11, 25],
+    "2024-08": [8, 29],
+    "2024-09": [12],
+    "2024-10": [3, 17, 31],
+    "2024-11": [14, 28],
+    "2024-12": [5, 12],
+    "2025-01": [],
+    "2025-02": [13, 27],
+    "2025-03": [6, 20],
+    "2025-04": [3, 17, 24],
+    "2025-05": [1, 15, 29],
+    "2025-06": [12, 26],
+    "2025-07": [10, 24, 31],
+    "2025-08": [14, 28],
+    "2025-09": [4, 18, 25],
+    "2025-10": [9, 23],
+    "2025-11": [6, 20, 27],
+    "2025-12": [4, 18],
+    "2026-01": [22, 29],
+    "2026-02": [12, 26],
+    "2026-03": [5, 12, 26],
+    "2026-04": [2, 9, 23, 30],
+    "2026-05": [7, 14, 28],
+    "2026-06": [4, 11, 18, 25],
+    "2026-07": [1, 15, 22, 29],
+    "2026-08": [3, 6],
+  },
+  "D. Okafor": {
+    "2024-01": [11, 25],
+    "2024-02": [15],
+    "2024-03": [7, 21],
+    "2024-04": [18],
+    "2024-05": [9, 23],
+    "2024-06": [13],
+    "2024-07": [11, 25],
+    "2024-08": [15],
+    "2024-09": [5, 19],
+    "2024-10": [17],
+    "2024-11": [7, 21],
+    "2024-12": [5],
+    "2025-01": [23],
+    "2025-02": [6, 20],
+    "2025-03": [13],
+    "2025-04": [10, 24],
+    "2025-05": [8, 22],
+    "2025-06": [19],
+    "2025-07": [10, 24],
+    "2025-08": [7, 21],
+    "2025-09": [11],
+    "2025-10": [9, 23],
+    "2025-11": [13],
+    "2025-12": [11],
+    "2026-01": [15, 22, 29],
+    "2026-02": [],
+    "2026-03": [12, 19, 26],
+    "2026-04": [9, 16, 30],
+    "2026-05": [14, 28],
+    "2026-06": [4, 18, 25],
+    "2026-07": [9, 16, 30],
+    "2026-08": [5],
   },
 };

@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowRight, CalendarCheck2, CalendarX2, Hash, House, SearchX, ShieldCheck } from "lucide-react";
-import { useLaunchpad } from "@/state/launchpad-store";
+import { useJobs } from "@/state/live-data";
+import { LiveNote } from "@/components/ui/live-note";
 import { PageHeader } from "@/components/ui/page";
 import { KpiCard, KpiGrid } from "@/components/ui/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,7 @@ const NO_FILTERS = Object.fromEntries(DIMENSIONS.map((d) => [d, ""])) as JobFilt
  * person's back.
  */
 export function CrmDashSync() {
-  const { jobs } = useLaunchpad();
+  const { jobs, live } = useJobs();
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -116,7 +117,11 @@ export function CrmDashSync() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="CRM dash sync"
-        description="Every job, served from Launchpad. Edit here once and it goes to Monday and HubSpot."
+        description={
+          live
+            ? "Every job on Monday's sales and construction boards. Read only while the Dash Sync go-live is on hold."
+            : "Every job, served from Launchpad. Edit here once and it goes to Monday and HubSpot."
+        }
         actions={
           <SearchInput
             value={query}
@@ -128,6 +133,7 @@ export function CrmDashSync() {
           />
         }
       />
+      <LiveNote readOnly />
 
       <Reveal index={0} className="flex flex-col gap-2.5">
         <FilterBar

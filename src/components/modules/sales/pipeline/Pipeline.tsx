@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Archive, Plus, SquareKanban } from "lucide-react";
 import { useLaunchpad } from "@/state/launchpad-store";
@@ -71,7 +72,11 @@ export function Pipeline() {
   const hintId = React.useId();
 
   const [view, setView] = React.useState<View>("board");
-  const [owner, setOwner] = React.useState<OwnerFilter>("all");
+  // The Overview's spotlight opens a rep's deals: `?owner=K.%20Ellery`.
+  const ownerParam = useSearchParams().get("owner");
+  const [owner, setOwner] = React.useState<OwnerFilter>(() =>
+    ownerParam && (REPS as readonly string[]).includes(ownerParam) ? ownerParam : "all",
+  );
   const [priority, setPriority] = React.useState<PriorityFilter>("all");
   const [query, setQuery] = React.useState("");
 

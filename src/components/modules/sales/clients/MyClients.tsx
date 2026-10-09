@@ -14,11 +14,15 @@ import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/states";
 import { REPS } from "../data";
 import { scopeRep, useSalesScope, useSalesState } from "../sales-state";
-import { groupByRep } from "./group-by-rep";
+import { clientsOf, groupByRep } from "./group-by-rep";
+import { useJobs, useLiveState, useViewer } from "@/state/live-data";
+import { LiveNote } from "@/components/ui/live-note";
+import { ViewingAs } from "../ViewingAs";
 
 /**
- * Clients: the jobs from the shared store, so a milestone synced in
- * Operations moves the bar here. A card opens the job in Operations.
+ * Clients: the jobs from the database when live data shows (Monday's, read only), otherwise the
+ * shared store's, so a milestone synced in Operations moves the bar here. A card opens the job in
+ * Operations.
  *
  * In the Sales Representative portal it's one rep's My clients: their jobs, their to-dos and
  * the tasks their manager set them. On the Sales Manager dashboard it's the team's
@@ -30,12 +34,29 @@ export function MyClients() {
 }
 
 function RepClients({ rep }: { rep: string }) {
-  const { jobs, openJob } = useLaunchpad();
-  const mine = jobs.filter((j) => j.rep === rep);
+  const { openJob } = useLaunchpad();
+  const { jobs, live } = useJobs();
+  const { viewer } = useViewer();
+  // With no database there is no note and no picker, so pass no actions: an empty slot still adds a row gap on a phone.
+  const withNote = useLiveState().kind !== "off";
+  // Live jobs name real reps, so they follow "Viewing as". The sample rep stays for the sample screens.
+  const who = live ? (viewer?.name ?? "") : rep;
+  const mine = clientsOf(jobs, who);
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="My clients" description="You only see clients assigned to you." />
+      <PageHeader
+        title="My clients"
+        description="You only see clients assigned to you."
+        actions={
+          withNote ? (
+            <>
+              <LiveNote />
+              {live ? <ViewingAs /> : null}
+            </>
+          ) : undefined
+        }
+      />
       {mine.length ? (
         <ClientGrid jobs={mine} onOpen={openJob} />
       ) : (
@@ -59,12 +80,20 @@ function RepClients({ rep }: { rep: string }) {
 }
 
 function TeamClients() {
-  const { jobs, openJob } = useLaunchpad();
-  const groups = groupByRep(jobs, REPS);
+  const { openJob } = useLaunchpad();
+  const { jobs, live } = useJobs();
+  // With no database there is no note, so pass no actions: an empty slot still adds a row gap on a phone.
+  const withNote = useLiveState().kind !== "off";
+  // The sample reps lead the sample list; live reps go A to Z.
+  const groups = groupByRep(jobs, live ? [] : REPS);
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="All clients" description="Every rep's clients in preconstruction and construction." />
+      <PageHeader
+        title="All clients"
+        description="Every rep's clients in preconstruction and construction."
+        actions={withNote ? <LiveNote /> : undefined}
+      />
       {groups.length === 0 ? (
         <EmptyState
           icon={Users}

@@ -13,6 +13,7 @@ import {
 } from "@/data/jobs";
 import type { MilestoneState, ReviewItem } from "@/data/seed";
 import { confirm, useLaunchpad } from "@/state/launchpad-store";
+import { useJobs } from "@/state/live-data";
 import { clockStamp } from "@/lib/utils";
 import { useNavBadge } from "@/components/shell/nav-state";
 import { isStale, jobRef, liveMilestone, reviewSummary } from "../review/review";
@@ -69,6 +70,9 @@ interface OperationsSync {
   syncing: boolean;
 }
 
+/** The writes: everything on OperationsSync but these three reads. Live data switches every one of them off. */
+type WriteKey = Exclude<keyof OperationsSync, "trailForJob" | "viewTrail" | "syncing">;
+
 /** One hop after the Launchpad save: in flight for `ms`, then landed. */
 interface Leg {
   sys: SyncSystem;
@@ -109,7 +113,9 @@ function systemsList(systems: string[]): string {
 
 export function OperationsSyncProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { jobs, updateJob, logActivity, reviewItems, setReviewItems, later } = useLaunchpad();
+  const { updateJob, logActivity, reviewItems, setReviewItems, later } = useLaunchpad();
+  // Live jobs are Monday's own: nothing writes back while the Dash Sync go-live is held (Meeting3).
+  const { jobs, live } = useJobs();
   const [trails, setTrails] = React.useState<SyncTrail[]>([]);
   const [viewing, setViewing] = React.useState<string | null>(null);
 
@@ -471,9 +477,9 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
   const fileReview = React.useCallback<OperationsSync["fileReview"]>(
     (jobId, kind, name, proposed, source) => {
       const job = findJob(jobId);
-      const live = liveMilestone(job, { kind, milestone: name });
-      if (!job || !live) return;
-      const held = { status: live.status, date: live.date };
+      const existing = liveMilestone(job, { kind, milestone: name });
+      if (!job || !existing) return;
+      const held = { status: existing.status, date: existing.date };
       const summary = reviewSummary(job, name, held, proposed);
       const next = Math.max(0, ...reviewRef.current.map((i) => Number(i.id.replace(/\D/g, "")) || 0)) + 1;
       const item: ReviewItem = {
@@ -573,8 +579,8 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
   const current = viewing ? trails.find((t) => t.id === viewing) : undefined;
   if (current) shown.current = current;
 
-  const value = React.useMemo<OperationsSync>(
-    () => ({
+  const value = React.useMemo<OperationsSync>(() => {
+    const api: OperationsSync = {
       syncMilestone,
       syncDetails,
       handOver,
@@ -585,20 +591,38 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
       trailForJob,
       viewTrail,
       syncing,
-    }),
-    [
-      syncMilestone,
-      syncDetails,
-      handOver,
-      resolveConflict,
-      fileReview,
-      releaseReview,
-      dismissReview,
-      trailForJob,
-      viewTrail,
-      syncing,
-    ],
-  );
+    };
+    if (!live) return api;
+    const readOnly = () =>
+      toast.info("Read only for now", {
+        // One id, so a repeat updates this toast instead of stacking another.
+        id: "ops-read-only",
+        description: "Nothing is written back to Monday or HubSpot while the Dash Sync go-live is on hold.",
+      });
+    // Typed over every write key: a write added to OperationsSync is a compile error until it is guarded here.
+    const writes: Record<WriteKey, () => void> = {
+      syncMilestone: readOnly,
+      syncDetails: readOnly,
+      handOver: readOnly,
+      resolveConflict: readOnly,
+      fileReview: readOnly,
+      releaseReview: readOnly,
+      dismissReview: readOnly,
+    };
+    return { ...api, ...writes };
+  }, [
+    syncMilestone,
+    syncDetails,
+    handOver,
+    resolveConflict,
+    fileReview,
+    releaseReview,
+    dismissReview,
+    trailForJob,
+    viewTrail,
+    syncing,
+    live,
+  ]);
 
   return (
     <Ctx.Provider value={value}>

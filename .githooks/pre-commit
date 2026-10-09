@@ -1,0 +1,6 @@
+#!/bin/sh
+# Stops a commit that stages a token. The repo is public.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Calls node, not npm: on Windows the npm launcher needs bash, and
+# GitHub Desktop's bundled Git only ships sh. Same command as check:secrets.
+exec node --import tsx scripts/check-secrets.ts

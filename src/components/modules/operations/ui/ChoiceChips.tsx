@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
  * A row of mutually exclusive pill toggles — the mockup's status / source /
  * buyer-type pickers. Selected = the dashboard's brand fill with its deep ink
  * (never the light fill as text on white); the rest are outline pills. Each is an `aria-pressed`
- * button inside a labelled group.
+ * button inside a labelled group. Hover and press apply only while enabled; disabled (a live job's
+ * cards sit in a disabled fieldset) they dim and show a not-allowed cursor.
  */
 export function ChoiceChips<T extends string>({
   value,
@@ -36,11 +37,11 @@ export function ChoiceChips<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(o.value)}
             className={cn(
-              "rounded-full border font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-150 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none active:scale-[0.97]",
+              "rounded-full border font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-150 focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60",
               size === "sm" ? "px-3 py-1 text-xs" : "px-3 py-1.5 text-xs",
               on
                 ? "border-tone-fill bg-tone-fill text-tone-on-fill shadow-xs"
-                : "border-border bg-card text-foreground hover:border-tone-line hover:bg-tone-soft/70 dark:bg-white/[0.03] dark:hover:bg-tone-soft",
+                : "border-border bg-card text-foreground enabled:hover:border-tone-line enabled:hover:bg-tone-soft/70 dark:bg-white/[0.03] dark:enabled:hover:bg-tone-soft",
             )}
           >
             {o.label}

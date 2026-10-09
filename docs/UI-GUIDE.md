@@ -171,6 +171,16 @@ Each module is its own **dashboard**, HRIS-style (`src/components/shell/dashboar
     portal's own store, so a decision or a payment shows in their History straight away (a paid
     invoice reads **Paid**). The other payees, their payment methods and past runs are sample
     figures (`accounting/data.ts`, `accounting/fx.ts`). The flow's name is `PAY_RUN`.
+- **Sales › Overview** (Sales Manager) is about who's closing. It uses `DashboardOverview`'s `actions` and `panels` slots.
+  - **Period:** a Month / Quarter / Year filter in the header drives the four KPIs (Sales won with its pace against the
+    same point last period, Contract value, Team target with a ring, Open pipeline), the Top closer and the leaderboard.
+  - **Top closer:** the charcoal feature card, gold for rank.
+  - **Leaderboard:** ranks the reps on sales or value; rows glide when they re-rank.
+  - **Team sales by month:** shows the spotlighted rep's share of each column in Haven against the team target.
+  - **Rep spotlight:** draws a rep at random on each visit. Shuffle, a leaderboard row or the Top closer can change it,
+    and it links to that rep's Pipeline (`?owner=`).
+  - **Sources:** the rules are `sales/progress/standings.ts`. The sale history, targets, rate and contract values
+    (each rep's quarter average) are placeholders.
 - **Sales › Pipeline** is HRIS's Tickets board (`TicketsBoard`, `TicketCard`, `TicketDialog`) in Sales'
   Haven tone. HRIS's black-and-red console look stays on `/tickets`.
   - **Board:** four stage columns, each with a dot, a count and a value total. Each card shows the deal's

@@ -7,21 +7,29 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "test": "node --import tsx --test \"src/**/*.test.ts\""
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "check:secrets": "node --import tsx scripts/check-secrets.ts",
+    "db:migrate": "node --env-file-if-exists=.env.local --import tsx scripts/db/migrate.ts",
+    "db:status": "node --env-file-if-exists=.env.local --import tsx scripts/db/migrate.ts --status",
+    "db:seed": "node --env-file-if-exists=.env.local --import tsx scripts/db/seed.ts",
+    "mirror": "node --env-file-if-exists=.env.local --import tsx scripts/mirror.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
     "motion": "^12.43.0",
     "next": "^16.3.8",
     "next-themes": "^0.4.6",
+    "postgres": "^3.4.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",

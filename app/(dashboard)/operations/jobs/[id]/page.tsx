@@ -11,7 +11,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
   const job = JOBS.find((j) => String(j.id) === id);
-  if (!job) return { title: "Job not found" };
+  // Live jobs (Monday item ids) aren't in the sample list; the page finds them in the live data.
+  if (!job) return { title: "Job" };
   return { title: job.jobNo ? `Job ${job.jobNo} · ${job.client}` : `New job · ${job.client}` };
 }
 

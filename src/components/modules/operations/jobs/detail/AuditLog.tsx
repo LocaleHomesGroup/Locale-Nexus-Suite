@@ -10,6 +10,7 @@ import { EASE_OUT, rowDelay } from "@/lib/motion";
 import { Card, CardContent, CardDescription, CardHeader, CardMeta, CardTitle } from "@/components/ui/card";
 import { SystemTag } from "@/components/ui/pill";
 import { AUDIT_DOT as DOT } from "../../audit/data";
+import { useJobReadOnly } from "./read-only";
 
 const FILTERS: { value: "all" | ActivityType; label: string }[] = [
   { value: "all", label: "All" },
@@ -27,6 +28,7 @@ const FILTERS: { value: "all" | ActivityType; label: string }[] = [
  */
 export function AuditLog({ entries }: { entries: ActivityEntry[] }) {
   const reduce = useReducedMotion();
+  const readOnly = useJobReadOnly();
   const [filter, setFilter] = React.useState<"all" | ActivityType>("all");
   // Entries are prepended, so "distance from the oldest" is a stable key.
   const rows = entries
@@ -66,7 +68,10 @@ export function AuditLog({ entries }: { entries: ActivityEntry[] }) {
           {rows.length === 0 ? (
             <p className="py-2.5 text-xs text-subtle-foreground">
               {entries.length === 0
-                ? "Nothing written to this job from Launchpad yet. Edits made here, from a portal update or a CSV land in this log."
+                ? readOnly
+                  ? // A live job can't be edited here, so only the first sentence is true.
+                    "Nothing written to this job from Launchpad yet."
+                  : "Nothing written to this job from Launchpad yet. Edits made here, from a portal update or a CSV land in this log."
                 : "No events of this type yet."}
             </p>
           ) : (

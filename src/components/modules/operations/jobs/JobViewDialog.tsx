@@ -18,15 +18,19 @@ import {
   Pencil,
 } from "lucide-react";
 import type { Job, Milestone } from "@/data/jobs";
+import type { LiveFile } from "@/data/live/types";
 import { useLaunchpad } from "@/state/launchpad-store";
+import { useJobs } from "@/state/live-data";
+import { listItemFiles } from "@/server/actions/files";
 import { cn } from "@/lib/utils";
 import { EASE_OUT } from "@/lib/motion";
 import { Dialog } from "@/components/ui/dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
+import { FileList } from "@/components/ui/file-list";
 import { SyncBadge } from "@/components/ui/sync-badge";
 import { CLIENT_PHONE, DOCUMENT_SLOTS } from "./data";
-import { LOT_FIELDS } from "./detail/DetailCards";
+import { LOT_FIELDS, MondayOwnsPill } from "./detail/DetailCards";
 import { StatusIcon } from "./detail/MilestoneCards";
 import { MondayPill, jobHref } from "./JobsTable";
 
@@ -105,7 +109,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function Owner({ by }: { by: "launchpad" | "hubspot" }) {
+function Owner({ by, live }: { by: "launchpad" | "hubspot"; live: boolean }) {
+  // A live job is all Monday's, and this view only reads it.
+  if (live) return <MondayOwnsPill />;
   return by === "hubspot" ? (
     <Pill tone="neutral" icon={Lock}>
       HubSpot owns
@@ -174,12 +180,40 @@ function doneCount(items: Milestone[]) {
  */
 export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; open: boolean; onClose: () => void }) {
   const { activity, lotDetails } = useLaunchpad();
+  const { jobs, live } = useJobs();
   const reduce = useReducedMotion();
 
   // Keep showing the last job while the dialog animates out.
   const last = React.useRef(job);
   if (job) last.current = job;
   const j = last.current;
+
+  // A live job: one of the jobs read from the database. (A sample job opened while live data shows is not.)
+  const isLive = j !== undefined && live && jobs.some((x) => x.id === j.id);
+  const jobId = j?.id;
+  // A live job's files, as copied from Monday. A result only counts for the job it was asked for, so a late one for
+  // the job just left is never shown on the next. "failed" is a lookup that failed, which is not the same as no files.
+  const [loaded, setLoaded] = React.useState<{ id: number; files: LiveFile[] | "failed" } | null>(null);
+  // Each opening asks afresh: what an earlier opening found (files, or a failure) is dropped as the dialog opens
+  // again, so it never shows as if current. It is kept while the dialog closes, which still draws it as it fades out.
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setLoaded(null);
+  }
+  React.useEffect(() => {
+    // Asked for when the dialog opens on a live job, and dropped if it closes or the job changes (as LiveDocumentsCard
+    // does on its own).
+    if (!isLive || !open || jobId === undefined) return;
+    let cancelled = false;
+    listItemFiles(jobId).then(
+      (f) => !cancelled && setLoaded({ id: jobId, files: f }),
+      () => !cancelled && setLoaded({ id: jobId, files: "failed" }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [isLive, open, jobId]);
 
   const history = React.useMemo(
     () => (j ? activity.filter((e) => !e.jobs || e.jobs.includes(j.id)).slice(0, ACTIVITY_LINES) : []),
@@ -189,6 +223,7 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
   if (!j) return null;
 
   const lot = lotDetails[j.id];
+  const files = loaded !== null && loaded.id === j.id ? loaded.files : null;
   const construction = j.board === "construction";
   // The document convention keys on the job number; a job without one files under its record ID.
   const prefix = j.jobNo || j.recordId;
@@ -220,10 +255,15 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
           transition={{ duration: reduce ? 0 : 0.24, ease: EASE_OUT, delay: reduce ? 0 : 0.08 }}
           className="flex flex-wrap items-center gap-1.5"
         >
-          <Pill tone="neutral">
-            Record ID <span className="font-mono">{j.recordId}</span>
-          </Pill>
-          <Pill tone="neutral">HubSpot · {j.hsStage}</Pill>
+          {/* A live job's record ID is its real HubSpot deal id, or empty when Monday has none: then there is nothing to say. */}
+          {isLive && !j.recordId ? null : (
+            <>
+              <Pill tone="neutral">
+                Record ID <span className="font-mono">{j.recordId}</span>
+              </Pill>
+              <Pill tone="neutral">HubSpot · {j.hsStage}</Pill>
+            </>
+          )}
           <MondayPill job={j} long />
           <SyncBadge sync={j.sync} className="ml-auto" />
         </motion.div>
@@ -238,7 +278,7 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Box index={1} icon={ClipboardList} title="Job details" meta={<Owner by="launchpad" />}>
+          <Box index={1} icon={ClipboardList} title="Job details" meta={<Owner by="launchpad" live={isLive} />}>
             <dl>
               <Row label="Job number">
                 {j.jobNo ? <span className="font-mono text-xs font-semibold">{j.jobNo}</span> : "Awaiting"}
@@ -251,26 +291,34 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
             </dl>
           </Box>
 
-          <Box index={2} icon={Lock} title="Deal details" meta={<Owner by="hubspot" />}>
+          <Box index={2} icon={Lock} title="Deal details" meta={<Owner by="hubspot" live={isLive} />}>
             <dl>
               <Row label="Deal name">{j.jobNo ? `${j.jobNo} ${j.client}` : j.client}</Row>
               <Row label="Client">{j.client}</Row>
               <Row label="Sales rep">{j.rep}</Row>
-              <Row label="Client phone">
-                <span className="tabular-nums">{CLIENT_PHONE}</span>
-              </Row>
+              {/* The phone is a placeholder, and a live job has none: no row rather than a made-up number. */}
+              {isLive ? null : (
+                <Row label="Client phone">
+                  <span className="tabular-nums">{CLIENT_PHONE}</span>
+                </Row>
+              )}
               <Row label="Builder">{j.builder}</Row>
             </dl>
           </Box>
 
           <Box index={3} icon={MapPinned} title="Land and house">
-            <dl>
-              {LOT_FIELDS.map((f) => (
-                <Row key={f.key} label={f.label}>
-                  {lot?.[f.key]}
-                </Row>
-              ))}
-            </dl>
+            {isLive && !lot ? (
+              // A live job has no site record in the mirror yet: say so, instead of seven rows of dashes.
+              <p className="py-1.5 text-[13px] text-muted-foreground">Land and house details aren&apos;t in the Monday mirror yet.</p>
+            ) : (
+              <dl>
+                {LOT_FIELDS.map((f) => (
+                  <Row key={f.key} label={f.label}>
+                    {lot?.[f.key]}
+                  </Row>
+                ))}
+              </dl>
+            )}
           </Box>
 
           <Box
@@ -278,38 +326,55 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
             icon={FolderOpen}
             title="Documents"
             meta={
-              <Pill tone="neutral" className="tabular-nums">
-                {DOCUMENT_SLOTS.filter((d) => d.uploaded).length} of {DOCUMENT_SLOTS.length}
-              </Pill>
+              isLive ? (
+                <Pill tone="neutral" className="tabular-nums">
+                  {files === null ? "Loading" : files === "failed" ? "Unavailable" : `${files.length} from Monday`}
+                </Pill>
+              ) : (
+                <Pill tone="neutral" className="tabular-nums">
+                  {DOCUMENT_SLOTS.filter((d) => d.uploaded).length} of {DOCUMENT_SLOTS.length}
+                </Pill>
+              )
             }
           >
-            <ul className="flex flex-col gap-1.5">
-              {DOCUMENT_SLOTS.map((d) => (
-                <li
-                  key={d.slug}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg border border-hairline px-3 py-2",
-                    d.uploaded ? "bg-card" : "bg-canvas dark:bg-white/[0.02]",
-                  )}
-                >
-                  {d.uploaded ? (
-                    <Check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} aria-label="Uploaded" />
-                  ) : (
-                    <Circle className="size-3.5 shrink-0 text-subtle-foreground" aria-label="Not uploaded" />
-                  )}
-                  <span className="min-w-0">
-                    <span className="block text-xs text-foreground">{d.label}</span>
-                    <span className="block text-xs break-words text-subtle-foreground">
-                      {d.uploaded ? (
-                        <span className="font-mono">{`${prefix}_${d.slug}.pdf`}</span>
-                      ) : (
-                        "Not uploaded yet"
-                      )}
+            {isLive ? (
+              // A live job's real files, as copied from Monday: never the sample document slots.
+              files === null ? (
+                <p className="text-xs text-muted-foreground">Loading files…</p>
+              ) : files === "failed" ? (
+                <p className="text-xs text-amber-700 dark:text-amber-300">Couldn&apos;t load the files right now. Try again in a moment.</p>
+              ) : (
+                <FileList files={files} empty="No files on this job in Monday." />
+              )
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {DOCUMENT_SLOTS.map((d) => (
+                  <li
+                    key={d.slug}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg border border-hairline px-3 py-2",
+                      d.uploaded ? "bg-card" : "bg-canvas dark:bg-white/[0.02]",
+                    )}
+                  >
+                    {d.uploaded ? (
+                      <Check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} aria-label="Uploaded" />
+                    ) : (
+                      <Circle className="size-3.5 shrink-0 text-subtle-foreground" aria-label="Not uploaded" />
+                    )}
+                    <span className="min-w-0">
+                      <span className="block text-xs text-foreground">{d.label}</span>
+                      <span className="block text-xs break-words text-subtle-foreground">
+                        {d.uploaded ? (
+                          <span className="font-mono">{`${prefix}_${d.slug}.pdf`}</span>
+                        ) : (
+                          "Not uploaded yet"
+                        )}
+                      </span>
                     </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Box>
 
           <Box index={5} icon={ClipboardList} title="Preconstruction" meta={doneCount(j.precon)}>

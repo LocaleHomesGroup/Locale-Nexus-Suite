@@ -12,3 +12,5 @@ Reference/
 
 # Local design-tool cache
 .impeccable/
+
+./env.local

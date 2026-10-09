@@ -10,6 +10,7 @@ import { EASE_OUT } from "@/lib/motion";
 import { Card, CardContent, CardDescription, CardHeader, CardMeta, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DOCUMENT_SLOTS } from "../data";
+import { useJobReadOnly } from "./read-only";
 
 /**
  * Documents — upload slots that rename to the naming convention and file to
@@ -114,6 +115,8 @@ export function DocumentsCard({ job }: { job: Job }) {
 
 /** Open in — jump to the source records. External links are simulated in the prototype. */
 export function OpenInCard({ job }: { job: Job }) {
+  // A live job's record ID is its real HubSpot deal id, or empty when Monday has none: then there is no deal to open.
+  const noHubSpotDeal = useJobReadOnly() && !job.recordId;
   const open = (system: string, what: string) =>
     confirm(`Opening the ${system} ${what}`, `Record ID ${job.recordId} · opens in a new tab in the live app`);
 
@@ -123,9 +126,11 @@ export function OpenInCard({ job }: { job: Job }) {
         <CardTitle>Open in</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-x-5 gap-y-2">
-        <Button variant="link" className="h-auto gap-1.5 px-0 text-[13px] font-semibold" onClick={() => open("HubSpot", "deal")}>
-          HubSpot deal <ExternalLink className="size-3.5" aria-hidden />
-        </Button>
+        {noHubSpotDeal ? null : (
+          <Button variant="link" className="h-auto gap-1.5 px-0 text-[13px] font-semibold" onClick={() => open("HubSpot", "deal")}>
+            HubSpot deal <ExternalLink className="size-3.5" aria-hidden />
+          </Button>
+        )}
         <Button variant="link" className="h-auto gap-1.5 px-0 text-[13px] font-semibold" onClick={() => open("Monday", "item")}>
           Monday item <ExternalLink className="size-3.5" aria-hidden />
         </Button>

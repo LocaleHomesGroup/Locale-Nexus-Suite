@@ -21,7 +21,8 @@ import { ChoiceChips } from "../../ui/ChoiceChips";
 import { movesStageForward, type MilestoneKind } from "../../sync/types";
 import { MONEY_MILESTONES, isRegression, liveMilestone } from "../../review/review";
 import { UPDATE_SOURCES, type UpdateSource } from "../data";
-import { EDITABLE_CARD } from "./DetailCards";
+import { useEditableCard } from "./DetailCards";
+import { useJobReadOnly } from "./read-only";
 
 export interface MilestoneDraft {
   kind: MilestoneKind;
@@ -65,9 +66,12 @@ interface EditorBinding {
 export function PreconCard({ job, editor }: { job: Job; editor: EditorBinding }) {
   const next = job.precon.find((m) => m.status === "open" || m.status === "prog");
   const editorId = React.useId();
+  const rim = useEditableCard();
+  // A live job's milestones are Monday's: no hover tint, and no "Mark complete" prompt, on rows that can't be edited.
+  const readOnly = useJobReadOnly();
 
   return (
-    <Card className={EDITABLE_CARD}>
+    <Card className={rim}>
       <CardHeader>
         <CardTitle>Preconstruction</CardTitle>
         <CardMeta className="text-muted-foreground">Mirrors every Monday subitem: status, due date, date completed</CardMeta>
@@ -87,7 +91,15 @@ export function PreconCard({ job, editor }: { job: Job; editor: EditorBinding })
                   aria-controls={editing ? editorId : undefined}
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-md px-1.5 py-2 text-left transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
-                    editing ? "bg-muted" : isNext ? "bg-tone-soft hover:bg-tone-tint" : "hover:bg-muted/60",
+                    editing
+                      ? "bg-muted"
+                      : isNext
+                        ? readOnly
+                          ? "bg-tone-soft"
+                          : "bg-tone-soft hover:bg-tone-tint"
+                        : readOnly
+                          ? ""
+                          : "hover:bg-muted/60",
                   )}
                 >
                   <StatusIcon m={m} />
@@ -113,7 +125,7 @@ export function PreconCard({ job, editor }: { job: Job; editor: EditorBinding })
                       "ml-auto shrink-0 text-right text-xs whitespace-nowrap tabular-nums",
                       noDate || m.status === "pendingDate"
                         ? "text-amber-700 dark:text-amber-300"
-                        : isNext && m.status === "open"
+                        : isNext && m.status === "open" && !readOnly
                           ? "font-semibold text-tone-ink"
                           : "text-muted-foreground",
                     )}
@@ -135,7 +147,7 @@ export function PreconCard({ job, editor }: { job: Job; editor: EditorBinding })
                             ? "Not applicable"
                             : m.status === "pendingDate"
                               ? "Awaiting date"
-                              : isNext
+                              : isNext && !readOnly
                               ? "Mark complete"
                               : "Not started"}
                   </span>
@@ -158,9 +170,11 @@ export function PreconCard({ job, editor }: { job: Job; editor: EditorBinding })
 export function ConstructionCard({ job, editor }: { job: Job; editor: EditorBinding }) {
   const next = job.milestones.find((m) => m.status !== "done");
   const editorId = React.useId();
+  const rim = useEditableCard();
+  const readOnly = useJobReadOnly();
 
   return (
-    <Card className={EDITABLE_CARD}>
+    <Card className={rim}>
       <CardHeader>
         <CardTitle>Construction</CardTitle>
         <CardMeta className="text-muted-foreground">
@@ -185,7 +199,9 @@ export function ConstructionCard({ job, editor }: { job: Job; editor: EditorBind
                   title={conflicted ? "Monday and Launchpad disagree. Resolve the conflict to continue." : undefined}
                   aria-controls={editing ? editorId : undefined}
                   className={cn(
-                    "flex w-full flex-col rounded-lg border text-left transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
+                    "flex w-full flex-col rounded-lg border text-left transition-[transform,box-shadow,border-color,background-color] duration-200",
+                    readOnly ? "" : "hover:-translate-y-0.5 hover:shadow-md",
+                    "focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                     conflicted
                       ? "border-2 border-rose-300 bg-rose-50/70 px-[11px] py-[9px] dark:border-rose-500/50 dark:bg-rose-500/10"
                       : isNext
@@ -218,7 +234,7 @@ export function ConstructionCard({ job, editor }: { job: Job; editor: EditorBind
                             : "text-amber-700 dark:text-amber-300"
                           : awaiting
                             ? "font-semibold text-amber-700 dark:text-amber-300"
-                            : isNext
+                            : isNext && !readOnly
                               ? "font-semibold text-tone-ink"
                               : "text-subtle-foreground",
                     )}
@@ -229,7 +245,7 @@ export function ConstructionCard({ job, editor }: { job: Job; editor: EditorBind
                         ? m.date || "Completed · no date"
                         : awaiting
                           ? "Awaiting date"
-                          : isNext
+                          : isNext && !readOnly
                             ? "Mark complete"
                             : (STATUS_LABEL[m.status] ?? "Not started")}
                   </span>

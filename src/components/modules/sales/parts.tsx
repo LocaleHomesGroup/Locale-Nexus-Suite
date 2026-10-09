@@ -12,6 +12,29 @@ import { Pill } from "@/components/ui/pill";
  * app-wide primitives live in src/components/ui.
  */
 
+/**
+ * Haven a step deeper for chart marks. The dataviz validator passes it on the
+ * white card and the black one (lightness band, chroma floor, 3:1); the
+ * tone's own haven-500 reads 2.5:1 on white.
+ */
+export const BAR = "bg-[#14a394]";
+/** A period still under way: the same bar, hatched, because it isn't finished. */
+export const IN_PROGRESS = "repeating-linear-gradient(135deg, rgb(255 255 255 / 0.34) 0 3px, transparent 3px 7px)";
+
+/** An element's content width, kept current as it resizes: the hand-rolled charts lay out in real pixels. */
+export function useMeasuredWidth<T extends HTMLElement>() {
+  const ref = React.useRef<T>(null);
+  const [width, setWidth] = React.useState(0);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, width] as const;
+}
+
 /** The "Managers only" lock tag on manager-visible cards (a quiet neutral tag). */
 export function ManagersOnly({ className }: { className?: string }) {
   return (

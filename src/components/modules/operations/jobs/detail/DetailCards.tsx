@@ -13,11 +13,31 @@ import { Button } from "@/components/ui/button";
 import { ChoiceChips } from "../../ui/ChoiceChips";
 import { FieldRow, InlineInput } from "../../ui/FieldRow";
 import { BUILDER_FORMAT_JOB_NO, CLIENT_PHONE } from "../data";
+import { useJobReadOnly } from "./read-only";
 
 /** Cards Launchpad owns (editable) wear the dashboard's accent rim; HubSpot-owned ones stay neutral. */
 export const EDITABLE_CARD = "border-tone-line";
 
+/** What a locked, empty field says (in the input's muted placeholder style), in place of a prompt to enter something. */
+const NOT_SET = "Not set";
+
+/** The accent rim, unless the job is read only (a live job): then nothing on its cards can be edited. */
+export function useEditableCard(): string | undefined {
+  return useJobReadOnly() ? undefined : EDITABLE_CARD;
+}
+
+/** A live job is Monday's, whichever card it is on, and none of it can be edited here. The View dialog shares this pill. */
+export function MondayOwnsPill({ className }: { className?: string }) {
+  return (
+    <Pill tone="neutral" icon={Lock} className={className}>
+      Monday owns · read only
+    </Pill>
+  );
+}
+
 export function OwnerPill({ owner }: { owner: "hubspot" | "crm" }) {
+  const readOnly = useJobReadOnly();
+  if (readOnly) return <MondayOwnsPill className="ml-auto" />;
   return owner === "hubspot" ? (
     <Pill tone="neutral" icon={Lock} className="ml-auto">
       HubSpot owns · read only
@@ -52,6 +72,7 @@ function SaveButton({ show, onClick, children, className }: { show: boolean; onC
 
 /** Deal details — mirrored from HubSpot, read only. */
 export function DealDetailsCard({ job }: { job: Job }) {
+  const readOnly = useJobReadOnly();
   return (
     <Card>
       <CardHeader>
@@ -77,12 +98,19 @@ export function DealDetailsCard({ job }: { job: Job }) {
             <span className="text-xs text-subtle-foreground"> · locked after Sale Won</span>
           </span>
         </FieldRow>
-        <FieldRow label="Client phone">
-          <span className="text-right tabular-nums">{CLIENT_PHONE}</span>
-        </FieldRow>
-        <p className="mt-2.5 flex items-center gap-1 text-xs text-muted-foreground">
-          Mirrored from HubSpot. To change, edit in HubSpot <ExternalLink className="size-3" aria-hidden />
-        </p>
+        {/* The phone is a placeholder, and a live job has none: no row rather than a made-up number. */}
+        {readOnly ? null : (
+          <FieldRow label="Client phone">
+            <span className="text-right tabular-nums">{CLIENT_PHONE}</span>
+          </FieldRow>
+        )}
+        {readOnly ? (
+          <p className="mt-2.5 text-xs text-muted-foreground">Read from Monday. Editing waits for the Dash Sync go-live.</p>
+        ) : (
+          <p className="mt-2.5 flex items-center gap-1 text-xs text-muted-foreground">
+            Mirrored from HubSpot. To change, edit in HubSpot <ExternalLink className="size-3" aria-hidden />
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -112,19 +140,21 @@ export function JobDetailsCard({
   onMoveToConstruction: () => void;
 }) {
   const id = React.useId();
+  const rim = useEditableCard();
+  const readOnly = useJobReadOnly();
   const text: { label: string; key: "jobNo" | "saleWon" | "address"; placeholder?: string; mono?: boolean }[] = [
     {
       label: "Job number",
       key: "jobNo",
-      placeholder: job.jobNo ? "" : "Enter at builder acceptance",
+      placeholder: readOnly ? NOT_SET : job.jobNo ? "" : "Enter at builder acceptance",
       mono: true,
     },
-    { label: "Sale won date", key: "saleWon" },
-    { label: "Site address", key: "address" },
+    { label: "Sale won date", key: "saleWon", placeholder: readOnly ? NOT_SET : undefined },
+    { label: "Site address", key: "address", placeholder: readOnly ? NOT_SET : undefined },
   ];
 
   return (
-    <Card className={EDITABLE_CARD}>
+    <Card className={rim}>
       <CardHeader>
         <CardTitle>Job details</CardTitle>
         <OwnerPill owner="crm" />
@@ -165,27 +195,32 @@ export function JobDetailsCard({
           <InlineInput
             id={`${id}-blockDue`}
             value={job.blockDue}
-            placeholder="Add due date"
+            placeholder={readOnly ? NOT_SET : "Add due date"}
             onChange={(e) => onEdit({ blockDue: e.target.value })}
           />
         </FieldRow>
 
-        {!job.jobNo ? (
-          <p className="mt-2.5 text-xs font-medium text-tone-ink">
-            Saving the job number renames the deal, fills Monday, and ticks Builder Acceptance
-          </p>
-        ) : null}
-        <p className="mt-1.5 text-xs text-subtle-foreground">
-          Job number format:{" "}
-          {BUILDER_FORMAT_JOB_NO.includes(job.builder) ? "builder format, e.g. 2401022R" : "5 digits, e.g. 25431"} · Buyer
-          type syncs to HubSpot and Monday
-        </p>
+        {/* These lines are about saving and syncing an edit, and a live job can't be edited here. */}
+        {readOnly ? null : (
+          <>
+            {!job.jobNo ? (
+              <p className="mt-2.5 text-xs font-medium text-tone-ink">
+                Saving the job number renames the deal, fills Monday, and ticks Builder Acceptance
+              </p>
+            ) : null}
+            <p className="mt-1.5 text-xs text-subtle-foreground">
+              Job number format:{" "}
+              {BUILDER_FORMAT_JOB_NO.includes(job.builder) ? "builder format, e.g. 2401022R" : "5 digits, e.g. 25431"} · Buyer
+              type syncs to HubSpot and Monday
+            </p>
+          </>
+        )}
 
         <SaveButton show={dirty} onClick={onSave} className="mt-3">
           Save and sync changes
         </SaveButton>
 
-        {job.board === "sales" ? (
+        {job.board === "sales" && !readOnly ? (
           <div className="mt-3.5 border-t border-hairline pt-3.5">
             <Button onClick={onMoveToConstruction}>
               <HardHat /> Move to construction
@@ -226,34 +261,47 @@ export function LandHouseCard({
   const { lotDetails, updateLot } = useLaunchpad();
   const lot = lotDetails[jobId];
   const id = React.useId();
+  const rim = useEditableCard();
+  const readOnly = useJobReadOnly();
 
   return (
-    <Card className={EDITABLE_CARD}>
+    <Card className={rim}>
       <CardHeader>
         <CardTitle>Land and house</CardTitle>
         <OwnerPill owner="crm" />
       </CardHeader>
       <CardContent>
-        {LOT_FIELDS.map((f) => (
-          <FieldRow key={f.key} label={f.label} htmlFor={`${id}-${f.key}`}>
-            <InlineInput
-              id={`${id}-${f.key}`}
-              value={lot?.[f.key] ?? ""}
-              onChange={(e) => {
-                updateLot(jobId, { [f.key]: e.target.value });
-                onDirty();
-              }}
-            />
-          </FieldRow>
-        ))}
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
-          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            Syncs to the matching HubSpot deal properties and Monday columns.
-          </p>
-          <SaveButton show={dirty} onClick={onSave} className="ml-auto">
-            Save and sync
-          </SaveButton>
-        </div>
+        {readOnly && !lot ? (
+          // A live job has no site record in the mirror yet: say so, instead of seven blank inputs.
+          <p className="py-1.5 text-[13px] text-muted-foreground">Land and house details aren&apos;t in the Monday mirror yet.</p>
+        ) : (
+          <>
+            {LOT_FIELDS.map((f) => (
+              <FieldRow key={f.key} label={f.label} htmlFor={`${id}-${f.key}`}>
+                <InlineInput
+                  id={`${id}-${f.key}`}
+                  value={lot?.[f.key] ?? ""}
+                  placeholder={readOnly ? NOT_SET : undefined}
+                  onChange={(e) => {
+                    updateLot(jobId, { [f.key]: e.target.value });
+                    onDirty();
+                  }}
+                />
+              </FieldRow>
+            ))}
+            {/* The sync line and the save button are about an edit, and a live job can't be edited here. */}
+            {readOnly ? null : (
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                  Syncs to the matching HubSpot deal properties and Monday columns.
+                </p>
+                <SaveButton show={dirty} onClick={onSave} className="ml-auto">
+                  Save and sync
+                </SaveButton>
+              </div>
+            )}
+          </>
+        )}
       </CardContent>
     </Card>
   );

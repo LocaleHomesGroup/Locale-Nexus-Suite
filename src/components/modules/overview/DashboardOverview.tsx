@@ -20,6 +20,10 @@ import { Reveal } from "@/components/ui/reveal";
  * Figures are computed from the same data or store the section reads, so a
  * card and the page it opens agree. A figure nothing records yet is `sample`,
  * and its supporting line says so.
+ *
+ * A dashboard whose Overview is about something in particular (Sales: who's
+ * closing) puts those panels in `panels`, between the headline and the
+ * smaller cards, and a filter over them in `actions`.
  */
 export interface OverviewKpi {
   label: string;
@@ -35,6 +39,8 @@ export interface OverviewKpi {
   query?: Record<string, string>;
   /** Nothing records this figure yet: the value is a placeholder. */
   sample?: boolean;
+  /** A small visual at the card's right edge: a progress ring beside a target. */
+  aside?: React.ReactNode;
 }
 
 const MORE_COLS = { 2: 2, 3: 3, 4: 4, 5: 5 } as const;
@@ -42,15 +48,21 @@ const MORE_COLS = { 2: 2, 3: 3, 4: 4, 5: 5 } as const;
 export function DashboardOverview({
   title,
   description,
+  actions,
   headline,
+  panels,
   more,
   moreLabel,
   children,
 }: {
   title: string;
   description: React.ReactNode;
+  /** Beside the heading: a filter over the headline and `panels` (Sales' period). */
+  actions?: React.ReactNode;
   /** The four figures the dashboard is about. */
   headline: OverviewKpi[];
+  /** What the Overview is about, straight under the headline. Each panel brings its own Reveal. */
+  panels?: React.ReactNode;
   /** Two to five more, from the rest of its sections. */
   more: OverviewKpi[];
   /** Section label over `more`: "More from each section". */
@@ -59,7 +71,7 @@ export function DashboardOverview({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={title} description={description} />
+      <PageHeader title={title} description={description} actions={actions} />
 
       <Reveal index={0}>
         <KpiGrid cols={4}>
@@ -69,7 +81,9 @@ export function DashboardOverview({
         </KpiGrid>
       </Reveal>
 
-      <Reveal index={1} className="flex flex-col gap-3">
+      {panels}
+
+      <Reveal index={panels ? 3 : 1} className="flex flex-col gap-3">
         <SectionLabel icon={LayoutGrid}>{moreLabel}</SectionLabel>
         <KpiGrid cols={MORE_COLS[more.length as keyof typeof MORE_COLS] ?? 4}>
           {more.map((k) => (
@@ -93,6 +107,7 @@ function OverviewCard({ kpi, size = "md" }: { kpi: OverviewKpi; size?: "md" | "s
       tone={kpi.tone}
       alert={kpi.alert}
       pulse={kpi.alert}
+      aside={kpi.aside}
       size={size}
       // Labels are whole phrases ("Discounts to approve"): on a phone they wrap rather than lose their end.
       wrapLabel

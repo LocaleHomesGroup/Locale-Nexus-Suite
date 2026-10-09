@@ -22,3 +22,11 @@ export function groupByRep(jobs: readonly Job[], order: readonly string[]): RepG
     .map((rep) => ({ rep, jobs: jobs.filter((j) => repOf(j) === rep) }))
     .filter((g) => g.jobs.length > 0);
 }
+
+/**
+ * One rep's clients, for My clients. With nobody named (live data with no reps, so no viewer) it is
+ * empty: a live job with no rep has `rep: ""`, and an empty name must not match it.
+ */
+export function clientsOf(jobs: readonly Job[], who: string): Job[] {
+  return who ? jobs.filter((j) => j.rep === who) : [];
+}

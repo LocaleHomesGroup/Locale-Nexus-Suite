@@ -10,15 +10,7 @@ import { CountUp } from "@/components/ui/count-up";
 import { Pill } from "@/components/ui/pill";
 import { COMMISSION_PER_SALE } from "../sales/progress/data";
 import { commissionRecord, monthLabel, monthlyCommission, type MonthTotal } from "../sales/progress/commission";
-
-/**
- * Haven a step deeper for marks. The dataviz validator passes it on the white
- * card and the black one (lightness band, chroma floor, 3:1); the tone's own
- * haven-500 reads 2.5:1 on white.
- */
-export const BAR = "bg-[#14a394]";
-/** The month under way: the same bar, hatched, because it isn't finished. */
-export const IN_PROGRESS = "repeating-linear-gradient(135deg, rgb(255 255 255 / 0.34) 0 3px, transparent 3px 7px)";
+import { BAR, IN_PROGRESS, useMeasuredWidth } from "../sales/parts";
 
 const PLOT_H = 176;
 /** Room above the plot for the best month's label. */
@@ -39,19 +31,6 @@ function niceScale(max: number): { top: number; ticks: number[] } {
   const step = steps.find((s) => Math.ceil(max / s) <= 4) ?? Math.ceil(max / 400_000) * 100_000;
   const top = Math.max(step, Math.ceil(max / step) * step);
   return { top, ticks: Array.from({ length: top / step + 1 }, (_, i) => i * step) };
-}
-
-function useMeasuredWidth<T extends HTMLElement>() {
-  const ref = React.useRef<T>(null);
-  const [width, setWidth] = React.useState(0);
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, width] as const;
 }
 
 /**
