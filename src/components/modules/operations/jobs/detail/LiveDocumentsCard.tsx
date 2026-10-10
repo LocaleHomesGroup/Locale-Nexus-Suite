@@ -37,9 +37,13 @@ export function LiveDocumentsCard({ job }: { job: Job }) {
       </CardHeader>
       <CardContent>
         {files === null ? (
-          <p className="text-xs text-muted-foreground">Loading files…</p>
+          <p role="status" className="text-xs text-muted-foreground">
+            Loading files…
+          </p>
         ) : files === "failed" ? (
-          <p className="text-xs text-amber-700 dark:text-amber-300">Couldn&apos;t load the files right now. Try again in a moment.</p>
+          <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
+            Couldn&apos;t load the files right now. Try again in a moment.
+          </p>
         ) : (
           <FileList files={files} empty="No files on this job in Monday." />
         )}

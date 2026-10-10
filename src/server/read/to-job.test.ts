@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { displayDate, milestoneStatus, toJob, type JobRow, type MilestoneRow } from "./to-job";
+import { summariseMilestones } from "@/data/jobs";
+import { displayDate, milestoneStatus, toJob, toListJob, toMilestones, type JobRow, type MilestoneRow } from "./to-job";
 
 const row = (over: Partial<JobRow> = {}): JobRow => ({
   item_id: 1001,
@@ -102,4 +103,54 @@ test("to-job: a suburb or state is already in the address only as a whole word i
 test("to-job: the source stamp is Perth's date", () => {
   // 4:30am on 8 Oct in Perth, still 7 Oct in UTC.
   assert.equal(toJob(row({ updated_at: "2026-10-07T20:30:00Z" }), []).lastSource, "Monday, 08 Oct 2026");
+});
+
+// A job's rows for the list tests: preconstruction and construction, every status the mapping knows.
+const mixedRows = (): MilestoneRow[] => [
+  ms("Slab Down", "Done", "2026-10-01"),
+  ms("Date to Site", "Done", "2026-09-01"),
+  ms("Plate Height", "Working on it"),
+  ms("Roof Cover", "Not Started"),
+  ms("Maintenance", "N/A"),
+  ms("Builder Acceptance", "Done"), // done, no date on file: awaiting one
+  ms("Contracts Signed", "Done", "2026-04-02"),
+  ms("Some Monday-only step", "Not Started"),
+];
+
+test("to-job: toMilestones splits and orders a job's rows as the job has always had them", () => {
+  const rows = mixedRows();
+  const { precon, milestones } = toMilestones(rows);
+  assert.deepEqual(precon.map((m) => m.name), ["Builder Acceptance", "Contracts Signed", "Some Monday-only step"]);
+  assert.deepEqual(milestones.map((m) => m.name), ["Date to Site", "Slab Down", "Plate Height", "Roof Cover", "Maintenance"]);
+  const full = toJob(row(), rows);
+  assert.deepEqual({ precon, milestones }, { precon: full.precon, milestones: full.milestones });
+  assert.deepEqual(toMilestones([]), { precon: [], milestones: [] });
+});
+
+test("to-job: a list job carries a summary in place of its milestones and is otherwise the job", () => {
+  const rows = mixedRows();
+  const list = toListJob(row(), rows);
+  const full = toJob(row(), rows);
+  assert.deepEqual(list.precon, [], "a list job has no preconstruction milestones");
+  assert.deepEqual(list.milestones, [], "and no construction ones");
+  // Done: Date to Site and Slab Down. Total: the five construction rows, not applicable included.
+  assert.deepEqual(list.progress, { done: 2, total: 5, needsDate: true });
+  const { progress, ...listFields } = list;
+  assert.deepEqual({ ...listFields, precon: full.precon, milestones: full.milestones }, full, "every other field is the job's own");
+  // The summary and the milestones come from one mapping, so they can't disagree.
+  assert.deepEqual(progress, summariseMilestones(full.precon, full.milestones));
+});
+
+test("to-job: a list job's summary needs no date when every done milestone has one, and counts only its own rows", () => {
+  const rows = [ms("Date to Site", "Done", "2026-09-01"), ms("Slab Down", "Working on it"), ms("Contracts Signed", "Done", "2026-04-02")];
+  assert.deepEqual(toListJob(row(), rows).progress, { done: 1, total: 2, needsDate: false });
+  // A row filed under another job is not this job's.
+  const stranger: MilestoneRow = { ...ms("Date to Site", "Done"), job_item_id: 2002 };
+  assert.deepEqual(toListJob(row(), [stranger]).progress, { done: 0, total: 0, needsDate: false });
+  assert.deepEqual(toListJob(row(), []).progress, { done: 0, total: 0, needsDate: false }, "a job with no milestones");
+});
+
+test("to-job: a done construction milestone with no date is done and still needs one", () => {
+  // The label says done and no date is on file: awaiting a date (not done) in the detail, so the summary agrees.
+  assert.deepEqual(toListJob(row(), [ms("Slab Down", "Done")]).progress, { done: 0, total: 1, needsDate: true });
 });

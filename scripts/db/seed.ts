@@ -24,7 +24,7 @@ async function main() {
 
 main().catch(async (e) => {
   console.error(e instanceof Error ? e.message : e);
-  // A PostgresError says which value was refused in `detail` (a bad manager's seat id is there), and sometimes how to fix it in `hint`.
+  // A database error (pg's DatabaseError) says which value was refused in `detail` (a bad manager's seat id is there), and sometimes how to fix it in `hint`.
   const { detail, hint } = (typeof e === "object" && e !== null ? e : {}) as { detail?: string; hint?: string };
   if (detail) console.error(`detail: ${detail}`);
   if (hint) console.error(`hint: ${hint}`);

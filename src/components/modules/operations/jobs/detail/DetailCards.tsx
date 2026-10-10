@@ -94,8 +94,15 @@ export function DealDetailsCard({ job }: { job: Job }) {
         </FieldRow>
         <FieldRow label="Sales rep">
           <span className="text-right">
-            {job.rep}
-            <span className="text-xs text-subtle-foreground"> · locked after Sale Won</span>
+            {readOnly && !job.rep ? (
+              // A live job can have no rep in Monday: say so, rather than print "· locked after Sale Won" on its own.
+              <span className="text-subtle-foreground">Not set</span>
+            ) : (
+              <>
+                {job.rep}
+                <span className="text-xs text-subtle-foreground"> · locked after Sale Won</span>
+              </>
+            )}
           </span>
         </FieldRow>
         {/* The phone is a placeholder, and a live job has none: no row rather than a made-up number. */}
@@ -105,7 +112,7 @@ export function DealDetailsCard({ job }: { job: Job }) {
           </FieldRow>
         )}
         {readOnly ? (
-          <p className="mt-2.5 text-xs text-muted-foreground">Read from Monday. Editing waits for the Dash Sync go-live.</p>
+          <p className="mt-2.5 text-xs text-muted-foreground">Read from Monday.</p>
         ) : (
           <p className="mt-2.5 flex items-center gap-1 text-xs text-muted-foreground">
             Mirrored from HubSpot. To change, edit in HubSpot <ExternalLink className="size-3" aria-hidden />
@@ -191,14 +198,17 @@ export function JobDetailsCard({
             className="justify-end"
           />
         </FieldRow>
-        <FieldRow label="Block titled due" htmlFor={`${id}-blockDue`}>
-          <InlineInput
-            id={`${id}-blockDue`}
-            value={job.blockDue}
-            placeholder={readOnly ? NOT_SET : "Add due date"}
-            onChange={(e) => onEdit({ blockDue: e.target.value })}
-          />
-        </FieldRow>
+        {/* A titled block has no due date (a live job's loader leaves it empty): no row, rather than "Not set". */}
+        {readOnly && job.blockTitled === "Titled" ? null : (
+          <FieldRow label="Block titled due" htmlFor={`${id}-blockDue`}>
+            <InlineInput
+              id={`${id}-blockDue`}
+              value={job.blockDue}
+              placeholder={readOnly ? NOT_SET : "Add due date"}
+              onChange={(e) => onEdit({ blockDue: e.target.value })}
+            />
+          </FieldRow>
+        )}
 
         {/* These lines are about saving and syncing an edit, and a live job can't be edited here. */}
         {readOnly ? null : (
@@ -272,8 +282,8 @@ export function LandHouseCard({
       </CardHeader>
       <CardContent>
         {readOnly && !lot ? (
-          // A live job has no site record in the mirror yet: say so, instead of seven blank inputs.
-          <p className="py-1.5 text-[13px] text-muted-foreground">Land and house details aren&apos;t in the Monday mirror yet.</p>
+          // A live job has no site record read from Monday yet: say so, instead of seven blank inputs.
+          <p className="py-1.5 text-[13px] text-muted-foreground">Land and house details aren&apos;t read from Monday yet.</p>
         ) : (
           <>
             {LOT_FIELDS.map((f) => (

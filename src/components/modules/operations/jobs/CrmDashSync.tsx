@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowRight, CalendarCheck2, CalendarX2, Hash, House, SearchX, ShieldCheck } from "lucide-react";
 import { useJobs } from "@/state/live-data";
+import { paginate } from "@/lib/paginate";
 import { LiveNote } from "@/components/ui/live-note";
 import { PageHeader } from "@/components/ui/page";
 import { KpiCard, KpiGrid } from "@/components/ui/kpi-card";
@@ -16,6 +17,8 @@ import { useNavReselect } from "@/components/shell/nav-state";
 import { JobsTable } from "./JobsTable";
 import { JobViewDialog } from "./JobViewDialog";
 import { FilterBar } from "./FilterBar";
+import { JobsPager } from "./JobsPager";
+import { JOBS_PAGE_SIZE, narrowingKey, rangeLine } from "./paging";
 import {
   DIMENSIONS,
   DIMENSION_LABEL,
@@ -44,6 +47,12 @@ const NO_FILTERS = Object.fromEntries(DIMENSIONS.map((d) => [d, ""])) as JobFilt
  * tile counts the jobs matching the search and the filters, and the table shows
  * the tile's share of them. Nothing here ever widens the list behind the
  * person's back.
+ *
+ * The table pages in 50s, cut last: from what the search, the filters and the
+ * tile left, and any change to them goes back to page one. The tiles still
+ * count all of it. The page is state here, as it is on every paged list in the
+ * app; a `?page=` in the URL would make the rail read the list as another view
+ * (it compares every param that is not a default) and skip its reselect.
  */
 export function CrmDashSync() {
   const { jobs, live } = useJobs();
@@ -51,16 +60,30 @@ export function CrmDashSync() {
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = React.useState("");
+  // The page showing, 0-based; paginate() clamps it when the list shrinks under it.
+  const [page, setPage] = React.useState(0);
   // The job open in the View dialog. Read live from the store, so a sync that
   // lands while it is open shows in it.
   const [viewingId, setViewingId] = React.useState<number | null>(null);
   const viewing = viewingId === null ? undefined : jobs.find((j) => j.id === viewingId);
-  // Re-clicking CRM dash sync in the rail clears the search too.
-  useNavReselect("operations:jobs", () => setQuery(""));
+  // Re-clicking CRM dash sync in the rail clears the search too, and goes back to page one.
+  useNavReselect("operations:jobs", () => {
+    setQuery("");
+    setPage(0);
+  });
+
+  // The Division filter reads a state off the end of an address ("WA 6000"), and live addresses carry no postcode,
+  // so while live it has nothing to offer: leave it out. Rework it after the huddle.
+  const dims = React.useMemo<readonly Dimension[]>(
+    () => (live ? DIMENSIONS.filter((d) => d !== "region") : DIMENSIONS),
+    [live],
+  );
 
   const raw = params.get("filter") ?? "all";
-  const filter: TileFilter = (TILE_FILTERS as readonly string[]).includes(raw) ? (raw as TileFilter) : "all";
-  const selected = Object.fromEntries(DIMENSIONS.map((d) => [d, params.get(d) ?? ""])) as JobFilters;
+  // While live there is no "Sync needs attention" tile, so a link to that filter shows everything.
+  const filter: TileFilter =
+    (TILE_FILTERS as readonly string[]).includes(raw) && !(live && raw === "sync") ? (raw as TileFilter) : "all";
+  const selected = Object.fromEntries(dims.map((d) => [d, params.get(d) ?? ""])) as JobFilters;
 
   const setParams = (patch: Record<string, string>) => {
     const sp = new URLSearchParams(params.toString());
@@ -76,21 +99,21 @@ export function CrmDashSync() {
   const clearFilters = () => setParams(NO_FILTERS);
 
   const options = React.useMemo(
-    () => Object.fromEntries(DIMENSIONS.map((d) => [d, filterOptions(jobs, d)])) as Record<Dimension, FilterOption[]>,
-    [jobs],
+    () => Object.fromEntries(dims.map((d) => [d, filterOptions(jobs, d)])) as Record<Dimension, FilterOption[]>,
+    [jobs, dims],
   );
 
   // A value no job carries (an old or mistyped link) shows nothing rather than
   // everything, and says which control it was.
-  const unrecognised = DIMENSIONS.filter((d) => selected[d] && !options[d].some((o) => o.value === selected[d]));
+  const unrecognised = dims.filter((d) => selected[d] && !options[d].some((o) => o.value === selected[d]));
   const named = unrecognised.map((d) => DIMENSION_LABEL[d].toLowerCase()).join(" and ");
-  const hasFilters = DIMENSIONS.some((d) => selected[d]);
+  const hasFilters = dims.some((d) => selected[d]);
 
   const q = query.trim().toLowerCase();
   const matching =
     unrecognised.length > 0
       ? []
-      : jobs.filter((j) => DIMENSIONS.every((d) => !selected[d] || facet(j, d) === selected[d]) && matchesSearch(j, q));
+      : jobs.filter((j) => dims.every((d) => !selected[d] || facet(j, d) === selected[d]) && matchesSearch(j, q));
   const counts = {
     total: matching.length,
     awaiting: matching.filter(isAwaiting).length,
@@ -98,6 +121,18 @@ export function CrmDashSync() {
     sync: matching.filter(needsSync).length,
   };
   const shown = matching.filter(TILE_MATCH[filter]);
+
+  // Paging is last. A change to the search, a filter or the tile, from a click or from a link, goes back to page
+  // one: the key is compared during render, so the new list and page one land in the same render.
+  const narrowing = narrowingKey({ tile: filter, filters: dims.map((d) => selected[d]), query: q });
+  const [narrowedBy, setNarrowedBy] = React.useState(narrowing);
+  if (narrowedBy !== narrowing) {
+    setNarrowedBy(narrowing);
+    setPage(0);
+  }
+  const slice = paginate(shown, page, JOBS_PAGE_SIZE);
+  // One page shows no pager, and the line under the table is the one it has always been.
+  const paged = slice.pages > 1;
 
   const narrowed = Boolean(q) || hasFilters;
   const emptyText =
@@ -141,6 +176,7 @@ export function CrmDashSync() {
           options={options}
           onChange={(d, v) => setParams({ [d]: v })}
           onClear={clearFilters}
+          dimensions={dims}
         />
       </Reveal>
 
@@ -163,7 +199,7 @@ export function CrmDashSync() {
       ) : null}
 
       <Reveal index={1}>
-        <KpiGrid cols={4}>
+        <KpiGrid cols={live ? 3 : 4}>
           <KpiCard
             label="Jobs"
             value={counts.total}
@@ -191,25 +227,45 @@ export function CrmDashSync() {
             onClick={() => toggle("attention")}
             active={filter === "attention"}
           />
-          <KpiCard
-            label="Sync needs attention"
-            wrapLabel
-            value={counts.sync}
-            icon={counts.sync > 0 ? AlertTriangle : ShieldCheck}
-            tone="ok"
-            alert={counts.sync > 0}
-            pulse={counts.sync > 0 && filter !== "sync"}
-            onClick={() => toggle("sync")}
-            active={filter === "sync"}
-          />
+          {/* Nothing compares Monday with HubSpot yet, so while live every job reads as in step: no tile rather than a false 0. */}
+          {live ? null : (
+            <KpiCard
+              label="Sync needs attention"
+              wrapLabel
+              value={counts.sync}
+              icon={counts.sync > 0 ? AlertTriangle : ShieldCheck}
+              tone="ok"
+              alert={counts.sync > 0}
+              pulse={counts.sync > 0 && filter !== "sync"}
+              onClick={() => toggle("sync")}
+              active={filter === "sync"}
+            />
+          )}
         </KpiGrid>
       </Reveal>
 
       <Reveal index={2} className="flex flex-col gap-2.5">
         <JobsTable
-          rows={shown}
+          rows={slice.rows}
           onView={(job) => setViewingId(job.id)}
-          replayKey={`${filter}|${DIMENSIONS.map((d) => selected[d]).join("|")}`}
+          replayKey={`${filter}|${dims.map((d) => selected[d]).join("|")}|${slice.page}`}
+          live={live}
+          footer={
+            paged ? (
+              <JobsPager
+                page={slice.page}
+                pages={slice.pages}
+                text={rangeLine({
+                  from: slice.from,
+                  to: slice.to,
+                  total: slice.total,
+                  hasFilters,
+                  tile: filter === "all" ? null : FILTER_LABEL[filter],
+                })}
+                onPage={setPage}
+              />
+            ) : undefined
+          }
           empty={
             <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
               <div className="mb-3 flex size-12 items-center justify-center rounded-2xl border border-border bg-muted text-muted-foreground">
@@ -237,12 +293,14 @@ export function CrmDashSync() {
             </div>
           }
         />
-        {/* The tiles count everything; this line is about the table under them. */}
-        <p className="text-xs text-subtle-foreground tabular-nums">
-          Showing {shown.length} of {counts.total} job{counts.total === 1 ? "" : "s"}
-          {hasFilters ? " matching these filters" : ""}
-          {filter === "all" ? "" : ` · ${FILTER_LABEL[filter]}`}.
-        </p>
+        {/* The tiles count everything; this line is about the table under them. On more than one page the pager's footer says it. */}
+        {paged ? null : (
+          <p className="text-xs text-subtle-foreground tabular-nums">
+            Showing {shown.length} of {counts.total} job{counts.total === 1 ? "" : "s"}
+            {hasFilters ? " matching these filters" : ""}
+            {filter === "all" ? "" : ` · ${FILTER_LABEL[filter]}`}.
+          </p>
+        )}
       </Reveal>
 
       <p className="text-xs text-subtle-foreground">

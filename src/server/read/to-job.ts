@@ -1,4 +1,4 @@
-import { CONSTRUCTION_MILESTONES, type Job, type Milestone, type MilestoneStatus } from "@/data/jobs";
+import { CONSTRUCTION_MILESTONES, summariseMilestones, type Job, type Milestone, type MilestoneStatus } from "@/data/jobs";
 import { MONTHS, perthDay } from "@/lib/perth-time";
 
 /** A row of launchpad.monday_jobs, with the rep's name resolved through staff_aliases. */
@@ -121,10 +121,21 @@ function stamp(updated: Date | string): string {
   return Number.isNaN(t) ? "Monday" : `Monday, ${displayDate(perthDay(t))}`;
 }
 
+/**
+ * A job's milestone rows as its screens carry them: preconstruction and construction apart, each in its own
+ * order. The one mapping behind a job's own milestones and the summary a list carries, so they can't drift.
+ */
+export function toMilestones(rows: MilestoneRow[]): { precon: Milestone[]; milestones: Milestone[] } {
+  const construction = rows.filter((m) => CONSTRUCTION.has(m.name.trim().toLowerCase()));
+  const precon = rows.filter((m) => !CONSTRUCTION.has(m.name.trim().toLowerCase()));
+  return {
+    precon: ordered(precon, PRECON_ORDER).map(toMilestone),
+    milestones: ordered(construction, CONSTRUCTION_MILESTONES).map(toMilestone),
+  };
+}
+
 export function toJob(row: JobRow, milestones: MilestoneRow[]): Job {
   const own = milestones.filter((m) => m.job_item_id === row.item_id);
-  const construction = own.filter((m) => CONSTRUCTION.has(m.name.trim().toLowerCase()));
-  const precon = own.filter((m) => !CONSTRUCTION.has(m.name.trim().toLowerCase()));
   const titled = titledLabel(row.block_titled);
   return {
     id: row.item_id,
@@ -142,7 +153,16 @@ export function toJob(row: JobRow, milestones: MilestoneRow[]): Job {
     blockDue: titled === "Titled" ? "" : displayDate(row.title_due_date),
     sync: "ok",
     lastSource: stamp(row.updated_at),
-    precon: ordered(precon, PRECON_ORDER).map(toMilestone),
-    milestones: ordered(construction, CONSTRUCTION_MILESTONES).map(toMilestone),
+    ...toMilestones(own),
   };
+}
+
+/**
+ * The job as a list carries it: its milestones summarised into `progress` (through toMilestones, so the status
+ * mapping is the detail's) and left out. A live page ships its whole list in its HTML, so a job's own screen
+ * fetches the milestones it shows instead (loadJobMilestones).
+ */
+export function toListJob(row: JobRow, milestones: MilestoneRow[]): Job {
+  const own = toMilestones(milestones.filter((m) => m.job_item_id === row.item_id));
+  return { ...toJob(row, []), progress: summariseMilestones(own.precon, own.milestones) };
 }

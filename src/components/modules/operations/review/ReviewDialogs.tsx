@@ -19,6 +19,9 @@ import { ChangeList, LINK, kindLabel } from "./parts";
 
 type Outcome = "released" | "dismissed" | "skipped";
 
+/** What a disabled Release or Dismiss says while the writes are held (see OperationsSync.readOnly). */
+const READ_ONLY_TITLE = "Read only while the Dash Sync go-live is on hold";
+
 /** The item's facts above the comparison: who filed it, when, from where, and its job. */
 function FiledLine({ item, job }: { item: ReviewItem; job: Job | undefined }) {
   return (
@@ -61,7 +64,8 @@ function StaleAlert({ job, item }: { job: Job | undefined; item: ReviewItem }) {
  */
 export function ReviewProcessor({ ids, onClose }: { ids: string[] | null; onClose: () => void }) {
   const { reviewItems, jobs } = useLaunchpad();
-  const { releaseReview, dismissReview } = useOperationsSync();
+  // While the writes are held, Release and Dismiss are off: the held write only toasts, and the screen would still tally "N released".
+  const { releaseReview, dismissReview, readOnly } = useOperationsSync();
   const reduce = useReducedMotion();
   const open = Boolean(ids?.length);
 
@@ -107,13 +111,13 @@ export function ReviewProcessor({ ids, onClose }: { ids: string[] | null; onClos
   };
 
   const release = () => {
-    if (!item || stale) return;
+    if (!item || stale || readOnly) return;
     releaseReview(item.id, notes[item.id] ?? "");
     advance(item.id, "released");
   };
 
   const confirmDismiss = () => {
-    if (!item) return;
+    if (!item || readOnly) return;
     if (!reason.trim()) {
       setMissing(true);
       return;
@@ -129,13 +133,24 @@ export function ReviewProcessor({ ids, onClose }: { ids: string[] | null; onClos
       <Button variant="outline" className="mr-auto" onClick={() => setDismissing(false)}>
         Back
       </Button>
-      <Button variant="destructive" onClick={confirmDismiss}>
+      <Button
+        variant="destructive"
+        onClick={confirmDismiss}
+        disabled={readOnly}
+        title={readOnly ? READ_ONLY_TITLE : undefined}
+      >
         <Ban /> Confirm dismiss
       </Button>
     </>
   ) : (
     <>
-      <Button variant="outline" className="mr-auto" onClick={() => setDismissing(true)}>
+      <Button
+        variant="outline"
+        className="mr-auto"
+        onClick={() => setDismissing(true)}
+        disabled={readOnly}
+        title={readOnly ? READ_ONLY_TITLE : undefined}
+      >
         <Ban /> Dismiss
       </Button>
       <Button variant="outline" onClick={() => item && advance(item.id, "skipped")}>
@@ -144,8 +159,10 @@ export function ReviewProcessor({ ids, onClose }: { ids: string[] | null; onClos
       <Button
         variant="brand"
         onClick={release}
-        disabled={stale}
-        title={stale ? "Refused: the milestone has moved since this was filed" : undefined}
+        disabled={stale || readOnly}
+        title={
+          readOnly ? READ_ONLY_TITLE : stale ? "Refused: the milestone has moved since this was filed" : undefined
+        }
       >
         <Check /> Release and sync
         {idx + 1 < total ? <ArrowRight /> : null}
@@ -159,7 +176,11 @@ export function ReviewProcessor({ ids, onClose }: { ids: string[] | null; onClos
       onClose={onClose}
       icon={ListChecks}
       title={done ? "Queue processed" : `Change ${Math.min(idx + 1, total)} of ${total}`}
-      description="Releasing applies the change here and sends it to Monday and HubSpot. Dismissing changes nothing anywhere."
+      description={
+        readOnly
+          ? "Read only while the Dash Sync go-live is on hold, so nothing can be released or dismissed. Skip steps through the queue."
+          : "Releasing applies the change here and sends it to Monday and HubSpot. Dismissing changes nothing anywhere."
+      }
       footer={footer}
     >
       <div className="flex flex-col gap-4">
@@ -284,7 +305,7 @@ export function ReviewProcessor({ ids, onClose }: { ids: string[] | null; onClos
  */
 export function DismissDialog({ item, onClose }: { item: ReviewItem | null; onClose: () => void }) {
   const { jobs } = useLaunchpad();
-  const { dismissReview } = useOperationsSync();
+  const { dismissReview, readOnly } = useOperationsSync();
   const [reason, setReason] = React.useState("");
   const [missing, setMissing] = React.useState(false);
   const reasonId = React.useId();
@@ -301,7 +322,7 @@ export function DismissDialog({ item, onClose }: { item: ReviewItem | null; onCl
   }, [item?.id]);
 
   const submit = () => {
-    if (!shown) return;
+    if (!shown || readOnly) return;
     if (!reason.trim()) {
       setMissing(true);
       return;
@@ -317,13 +338,22 @@ export function DismissDialog({ item, onClose }: { item: ReviewItem | null; onCl
       icon={Ban}
       iconTone="charcoal"
       title={shown ? `Dismiss ${shown.milestone} on ${job?.jobNo || job?.client || "this job"}` : "Dismiss"}
-      description="Nothing changes here, in Monday or in HubSpot. The reason goes in the audit log, and it is the only record of the decision."
+      description={
+        readOnly
+          ? "Read only while the Dash Sync go-live is on hold, so nothing can be dismissed here."
+          : "Nothing changes here, in Monday or in HubSpot. The reason goes in the audit log, and it is the only record of the decision."
+      }
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={submit}>
+          <Button
+            variant="destructive"
+            onClick={submit}
+            disabled={readOnly}
+            title={readOnly ? READ_ONLY_TITLE : undefined}
+          >
             <Ban /> Dismiss
           </Button>
         </>

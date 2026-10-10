@@ -36,6 +36,17 @@ export interface SyncConflict {
   mondayDate?: string;
 }
 
+/**
+ * What a list row needs from a job's milestones without carrying them all: how many of the construction
+ * milestones are done, how many there are, and whether any milestone (preconstruction or construction) is
+ * waiting for a date. Read it through `jobProgress`, never straight off the job.
+ */
+export interface JobProgress {
+  done: number;
+  total: number;
+  needsDate: boolean;
+}
+
 export interface Job {
   id: number;
   jobNo: string;
@@ -55,6 +66,31 @@ export interface Job {
   lastSource: string;
   precon: Milestone[];
   milestones: Milestone[];
+  /**
+   * Live list jobs carry this in place of their milestones (`precon` and `milestones` are then empty, and a
+   * job's own screen fetches them). Sample jobs never set it: they keep their milestones.
+   */
+  progress?: JobProgress;
+}
+
+/**
+ * The summary for a job's milestones: construction done and total (not applicable counts toward the total
+ * only), and whether any milestone, either list, is awaiting a date or is done with none on file.
+ */
+export function summariseMilestones(precon: readonly Milestone[], milestones: readonly Milestone[]): JobProgress {
+  return {
+    done: milestones.filter((m) => m.status === "done").length,
+    total: milestones.length,
+    needsDate: [...precon, ...milestones].some((m) => m.status === "pendingDate" || (m.status === "done" && !m.date)),
+  };
+}
+
+/**
+ * The one way a list reads a job's progress: the summary a live list job carries, else the same three values
+ * worked out from a sample job's own milestones.
+ */
+export function jobProgress(job: Pick<Job, "precon" | "milestones" | "progress">): JobProgress {
+  return job.progress ?? summariseMilestones(job.precon, job.milestones);
 }
 
 export interface LotDetail {

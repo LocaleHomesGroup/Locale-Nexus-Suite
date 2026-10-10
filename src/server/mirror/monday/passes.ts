@@ -1,5 +1,5 @@
 import type { Db } from "../../db/types";
-import { beginRun, endRun, getWatermark, markState, setWatermark, type Trigger } from "../runs";
+import { beginRun, endRun, getWatermark, LeaseLostError, markState, renewRun, setWatermark, type Trigger } from "../runs";
 import { parseActivityLogs, type BoardActivity } from "./activity";
 import { MondayCapReachedError, MondayDailyLimitError, MondayDeadlineError, type MondayClient } from "./client";
 import { discoverBoardsById } from "./discover";
@@ -19,11 +19,15 @@ import * as store from "./store";
 /**
  * The Monday passes (spec section 4.3):
  *   backfill  every item on every synced board, once
- *   changes   one activity-log request across all boards, then only the items it names
+ *   changes   one activity-log request across all boards, then only the items it names, through a refetch queue
  *   safety    items updated today or yesterday, compared by updated_at
  *   sweep     every board's ids, to catch deletes the log missed
  * Each runs under the 'monday' lease and writes one mirror.sync_runs row. After any pass that ran, finished or cut
  * short, the Exclusive Land lot sync runs on what is stored.
+ *
+ * No pass may stall on its own time limit. `changes` queues what the log names and moves the watermark once the log is
+ * read, so the next run carries on with the queue instead of reading the same window again. `sweep` takes the boards it
+ * touched longest ago first, so a board too big for one run goes to the back instead of holding up the others.
  */
 export type MondayMode = "backfill" | "changes" | "safety" | "sweep";
 
@@ -66,13 +70,55 @@ export interface PassResult {
 
 const LOCK_SECONDS: Record<MondayMode, number> = { backfill: 3300, changes: 600, safety: 1500, sweep: 3300 };
 
-/** What a pass cut short by its time limit says about the next run, which depends on where that run starts. */
-const STOPPED: Record<MondayMode, string> = {
-  backfill: "stopped at the run's time limit; run backfill again to finish (it starts from the first board)",
-  changes: "stopped at the run's time limit; the next run picks up from here",
-  safety: "stopped at the run's time limit; the next safety run starts again from the first board",
-  sweep: "stopped at the run's time limit; the next run picks up from here",
+/** How far a pass got: what its note says when it stops early, and the watermarks its run row records. */
+interface Progress {
+  /** changes: the watermark the pass read from. */
+  before: Date | null;
+  /** changes and backfill: the watermark the pass moved, once it has moved. */
+  after: Date | null;
+  /** changes: the log is read and its items are queued, and the queue is being refetched. */
+  draining: boolean;
+  /** sweep: the board being swept. */
+  board: store.SyncedBoard | null;
+}
+
+const TIME_LIMIT = "stopped at the run's time limit";
+
+/** What a backfill or a safety pass cut short by its time limit says: each starts again from the first board. */
+const STOPPED = {
+  backfill: `${TIME_LIMIT}; run backfill again to finish (it starts from the first board)`,
+  safety: `${TIME_LIMIT}; the next safety run starts again from the first board`,
 };
+
+/** The queue's size for a note. A count that can't be read leaves the number out rather than hide the stop. */
+async function waitingNote(db: Db): Promise<string> {
+  try {
+    return `${await store.refetchQueueSize(db)} item(s) wait in the refetch queue for the next run`;
+  } catch {
+    return "the items not yet refetched wait in the refetch queue for the next run";
+  }
+}
+
+/** What a pass cut short by its time limit says about the next run, which depends on where that run starts. */
+async function stoppedNote(db: Db, mode: MondayMode, progress: Progress): Promise<string> {
+  if (mode === "changes") {
+    if (progress.draining) return `${TIME_LIMIT}; ${await waitingNote(db)}`;
+    return (
+      `${TIME_LIMIT} before the watermark moved, so the next run reads the same window again; ` +
+      "if that keeps happening, run `npm run mirror -- changes` from the CLI, which has no time limit"
+    );
+  }
+  if (mode === "sweep") {
+    const board = progress.board;
+    if (!board) return `${TIME_LIMIT}; the next sweep starts with the boards touched longest ago`;
+    const hint = board.board_key ? `npm run mirror -- sweep --board ${board.board_key}` : "npm run mirror -- sweep";
+    return (
+      `${TIME_LIMIT} while sweeping ${board.board_key ?? board.id}; it goes to the back of the order; ` +
+      `if it never finishes, run \`${hint}\` from the CLI`
+    );
+  }
+  return STOPPED[mode];
+}
 
 interface ItemsPage {
   cursor: string | null;
@@ -90,6 +136,11 @@ interface Ctx {
   limits: PassLimits;
   log: (line: string) => void;
   tally: { seen: number; changed: number };
+  /**
+   * Renews the pass's lease, between chunks and boards, so a long run (a CLI pass, a backfill over an hour) keeps it.
+   * Throws LeaseLostError when another pass holds it now: this one then writes nothing more.
+   */
+  keepLease: () => Promise<void>;
 }
 
 /** After the first page, size pages to about 2M complexity points: Monday allows 5M a query and 10M a minute. */
@@ -128,24 +179,67 @@ async function storeUpdates(ctx: Ctx, raws: RawUpdate[]): Promise<void> {
   ctx.tally.changed += await store.upsertUpdates(ctx.db, updates, assets);
 }
 
-/** Fetches items by id, archived and deleted ones included. Ids Monday doesn't return are gone. */
+/**
+ * Fetches one call's worth of items by id, archived and deleted ones included. Ids Monday doesn't return are gone.
+ * `beforeWrite` runs between the call and the first write: the drain checks its lease there.
+ */
+async function refetchChunk(ctx: Ctx, chunk: number[], beforeWrite?: () => Promise<void>): Promise<void> {
+  const data = await ctx.monday.query<{ items: RawItem[] | null }>(Q.itemsByIds, { ids: chunk.map(String), limit: chunk.length });
+  await beforeWrite?.();
+  await storeItems(ctx, data.items ?? []);
+  // Gone means Monday didn't return the id. An item it did return but we couldn't place (a null board, say)
+  // stays as it was, never marked removed.
+  const returned = new Set((data.items ?? []).map((r) => toId(r?.id)).filter((id): id is number => id !== null));
+  ctx.tally.changed += await store.markRemoved(ctx.db, chunk.filter((id) => !returned.has(id)));
+}
+
+/** Fetches items by id, idsPerCall at a time. */
 async function refetch(ctx: Ctx, ids: number[]): Promise<void> {
   const unique = [...new Set(ids)];
   for (let i = 0; i < unique.length; i += ctx.limits.idsPerCall) {
-    const chunk = unique.slice(i, i + ctx.limits.idsPerCall);
-    const data = await ctx.monday.query<{ items: RawItem[] | null }>(Q.itemsByIds, { ids: chunk.map(String), limit: chunk.length });
-    await storeItems(ctx, data.items ?? []);
-    // Gone means Monday didn't return the id. An item it did return but we couldn't place (a null board, say)
-    // stays as it was, never marked removed.
-    const returned = new Set((data.items ?? []).map((r) => toId(r?.id)).filter((id): id is number => id !== null));
-    ctx.tally.changed += await store.markRemoved(ctx.db, chunk.filter((id) => !returned.has(id)));
+    await refetchChunk(ctx, unique.slice(i, i + ctx.limits.idsPerCall));
   }
+}
+
+/** The stops that say nothing about the chunk in hand: the time limit, the call cap, Monday's daily limit, a lost lease. */
+const isStop = (e: unknown) =>
+  e instanceof MondayDeadlineError || e instanceof MondayCapReachedError || e instanceof MondayDailyLimitError || e instanceof LeaseLostError;
+
+/**
+ * Refetches the refetch queue, idsPerCall at a time, the longest queued first, and takes a call's items out only once
+ * their copies are stored: a pass stopped part-way leaves the rest for the next one. Returns how many it refetched. It
+ * goes no further than what was queued when it began, so a chunk that somehow stayed queued can't make it loop.
+ */
+async function drainRefetchQueue(ctx: Ctx): Promise<number> {
+  const queued = await store.refetchQueueSize(ctx.db);
+  let done = 0;
+  while (done < queued) {
+    // Between chunks: renew the lease, or stop if another pass took it over.
+    await ctx.keepLease();
+    const chunk = await store.nextRefetchChunk(ctx.db, ctx.limits.idsPerCall);
+    if (chunk.length === 0) break;
+    try {
+      // The call can outlast the lease, so it is checked again before anything that came back is written.
+      await refetchChunk(ctx, chunk, ctx.keepLease);
+    } catch (e) {
+      // A chunk that fails for a reason of its own (an error from Monday, say) goes to the back of the queue, so one bad
+      // chunk can't hold up the rest: the next pass refetches the others first. The pass still ends with the error, and a
+      // failure to move the chunk mustn't hide it.
+      if (!isStop(e)) await store.requeueRefetch(ctx.db, chunk).catch(() => {});
+      throw e;
+    }
+    await store.dequeueRefetch(ctx.db, chunk);
+    done += chunk.length;
+  }
+  return done;
 }
 
 /** Reads every board in full. Returns a note for each board whose comments ran into the page limit. */
 async function backfill(ctx: Ctx, boards: store.SyncedBoard[]): Promise<string[]> {
   const notes: string[] = [];
   for (const board of boards) {
+    // Between boards: renew the lease, so a backfill over an hour keeps it, or stop if another pass took it over.
+    await ctx.keepLease();
     ctx.log(`backfill ${board.board_key ?? board.id}`);
     let limit = 100;
     let cursor: string | null = null;
@@ -189,16 +283,29 @@ async function backfill(ctx: Ctx, boards: store.SyncedBoard[]): Promise<string[]
   return notes;
 }
 
+/**
+ * In this order: read the activity log (its pages and the boards' newest comments, and look again at any board whose
+ * columns changed); queue every item it names; if the log was still full after the page cap, run the safety check on
+ * those boards; move the watermark, unless the pass is limited to one board; then refetch the queue, which also holds
+ * whatever an earlier pass left there. From the watermark on, a pass stopped early has lost nothing: its items wait in
+ * the queue, and the next pass reads only the log since. Whenever the queue is empty, at the start or after the drain,
+ * the pass marks the mirror complete up to the watermark: that mark, not the watermark, is what "as of" shows.
+ */
 async function changes(
   ctx: Ctx,
   boards: store.SyncedBoard[],
   startedAt: Date,
   oneBoard: boolean,
-): Promise<{ status: "ok" | "partial" | "skipped"; note: string | null; before: Date | null; after: Date | null }> {
+  progress: Progress,
+): Promise<{ status: "ok" | "partial" | "skipped"; note: string | null }> {
   const before = await getWatermark(ctx.db, "monday", "account");
+  progress.before = before;
   if (!before) {
-    return { status: "skipped", note: "no watermark yet: run `npm run mirror -- backfill` (all boards) first", before, after: null };
+    return { status: "skipped", note: "no watermark yet: run `npm run mirror -- backfill` (all boards) first" };
   }
+  // An empty queue means everything the logs named up to the watermark is stored: mark it before anything can fail, so a
+  // database whose watermark came before this mark existed, or a pass stopped just after its drain, still has one.
+  if ((await store.refetchQueueSize(ctx.db)) === 0) await setWatermark(ctx.db, "monday", "complete", before);
 
   const from = new Date(before.getTime() - 2 * 60_000).toISOString();
   const { activityLimit, activityMaxPages } = ctx.limits;
@@ -223,7 +330,8 @@ async function changes(
 
   const scan = parseActivityLogs(pages.flat(), Number.POSITIVE_INFINITY);
   if (scan.columnsChangedBoards.length > 0) await discoverBoardsById(ctx.db, ctx.monday, scan.columnsChangedBoards);
-  await refetch(ctx, scan.itemIds);
+  // Queued before anything is refetched: from here the items are safe whatever stops the pass.
+  await store.queueRefetch(ctx.db, scan.itemIds);
 
   if (full.length > 0) {
     // This pass never reads the entries past the page cap. Rather than leave them to the daily safety pass,
@@ -232,7 +340,16 @@ async function changes(
     await safety(ctx, boards.filter((b) => full.includes(b.id)));
   }
   // A pass limited to one board has not read the other boards' logs, so it never moves the account-wide watermark.
-  if (!oneBoard) await setWatermark(ctx.db, "monday", "account", startedAt);
+  if (!oneBoard) {
+    await setWatermark(ctx.db, "monday", "account", startedAt);
+    progress.after = startedAt;
+  }
+
+  progress.draining = true;
+  const refetched = await drainRefetchQueue(ctx);
+  // The queue is empty: the mirror is complete up to the account watermark ("as of" reads this mark, not the watermark,
+  // which moves before the queue drains). That watermark is this pass's own, or the one it read for one board.
+  if ((await store.refetchQueueSize(ctx.db)) === 0) await setWatermark(ctx.db, "monday", "complete", progress.after ?? before);
 
   const notes: string[] = [];
   if (full.length > 0) {
@@ -240,16 +357,11 @@ async function changes(
       `the activity log was still full after ${activityMaxPages} pages on ${full.length} board(s), so the safety check ran on those boards too; ` +
         "entries older than yesterday wait for the weekly sweep",
     );
-  } else if (scan.itemIds.length === 0) {
+  } else if (scan.itemIds.length === 0 && refetched === 0) {
     notes.push("nothing changed");
   }
   if (oneBoard) notes.push("watermark unchanged: one board only");
-  return {
-    status: full.length > 0 ? "partial" : "ok",
-    note: notes.length > 0 ? notes.join("; ") : null,
-    before,
-    after: oneBoard ? null : startedAt,
-  };
+  return { status: full.length > 0 ? "partial" : "ok", note: notes.length > 0 ? notes.join("; ") : null };
 }
 
 async function walkStamps(
@@ -285,6 +397,7 @@ async function walkStamps(
 
 async function safety(ctx: Ctx, boards: store.SyncedBoard[]): Promise<void> {
   for (const board of boards) {
+    await ctx.keepLease(); // between boards, as in backfill
     const stamps = await store.itemStamps(ctx.db, board.id);
     const stale: number[] = [];
     await walkStamps(ctx, board.id, Q.recentStampsPage, (id, t) => {
@@ -294,15 +407,20 @@ async function safety(ctx: Ctx, boards: store.SyncedBoard[]): Promise<void> {
   }
 }
 
-async function sweep(ctx: Ctx, boards: store.SyncedBoard[]): Promise<void> {
-  // Boards swept longest ago (or never) first: a sweep cut short by its time limit resumes there next time.
-  const sweptAt = new Map(
-    (await ctx.db.query<{ scope: string; swept_at: Date | null }>(
-      "select scope, swept_at from mirror.sync_state where source = 'monday' and scope like 'board:%'",
-    )).map((r) => [r.scope, r.swept_at ? new Date(r.swept_at).getTime() : 0]),
+async function sweep(ctx: Ctx, boards: store.SyncedBoard[], progress: Progress): Promise<void> {
+  // Boards touched longest ago (or never) first, then by id: touched is the later of when a board was last swept and
+  // when a sweep last started it. A board the time limit cut short was started after the others were swept, so it
+  // goes to the back, and a board too big for one run can't hold up every other board's sweep.
+  const touched = new Map(
+    (await ctx.db.query<{ scope: string; touched: Date | null }>(
+      "select scope, greatest(swept_at, sweep_attempted_at) as touched from mirror.sync_state where source = 'monday' and scope like 'board:%'",
+    )).map((r) => [r.scope, r.touched ? new Date(r.touched).getTime() : 0]),
   );
-  const order = [...boards].sort((a, b) => (sweptAt.get(`board:${a.id}`) ?? 0) - (sweptAt.get(`board:${b.id}`) ?? 0) || a.id - b.id);
+  const order = [...boards].sort((a, b) => (touched.get(`board:${a.id}`) ?? 0) - (touched.get(`board:${b.id}`) ?? 0) || a.id - b.id);
   for (const board of order) {
+    await ctx.keepLease(); // between boards, before the board is stamped as started
+    progress.board = board;
+    await markState(ctx.db, "monday", `board:${board.id}`, "sweep_attempted_at");
     const stamps = await store.itemStamps(ctx.db, board.id);
     const seen = new Set<number>();
     const stale: number[] = [];
@@ -314,6 +432,7 @@ async function sweep(ctx: Ctx, boards: store.SyncedBoard[]): Promise<void> {
     await refetch(ctx, [...stale, ...missing]);
     await markState(ctx.db, "monday", `board:${board.id}`, "swept_at");
   }
+  progress.board = null;
 }
 
 /**
@@ -374,6 +493,7 @@ export async function runMondayPass(db: Db, monday: MondayClient, mode: MondayMo
     limits,
     log: opts.log ?? (() => {}),
     tally: { seen: 0, changed: 0 },
+    keepLease: async () => {},
   };
   const callsBefore = monday.stats.calls;
   const complexityBefore = monday.stats.complexity;
@@ -381,12 +501,18 @@ export async function runMondayPass(db: Db, monday: MondayClient, mode: MondayMo
 
   const run = await beginRun(db, "monday", mode, opts.trigger, LOCK_SECONDS[mode]);
   if (!run) return { status: "skipped", calls: 0, seen: 0, changed: 0, note: "another Monday pass is running", error: null };
+  // From here the pass holds the lease. It renews it as it goes, for as long again each time.
+  ctx.keepLease = async () => {
+    if (!(await renewRun(db, run, LOCK_SECONDS[mode]))) throw new LeaseLostError();
+  };
 
   let status: PassResult["status"] = "ok";
   let note: string | null = null;
   let error: string | null = null;
-  let watermarkBefore: Date | null = null;
-  let watermarkAfter: Date | null = null;
+  // Set when another pass took the lease over: this pass then writes nothing more, the lot sync included.
+  let leaseLost = false;
+  // Filled in as the pass goes, so a pass that stops early still says where it got to.
+  const progress: Progress = { before: null, after: null, draining: false, board: null };
 
   try {
     try {
@@ -405,7 +531,9 @@ export async function runMondayPass(db: Db, monday: MondayClient, mode: MondayMo
         if (!(await getWatermark(db, "monday", "account"))) {
           if (opts.boardKey == null) {
             await setWatermark(db, "monday", "account", startedAt);
-            watermarkAfter = startedAt;
+            // A backfill reads everything, so the mirror is complete up to the same time ("as of" reads it).
+            await setWatermark(db, "monday", "complete", startedAt);
+            progress.after = startedAt;
           } else {
             // The first run in the README is exactly this: say why `changes` will wait for a backfill of every board.
             notes.push("watermark not started: one board only");
@@ -413,27 +541,32 @@ export async function runMondayPass(db: Db, monday: MondayClient, mode: MondayMo
         }
         if (notes.length > 0) note = notes.join("; ");
       } else if (mode === "changes") {
-        const r = await changes(ctx, boards, startedAt, opts.boardKey != null);
-        ({ status, note } = r);
-        watermarkBefore = r.before;
-        watermarkAfter = r.after;
+        ({ status, note } = await changes(ctx, boards, startedAt, opts.boardKey != null, progress));
       } else if (mode === "safety") {
         await safety(ctx, boards);
       } else {
-        await sweep(ctx, boards);
+        await sweep(ctx, boards, progress);
       }
     } catch (e) {
       if (e instanceof MondayDeadlineError) {
         status = "partial";
-        note = STOPPED[mode];
+        note = await stoppedNote(db, mode, progress);
+      } else if (e instanceof LeaseLostError) {
+        // It outlived its lease and another pass started: that pass carries on, and this one stops where it is.
+        status = "partial";
+        note = e.message;
+        leaseLost = true;
       } else {
         error = e instanceof Error ? e.message : String(e);
         status = e instanceof MondayCapReachedError || e instanceof MondayDailyLimitError ? "partial" : "failed";
+        // Stopped while refetching the queue, with the log already read: the items it didn't reach wait there.
+        if (mode === "changes" && progress.draining) note = await waitingNote(db);
       }
     }
-    if (status !== "skipped") {
+    if (status !== "skipped" && !leaseLost) {
       // After every pass that ran, finished or not, so the lots it stored needn't wait for the next one. It reads only
       // what is stored, so its failing never undoes the Monday work: the error says so, and an ok pass becomes partial.
+      // A pass that lost its lease leaves it to the pass that holds it.
       try {
         await db.query("select launchpad.sync_land_lots_from_monday()");
       } catch (e) {
@@ -451,8 +584,8 @@ export async function runMondayPass(db: Db, monday: MondayClient, mode: MondayMo
         changed: ctx.tally.changed,
         note,
         error,
-        watermarkBefore,
-        watermarkAfter,
+        watermarkBefore: progress.before,
+        watermarkAfter: progress.after,
       });
     } catch (e) {
       // endRun frees the lease whatever happens. The result still tells the caller what the pass did.

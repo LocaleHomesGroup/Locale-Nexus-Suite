@@ -8,7 +8,8 @@ import { EASE_OUT } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input } from "@/components/ui/input";
 import { SmoothSelect } from "@/components/ui/select";
-import { CATALOGUE, HUBSPOT_CONTACTS, STAFF, modelsForBlock } from "../catalogue";
+import { HUBSPOT_CONTACTS, STAFF, modelsForBlock } from "../catalogue";
+import { useCatalogue } from "../catalogue-context";
 import {
   addContact,
   cancelContact,
@@ -31,10 +32,11 @@ import { MeasureInput, Panel, PanelTitle } from "../parts";
  */
 export function ClientStep() {
   const { estimate: e } = useEstimate();
+  const { builders } = useCatalogue();
   const block = { corner: e.corner, min: e.min, max: e.max };
   const bounded = e.corner || e.min != null || e.max != null;
   const matches = bounded
-    ? CATALOGUE.builders.map((b) => ({ name: b.name, count: modelsForBlock(b, block).length })).filter((b) => b.count > 0)
+    ? builders.map((b) => ({ name: b.name, count: modelsForBlock(b, block).length })).filter((b) => b.count > 0)
     : [];
   const total = matches.reduce((n, b) => n + b.count, 0);
 

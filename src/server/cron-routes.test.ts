@@ -8,7 +8,7 @@ const secret = ["a", "test", "cron", "secret"].join("-");
 
 /**
  * A database URL nothing answers. Nothing listens on port 1 of this machine, so a query is refused at once and no
- * packet leaves it, and there is no password to leak. postgres.js connects only when it has a query to send.
+ * packet leaves it, and there is no password to leak. node-postgres connects only when it has a query to send.
  */
 const NOBODY = "postgresql://launchpad_app@127.0.0.1:1/x";
 
@@ -117,4 +117,51 @@ test("cron routes: a database that refuses connections is a 500 with the failure
   assert.equal(body.status, "failed");
   assert.match(body.error, /ECONNREFUSED/);
   assert.deepEqual(logs, [["[mirror] monday changes failed:", body.error]]);
+});
+
+// Final review, Minor 4: whatever throws past the gate is a JSON 500 with a generic message, and one log line that holds
+// the message only: never Next's bare 500, and never an error object (with its stack) in the log.
+
+/** The "#" ends the authority early, so this never parses (the shape the files route's test uses). The password is invented. */
+const UNPARSABLE = "postgresql://u:pa#ss@db.invalid:6543/x";
+const URL_REFUSED = "SUPABASE_DB_URL isn't a valid connection string: check the port, and URL-encode any @, #, / or : in the password.";
+const MIRROR_FAILED = { error: "The mirror run failed before it could answer. The function log has the reason." };
+const SETTLE_FAILED = { error: "Settling the holds failed. The function log has the reason." };
+
+/** Runs `fn` with the right bearer and this database URL, then closes whatever pool it made. Returns what was logged. */
+async function withDatabase(t: TestContext, url: string, fn: () => Promise<void>): Promise<unknown[][]> {
+  const logged = t.mock.method(console, "error", () => {});
+  await withEnv({ CRON_SECRET: secret, SUPABASE_DB_URL: url, MONDAY_API_TOKEN: "test-token" }, async () => {
+    try {
+      await fn();
+    } finally {
+      await closeDb();
+    }
+  });
+  return logged.mock.calls.map((call) => call.arguments);
+}
+
+test("cron routes: a database URL that doesn't parse is a JSON 500 from both routes, with one message-only log line each", async (t) => {
+  const answers: { status: number; body: unknown }[] = [];
+  const logs = await withDatabase(t, UNPARSABLE, async () => {
+    for (const res of [await runMirror(mirrorRequest(`Bearer ${secret}`), context), await settleLots(settleRequest(`Bearer ${secret}`))]) {
+      answers.push({ status: res.status, body: await res.json() });
+    }
+  });
+  assert.deepEqual(answers, [{ status: 500, body: MIRROR_FAILED }, { status: 500, body: SETTLE_FAILED }]);
+  assert.deepEqual(logs, [["[mirror] monday changes failed:", URL_REFUSED], ["[land] settle failed:", URL_REFUSED]]);
+  assert.ok(!JSON.stringify(logs).includes("pa#ss") && !JSON.stringify(logs).includes("db.invalid"), "no part of the URL is logged");
+});
+
+test("cron routes: a database that refuses connections is a JSON 500 from settle too, with one message-only log line", { timeout: 20_000 }, async (t) => {
+  let res!: Response;
+  const logs = await withDatabase(t, NOBODY, async () => {
+    res = await settleLots(settleRequest(`Bearer ${secret}`));
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), SETTLE_FAILED);
+  assert.equal(logs.length, 1, "one line");
+  assert.equal(logs[0][0], "[land] settle failed:");
+  assert.equal(typeof logs[0][1], "string", "the message, never the error object with its stack");
+  assert.match(String(logs[0][1]), /ECONNREFUSED/);
 });

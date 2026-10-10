@@ -22,7 +22,8 @@ export const Q = {
   workspaces: "query { workspaces(limit: 100) { id name kind } }",
   boardsInWorkspaces: `query ($ws: [ID!], $page: Int!) { boards(workspace_ids: $ws, limit: 100, page: $page, state: all) { ${BOARD_FIELDS} } }`,
   boardsById: `query ($ids: [ID!]) { boards(ids: $ids, limit: 100, state: all) { ${BOARD_FIELDS} } }`,
-  users: "query ($page: Int!) { users(limit: 200, page: $page) { id name email enabled is_guest } }",
+  // API 2026-10's User has no `enabled` or `is_guest` (Monday rejects them): discover.ts derives both from these.
+  users: "query ($page: Int!) { users(limit: 200, page: $page) { id name email kind status is_deleted } }",
   firstItemsPage: `query ($board: [ID!], $limit: Int!) { boards(ids: $board) { items_page(limit: $limit) { cursor items { ${ITEM_FIELDS} } } } }`,
   nextItemsPage: `query ($cursor: String!, $limit: Int!) { next_items_page(cursor: $cursor, limit: $limit) { cursor items { ${ITEM_FIELDS} } } }`,
   firstStampsPage: "query ($board: [ID!], $limit: Int!) { boards(ids: $board) { items_page(limit: $limit) { cursor items { id updated_at } } } }",

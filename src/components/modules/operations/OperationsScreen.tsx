@@ -9,12 +9,13 @@ import { ReviewQueueScreen } from "./review/ReviewQueueScreen";
 import { AuditLogScreen } from "./audit/AuditLogScreen";
 import { SubmissionReview } from "./submissions/SubmissionReview";
 import { PricingTab } from "./pricing/PricingTab";
+import { HomeScopePricing } from "./homescope/HomeScopePricing";
 import { DocFormatter } from "./formatter/DocFormatter";
 import { OperationsOverview } from "./OperationsOverview";
 
 /** Operations — one section per rail item (`?tab=`), never a strip in the page. */
 // The sections are listed in the Operations rail (src/components/shell/dashboards.ts).
-const TABS = ["overview", "jobs", "review", "audit", "submissions", "pricing", "formatter"] as const;
+const TABS = ["overview", "jobs", "review", "audit", "submissions", "pricing", "homescope", "formatter"] as const;
 /** CRM dash sync's own views: the job list, or the Inbound capture preview nested under it. */
 const JOB_VIEWS = ["list", "inbound"] as const;
 
@@ -40,6 +41,8 @@ export function OperationsScreen() {
           <SubmissionReview />
         ) : tab === "pricing" ? (
           <PricingTab />
+        ) : tab === "homescope" ? (
+          <HomeScopePricing />
         ) : (
           <DocFormatter />
         )}

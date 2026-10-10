@@ -186,7 +186,16 @@ export function createMondayClient(opts: MondayClientOptions): MondayClient {
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const maxRetries = opts.maxRetries ?? 4;
   // A line break, a NUL or a space in the token would make fetch throw an error that quotes it: refuse it here instead.
-  checkedToken(opts.token, "MONDAY_API_TOKEN");
+  // What is sent is the checked token, trimmed.
+  const token = checkedToken(opts.token, "MONDAY_API_TOKEN");
+  /** Every error this client throws is made here, with any copy of the token in its text replaced, as the HubSpot client does. */
+  const fail = <E extends MondayError>(
+    Kind: new (message: string, code?: string | null, status?: number | null, options?: ErrorOptions) => E,
+    message: string,
+    code: string | null = null,
+    status: number | null = null,
+    options?: ErrorOptions,
+  ): E => new Kind(message.split(token).join("[token]"), code, status, options);
   // Checked once, here, so that building an attempt's AbortSignal can never throw after a call has been claimed.
   if (opts.timeoutMs !== undefined && opts.timeoutMs !== null) {
     if (typeof opts.timeoutMs !== "number") {
@@ -209,7 +218,7 @@ export function createMondayClient(opts: MondayClientOptions): MondayClient {
   /** Throws once the run's time limit is reached. Called before every claim, so nothing is counted or sent after it. */
   function checkDeadline(): void {
     if (deadlineMs !== undefined && now() >= deadlineMs) {
-      throw new MondayDeadlineError("The run's time limit was reached, so Monday is not called again.", "DEADLINE");
+      throw fail(MondayDeadlineError, "The run's time limit was reached, so Monday is not called again.", "DEADLINE");
     }
   }
 
@@ -219,7 +228,8 @@ export function createMondayClient(opts: MondayClientOptions): MondayClient {
    */
   async function wait(ms: number, what: string): Promise<void> {
     if (deadlineMs !== undefined && now() + ms >= deadlineMs) {
-      throw new MondayDeadlineError(
+      throw fail(
+        MondayDeadlineError,
         `The run's time limit was reached: waiting ${Math.ceil(ms / 1000)} s for ${what} would end past it.`,
         "DEADLINE",
       );
@@ -236,7 +246,7 @@ export function createMondayClient(opts: MondayClientOptions): MondayClient {
   /** A request that failed in transit (no answer, a timeout, an answer cut off or garbled): wait and go again, or give up as NETWORK once the retries are spent. */
   async function retryOrGiveUp(attempt: number, reason: string, cause?: unknown): Promise<void> {
     if (attempt >= maxRetries) {
-      throw new MondayError(`Monday is unreachable: ${reason}`, "NETWORK", null, cause === undefined ? undefined : { cause });
+      throw fail(MondayError, `Monday is unreachable: ${reason}`, "NETWORK", null, cause === undefined ? undefined : { cause });
     }
     await wait(backoff(attempt), "the backoff");
   }
@@ -244,7 +254,7 @@ export function createMondayClient(opts: MondayClientOptions): MondayClient {
   async function query<T>(document: string, variables: Record<string, unknown> = {}): Promise<T> {
     const refusal = refusalReason(document);
     if (refusal !== null) {
-      throw new MondayError(`Refused: the mirror only reads Monday, and this document ${refusal}.`, "WRITE_REFUSED");
+      throw fail(MondayError, `Refused: the mirror only reads Monday, and this document ${refusal}.`, "WRITE_REFUSED");
     }
     const body = JSON.stringify({ query: withComplexity(document), variables });
     for (let attempt = 0; ; attempt++) {
@@ -255,7 +265,8 @@ export function createMondayClient(opts: MondayClientOptions): MondayClient {
       }
       checkDeadline();
       if (!(await opts.ledger.claim())) {
-        throw new MondayCapReachedError(
+        throw fail(
+          MondayCapReachedError,
           "No Monday calls left today: the call cap is reached, or Monday's daily limit was hit. The mirror waits for 00:00 UTC.",
           "CAP_REACHED",
         );
@@ -269,7 +280,7 @@ export function createMondayClient(opts: MondayClientOptions): MondayClient {
       try {
         res = await fetchFn(MONDAY_API_URL, {
           method: "POST",
-          headers: { Authorization: opts.token, "Content-Type": "application/json", "API-Version": MONDAY_API_VERSION },
+          headers: { Authorization: token, "Content-Type": "application/json", "API-Version": MONDAY_API_VERSION },
           body,
           signal,
         });
@@ -304,10 +315,10 @@ export function createMondayClient(opts: MondayClientOptions): MondayClient {
       const message = err?.message ?? `Monday answered HTTP ${res.status}`;
       if (code === "DAILY_LIMIT_EXCEEDED" || /daily limit/i.test(message)) {
         await opts.ledger.dailyLimitHit();
-        throw new MondayDailyLimitError(message, "DAILY_LIMIT_EXCEEDED", res.status);
+        throw fail(MondayDailyLimitError, message, "DAILY_LIMIT_EXCEEDED", res.status);
       }
       const retryable = res.status === 429 || res.status >= 500 || (code !== null && RETRYABLE.has(code));
-      if (!retryable || attempt >= maxRetries) throw new MondayError(message, code, res.status);
+      if (!retryable || attempt >= maxRetries) throw fail(MondayError, message, code, res.status);
       const header = Number(res.headers.get("retry-after"));
       const waitSeconds = err?.retryIn ?? (Number.isFinite(header) && header > 0 ? header : null);
       await wait(waitSeconds !== null ? Math.min(MAX_WAIT_MS, waitSeconds * 1000) : backoff(attempt), "the retry");

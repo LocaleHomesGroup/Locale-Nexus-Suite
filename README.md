@@ -62,13 +62,19 @@ npm run mirror -- status    # boards, items, files, today's calls, recent runs
 `setup` reads Jerry's config from the folder next to this repo; `--jerry-config <path>` points it
 elsewhere. `status` lists the board keys that `--board` takes.
 
+A board `setup` enables after the first full backfill (Exclusive Land, say, if Jerry shares it
+late) needs a backfill of its own: run `npm run mirror -- backfill --board <key>`. Without it, the
+board's items arrive only as they change or with the weekly sweep, and its older comments never do.
+
 `npm run check:secrets` scans staged files for tokens, because the repo is public. Enable it as a
 pre-commit hook once per clone with `git config core.hooksPath .githooks`.
 
 ### Keeping it current
 
 After that, `changes` (every 5 minutes), `files` (every 15), `safety` (daily) and `sweep` (weekly)
-keep Monday current. `hubspot` does the same for HubSpot. In production the routes under
+keep Monday current. `hubspot` does the same for HubSpot. A long pass, such as the first full
+backfill, renews its lease as it goes (between boards, refetch chunks and HubSpot objects), so
+scheduled passes of the same source are skipped until it ends. In production the routes under
 `/api/mirror/*` and `/api/land/settle` run them on a schedule, with
 `Authorization: Bearer $CRON_SECRET` (Vercel sends it itself once `CRON_SECRET` is set in the
 project). On Vercel Pro, add these to `vercel.json`:
@@ -88,6 +94,14 @@ project). On Vercel Pro, add these to `vercel.json`:
 
 The times are UTC: 18:30 is 02:30 in Perth.
 
+A scheduled run stops at 120 s, before the host would cut it off, and ends `partial` with a note
+that says where the next run starts. `changes` puts every item the activity log names in a refetch
+queue (`mirror.monday_refetch_queue`) and moves its watermark as soon as the log is read, then
+refetches the queue, oldest first. A window too big for one run (a long outage, a bulk edit) is
+finished by the next runs instead of read again. `sweep` starts with the boards it touched longest
+ago, so a board it couldn't finish goes to the back instead of holding up the rest. The CLI has no
+time limit.
+
 Elsewhere (or on Vercel Hobby), `scripts/db/schedule-pg-cron.sql` schedules the same calls from
 Supabase. It is optional, and in a project someone else owns it is their call: ask first.
 
@@ -105,7 +119,7 @@ Supabase. It is optional, and in a project someone else owns it is their call: a
   variables in `.env.example`, with `LAUNCHPAD_ENV=production`) for the build as well as at
   runtime. A build without it prerenders the sample-data shell, and the deployment then serves
   sample data. With it set, every dashboard route renders per request, and each full page load
-  waits for the database: about 10 s at most (`connect_timeout`) when the database can't be
+  waits for the database: about 15 s at most to connect (`connectionTimeoutMillis`) when the database can't be
   reached, before sample data shows.
 - **Run it next to the database.** Add `"regions": ["syd1"]` to `vercel.json` to run the app's
   functions in Sydney. Each page load reads the database several times.
@@ -123,7 +137,27 @@ Supabase. It is optional, and in a project someone else owns it is their call: a
   ```
 
 - **A run shows as "stale (no end recorded)" in `status`.** Its end couldn't be written. The lease
-  frees itself when it expires, so nothing is needed unless it keeps happening.
+  frees itself when it expires, so nothing is needed unless it keeps happening. A CLI backfill
+  that runs past an hour shows as stale too, while it is still going.
+- **A `changes` or `sweep` run keeps ending partial at the time limit.** Read its note in `status`.
+  - **`changes` says "N item(s) wait in the refetch queue".** That is the queue at work: each run
+    refetches some of them, and N should fall from one run to the next. To see the queue, run
+    `select count(*) from mirror.monday_refetch_queue;` as `launchpad_app`.
+  - **`changes` says "the next run reads the same window again".** The run stopped before its
+    watermark moved, usually because the activity log was full and the safety check it ran on the
+    busy boards didn't finish.
+  - **`sweep` names the board it stopped on.** That board goes to the back of the order.
+
+  If N doesn't fall, or the same note keeps coming back, run the pass from the CLI, which has no
+  time limit: `npm run mirror -- changes`, or `npm run mirror -- sweep --board <key>`.
+- **"As of" on the live screens is older than the last run.** It is the time up to which the
+  mirror holds every change, so while the refetch queue still holds items it stays where the queue
+  was last empty. Once the queue drains, it catches up. If it doesn't, look at `status`: a `changes`
+  run that keeps ending `failed` with the same error has a chunk Monday won't return. That chunk
+  goes to the back of the queue each time, so the rest are still refetched.
+- **A run ends partial with "another pass took over the lease".** It outlived its lease (a call
+  that hung for minutes, say), and another pass started. It stopped without writing anything more,
+  and the other pass carries on. Nothing is needed.
 - **`reps` lists names with "no single staff match".** Expect a long list on the first run. Add one
   alias for each, as `launchpad_app`, then run `reps` again to see what is left. To find a staff
   id, run `select id, name from launchpad.staff order by name`.
@@ -144,10 +178,12 @@ Supabase. It is optional, and in a project someone else owns it is their call: a
   `--workspace` to `discover`, and `hubspot` takes none.
 - **A scheduled call fails.** Its response says why. A 401 `Unauthorized` means the bearer secret
   doesn't match `CRON_SECRET` on the host, and a 503 `No database is configured` means
-  `SUPABASE_DB_URL` isn't set there. An answer that isn't our JSON, such as Vercel's sign-in page,
-  is Deployment Protection stopping the call before it reaches the route. The Supabase-side
-  schedule then needs Vercel's Protection Bypass for Automation secret, sent as an
-  `x-vercel-protection-bypass` header on each job.
+  `SUPABASE_DB_URL` isn't set there. A 500 that says "The function log has the reason" means the
+  route couldn't reach the database, or `SUPABASE_DB_URL` doesn't parse. The function's log has one
+  line saying which, starting `[mirror]` or `[land]`. An answer that isn't our JSON, such as
+  Vercel's sign-in page, is Deployment Protection stopping the call before it reaches the route.
+  The Supabase-side schedule then needs Vercel's Protection Bypass for Automation secret, sent as
+  an `x-vercel-protection-bypass` header on each job.
 
 ## Modules
 

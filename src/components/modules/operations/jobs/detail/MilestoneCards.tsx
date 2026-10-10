@@ -67,7 +67,8 @@ export function PreconCard({ job, editor }: { job: Job; editor: EditorBinding })
   const next = job.precon.find((m) => m.status === "open" || m.status === "prog");
   const editorId = React.useId();
   const rim = useEditableCard();
-  // A live job's milestones are Monday's: no hover tint, and no "Mark complete" prompt, on rows that can't be edited.
+  // A live job's milestones are Monday's: no hover tint, no "Mark complete" prompt and no HubSpot badge on rows that
+  // can't be edited, and a line of their own when Monday has no subitems for the job yet.
   const readOnly = useJobReadOnly();
 
   return (
@@ -77,86 +78,90 @@ export function PreconCard({ job, editor }: { job: Job; editor: EditorBinding })
         <CardMeta className="text-muted-foreground">Mirrors every Monday subitem: status, due date, date completed</CardMeta>
       </CardHeader>
       <CardContent>
-        <ul>
-          {job.precon.map((m) => {
-            const isNext = next?.name === m.name;
-            const noDate = m.status === "done" && !m.date;
-            const editing = editor.draft?.kind === "precon" && editor.draft.name === m.name;
-            return (
-              <li key={m.name} className="border-t border-hairline first:border-t-0">
-                <button
-                  type="button"
-                  onClick={() => editor.onEdit("precon", m)}
-                  aria-expanded={editing}
-                  aria-controls={editing ? editorId : undefined}
-                  className={cn(
-                    "flex w-full items-center gap-2.5 rounded-md px-1.5 py-2 text-left transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
-                    editing
-                      ? "bg-muted"
-                      : isNext
-                        ? readOnly
-                          ? "bg-tone-soft"
-                          : "bg-tone-soft hover:bg-tone-tint"
-                        : readOnly
-                          ? ""
-                          : "hover:bg-muted/60",
-                  )}
-                >
-                  <StatusIcon m={m} />
-                  <span
+        {readOnly && job.precon.length === 0 ? (
+          <p className="py-1.5 text-[13px] text-muted-foreground">No milestones in Monday yet.</p>
+        ) : (
+          <ul>
+            {job.precon.map((m) => {
+              const isNext = next?.name === m.name;
+              const noDate = m.status === "done" && !m.date;
+              const editing = editor.draft?.kind === "precon" && editor.draft.name === m.name;
+              return (
+                <li key={m.name} className="border-t border-hairline first:border-t-0">
+                  <button
+                    type="button"
+                    onClick={() => editor.onEdit("precon", m)}
+                    aria-expanded={editing}
+                    aria-controls={editing ? editorId : undefined}
                     className={cn(
-                      "min-w-0 text-xs",
-                      m.status === "na" ? "text-subtle-foreground line-through" : "text-foreground",
+                      "flex w-full items-center gap-2.5 rounded-md px-1.5 py-2 text-left transition-colors focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
+                      editing
+                        ? "bg-muted"
+                        : isNext
+                          ? readOnly
+                            ? "bg-tone-soft"
+                            : "bg-tone-soft hover:bg-tone-tint"
+                          : readOnly
+                            ? ""
+                            : "hover:bg-muted/60",
                     )}
                   >
-                    {m.name}
-                  </span>
-                  {PRECON_HUBSPOT_PROPERTY[m.name] ? (
+                    <StatusIcon m={m} />
                     <span
-                      title="Mapped to a HubSpot property"
-                      className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[10px] font-semibold tracking-[0.08em] text-muted-foreground"
+                      className={cn(
+                        "min-w-0 text-xs",
+                        m.status === "na" ? "text-subtle-foreground line-through" : "text-foreground",
+                      )}
                     >
-                      HS
-                      <span className="sr-only"> · mapped to a HubSpot property</span>
+                      {m.name}
                     </span>
-                  ) : null}
-                  <span
-                    className={cn(
-                      "ml-auto shrink-0 text-right text-xs whitespace-nowrap tabular-nums",
-                      noDate || m.status === "pendingDate"
-                        ? "text-amber-700 dark:text-amber-300"
-                        : isNext && m.status === "open" && !readOnly
-                          ? "font-semibold text-tone-ink"
-                          : "text-muted-foreground",
-                    )}
-                  >
-                    {noDate
-                      ? "Completed · no date"
-                      : m.status === "done"
-                        ? (
-                            <>
-                              <span className="sr-only">Completed </span>
-                              {m.date}
-                            </>
-                          )
-                        : m.status === "prog"
-                          ? m.due
-                            ? `In progress · due ${m.due}`
-                            : "In progress"
-                          : m.status === "na"
-                            ? "Not applicable"
-                            : m.status === "pendingDate"
-                              ? "Awaiting date"
-                              : isNext && !readOnly
-                              ? "Mark complete"
-                              : "Not started"}
-                  </span>
-                </button>
-                {editing ? <MilestoneEditor id={editorId} job={job} editor={editor} className="mt-1 mb-2.5" /> : null}
-              </li>
-            );
-          })}
-        </ul>
+                    {PRECON_HUBSPOT_PROPERTY[m.name] && !readOnly ? (
+                      <span
+                        title="Mapped to a HubSpot property"
+                        className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[10px] font-semibold tracking-[0.08em] text-muted-foreground"
+                      >
+                        HS
+                        <span className="sr-only"> · mapped to a HubSpot property</span>
+                      </span>
+                    ) : null}
+                    <span
+                      className={cn(
+                        "ml-auto shrink-0 text-right text-xs whitespace-nowrap tabular-nums",
+                        noDate || m.status === "pendingDate"
+                          ? "text-amber-700 dark:text-amber-300"
+                          : isNext && m.status === "open" && !readOnly
+                            ? "font-semibold text-tone-ink"
+                            : "text-muted-foreground",
+                      )}
+                    >
+                      {noDate
+                        ? "Completed · no date"
+                        : m.status === "done"
+                          ? (
+                              <>
+                                <span className="sr-only">Completed </span>
+                                {m.date}
+                              </>
+                            )
+                          : m.status === "prog"
+                            ? m.due
+                              ? `In progress · due ${m.due}`
+                              : "In progress"
+                            : m.status === "na"
+                              ? "Not applicable"
+                              : m.status === "pendingDate"
+                                ? "Awaiting date"
+                                : isNext && !readOnly
+                                ? "Mark complete"
+                                : "Not started"}
+                    </span>
+                  </button>
+                  {editing ? <MilestoneEditor id={editorId} job={job} editor={editor} className="mt-1 mb-2.5" /> : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );
@@ -178,82 +183,88 @@ export function ConstructionCard({ job, editor }: { job: Job; editor: EditorBind
       <CardHeader>
         <CardTitle>Construction</CardTitle>
         <CardMeta className="text-muted-foreground">
-          Dates are the builder&apos;s dates · a completion can move the HubSpot stage forward, never back
+          {readOnly
+            ? "Dates are the builder's dates, as Monday has them"
+            : "Dates are the builder's dates · a completion can move the HubSpot stage forward, never back"}
         </CardMeta>
       </CardHeader>
       <CardContent>
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
-          {job.milestones.map((m) => {
-            const isNext = next?.name === m.name;
-            const done = m.status === "done";
-            const conflicted = editor.conflictOn === m.name;
-            const awaiting = m.status === "pendingDate";
-            const editing = editor.draft?.kind === "construction" && editor.draft.name === m.name;
-            return (
-              <li key={m.name} className="flex">
-                <button
-                  type="button"
-                  onClick={() => (conflicted ? editor.onConflict?.() : editor.onEdit("construction", m))}
-                  aria-expanded={conflicted ? undefined : editing}
-                  aria-haspopup={conflicted ? "dialog" : undefined}
-                  title={conflicted ? "Monday and Launchpad disagree. Resolve the conflict to continue." : undefined}
-                  aria-controls={editing ? editorId : undefined}
-                  className={cn(
-                    "flex w-full flex-col rounded-lg border text-left transition-[transform,box-shadow,border-color,background-color] duration-200",
-                    readOnly ? "" : "hover:-translate-y-0.5 hover:shadow-md",
-                    "focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
-                    conflicted
-                      ? "border-2 border-rose-300 bg-rose-50/70 px-[11px] py-[9px] dark:border-rose-500/50 dark:bg-rose-500/10"
-                      : isNext
-                        ? "border-2 border-tone-strong bg-card px-[11px] py-[9px]"
-                        : cn("px-3 py-2.5", done ? "border-border bg-canvas dark:bg-white/[0.03]" : "border-border bg-card"),
-                    editing && "ring-2 ring-tone-line",
-                  )}
-                >
-                  <span
+        {readOnly && job.milestones.length === 0 ? (
+          <p className="py-1.5 text-[13px] text-muted-foreground">No milestones in Monday yet.</p>
+        ) : (
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
+            {job.milestones.map((m) => {
+              const isNext = next?.name === m.name;
+              const done = m.status === "done";
+              const conflicted = editor.conflictOn === m.name;
+              const awaiting = m.status === "pendingDate";
+              const editing = editor.draft?.kind === "construction" && editor.draft.name === m.name;
+              return (
+                <li key={m.name} className="flex">
+                  <button
+                    type="button"
+                    onClick={() => (conflicted ? editor.onConflict?.() : editor.onEdit("construction", m))}
+                    aria-expanded={conflicted ? undefined : editing}
+                    aria-haspopup={conflicted ? "dialog" : undefined}
+                    title={conflicted ? "Monday and Launchpad disagree. Resolve the conflict to continue." : undefined}
+                    aria-controls={editing ? editorId : undefined}
                     className={cn(
-                      "flex items-center gap-1 text-xs font-semibold",
-                      done || isNext || conflicted ? "text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    {done ? (
-                      <Check className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.75} aria-hidden />
-                    ) : conflicted ? (
-                      <AlertTriangle className="size-3 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
-                    ) : null}
-                    {m.name}
-                  </span>
-                  <span
-                    className={cn(
-                      "mt-0.5 text-xs tabular-nums",
+                      "flex w-full flex-col rounded-lg border text-left transition-[transform,box-shadow,border-color,background-color] duration-200",
+                      readOnly ? "" : "hover:-translate-y-0.5 hover:shadow-md",
+                      "focus-visible:ring-3 focus-visible:ring-ring/45 focus-visible:outline-none",
                       conflicted
-                        ? "font-semibold text-rose-700 dark:text-rose-300"
-                        : done
-                          ? m.date
-                            ? "text-muted-foreground"
-                            : "text-amber-700 dark:text-amber-300"
-                          : awaiting
-                            ? "font-semibold text-amber-700 dark:text-amber-300"
-                            : isNext && !readOnly
-                              ? "font-semibold text-tone-ink"
-                              : "text-subtle-foreground",
+                        ? "border-2 border-rose-300 bg-rose-50/70 px-[11px] py-[9px] dark:border-rose-500/50 dark:bg-rose-500/10"
+                        : isNext
+                          ? "border-2 border-tone-strong bg-card px-[11px] py-[9px]"
+                          : cn("px-3 py-2.5", done ? "border-border bg-canvas dark:bg-white/[0.03]" : "border-border bg-card"),
+                      editing && "ring-2 ring-tone-line",
                     )}
                   >
-                    {conflicted
-                      ? "Date in conflict"
-                      : done
-                        ? m.date || "Completed · no date"
-                        : awaiting
-                          ? "Awaiting date"
-                          : isNext && !readOnly
-                            ? "Mark complete"
-                            : (STATUS_LABEL[m.status] ?? "Not started")}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                    <span
+                      className={cn(
+                        "flex items-center gap-1 text-xs font-semibold",
+                        done || isNext || conflicted ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {done ? (
+                        <Check className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.75} aria-hidden />
+                      ) : conflicted ? (
+                        <AlertTriangle className="size-3 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
+                      ) : null}
+                      {m.name}
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-0.5 text-xs tabular-nums",
+                        conflicted
+                          ? "font-semibold text-rose-700 dark:text-rose-300"
+                          : done
+                            ? m.date
+                              ? "text-muted-foreground"
+                              : "text-amber-700 dark:text-amber-300"
+                            : awaiting
+                              ? "font-semibold text-amber-700 dark:text-amber-300"
+                              : isNext && !readOnly
+                                ? "font-semibold text-tone-ink"
+                                : "text-subtle-foreground",
+                      )}
+                    >
+                      {conflicted
+                        ? "Date in conflict"
+                        : done
+                          ? m.date || "Completed · no date"
+                          : awaiting
+                            ? "Awaiting date"
+                            : isNext && !readOnly
+                              ? "Mark complete"
+                              : (STATUS_LABEL[m.status] ?? "Not started")}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         {editor.draft?.kind === "construction" ? <MilestoneEditor id={editorId} job={job} editor={editor} /> : null}
       </CardContent>
     </Card>

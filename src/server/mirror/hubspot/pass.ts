@@ -1,7 +1,7 @@
 import type { Db } from "../../db/types";
 import { RunDeadlineError } from "../limits";
 import type { PassResult } from "../monday/passes";
-import { beginRun, endRun, getWatermark, setWatermark, type Trigger } from "../runs";
+import { beginRun, endRun, getWatermark, LeaseLostError, renewRun, setWatermark, type Trigger } from "../runs";
 import { HubSpotError, type HubSpotClient } from "./client";
 import { MODIFIED, OBJECTS, PROPERTIES, type HubSpotObject } from "./properties";
 
@@ -18,7 +18,8 @@ import { MODIFIED, OBJECTS, PROPERTIES, type HubSpotObject } from "./properties"
  * modified time) or reaches the page guard ends the pass partial; one that
  * fails ends it failed; either way the other objects still run. A 401, the
  * daily limit and the time limit stop the whole pass: a 401 as failed, the
- * other two as partial, since the next run carries on.
+ * other two as partial, since the next run carries on. The pass renews its
+ * lease before each object, and stops partial if another pass took it over.
  */
 interface SearchResult {
   id: string;
@@ -53,6 +54,8 @@ interface AssociationsBatch {
 }
 
 const OVERLAP_MS = 5 * 60_000;
+/** The pass's lease, renewed to this long again before each object. */
+const LOCK_SECONDS = 900;
 /** Pages one object's search may take in a run. */
 const MAX_PAGES = 1000;
 /** The search API stops at 10,000 results: before that, start again from the newest seen. */
@@ -78,7 +81,9 @@ async function upsertObjects(db: Db, type: HubSpotObject, results: SearchResult[
      on conflict (object_type, id) do update set
        properties = excluded.properties, archived = excluded.archived,
        hs_created_at = excluded.hs_created_at, hs_updated_at = excluded.hs_updated_at, synced_at = now()
-     where o.hs_updated_at is distinct from excluded.hs_updated_at
+     -- The properties too, not only the modified time: one added to PROPERTIES later reaches a stored row the next
+     -- time HubSpot returns it, though the object itself hasn't changed.
+     where (o.hs_updated_at, o.properties) is distinct from (excluded.hs_updated_at, excluded.properties)
      returning o.id`,
     [type, JSON.stringify(rows)],
   );
@@ -179,7 +184,7 @@ export async function runHubSpotPass(
   portalId: string,
   opts: { trigger: Trigger; now?: () => Date },
 ): Promise<PassResult> {
-  const run = await beginRun(db, "hubspot", "changes", opts.trigger, 900);
+  const run = await beginRun(db, "hubspot", "changes", opts.trigger, LOCK_SECONDS);
   if (!run) return { status: "skipped", calls: 0, seen: 0, changed: 0, note: "another HubSpot pass is running", error: null };
 
   const callsBefore = hubspot.stats.calls;
@@ -273,6 +278,9 @@ export async function runHubSpotPass(
     }
 
     for (const type of OBJECTS) {
+      // Between objects: renew the lease, so a long first load keeps it. If another pass took it over, stop here and write
+      // nothing more.
+      if (!(await renewRun(db, run, LOCK_SECONDS))) throw new LeaseLostError();
       current = type;
       try {
         const stoppedEarly = await syncObject(type);
@@ -286,7 +294,8 @@ export async function runHubSpotPass(
     current = null;
   } catch (e) {
     const where = current ? `${current}: ` : "";
-    if (e instanceof RunDeadlineError) notes.push(current ? timeLimitNote(current) : TIME_LIMIT_NOTE);
+    if (e instanceof LeaseLostError) notes.push(e.message);
+    else if (e instanceof RunDeadlineError) notes.push(current ? timeLimitNote(current) : TIME_LIMIT_NOTE);
     // A spent daily quota is a stop, as Monday's is, not a fault: the next run after the reset carries on.
     else if (e instanceof HubSpotError && e.policy === "DAILY") notes.push(`${where}${e.message}`);
     else errors.push(`${where}${messageOf(e)}`);
@@ -294,17 +303,24 @@ export async function runHubSpotPass(
 
   const status: PassResult["status"] = errors.length > 0 ? "failed" : notes.length > 0 ? "partial" : "ok";
   const note = notes.length > 0 ? notes.join("; ") : null;
-  const error = errors.length > 0 ? errors.join("; ") : null;
-  await endRun(db, run, {
-    status,
-    calls: hubspot.stats.calls - callsBefore,
-    complexity: 0,
-    seen,
-    changed,
-    note,
-    error,
-    watermarkBefore: null,
-    watermarkAfter: null,
-  });
+  let error = errors.length > 0 ? errors.join("; ") : null;
+  try {
+    await endRun(db, run, {
+      status,
+      calls: hubspot.stats.calls - callsBefore,
+      complexity: 0,
+      seen,
+      changed,
+      note,
+      error,
+      watermarkBefore: null,
+      watermarkAfter: null,
+    });
+  } catch (e) {
+    // endRun frees the lease whatever happens, as the Monday pass relies on. The result still tells the caller what the
+    // pass did, with the bookkeeping's failure after any error of its own.
+    const unrecorded = `the run couldn't be recorded: ${messageOf(e)}`;
+    error = error ? `${error}; ${unrecorded}` : unrecorded;
+  }
   return { status, calls: hubspot.stats.calls - callsBefore, seen, changed, note, error };
 }

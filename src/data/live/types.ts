@@ -62,7 +62,11 @@ export interface LiveFile {
 export type LiveData =
   | {
       status: "ok";
-      /** Monday's last full sync (ISO), or the read time before the first one. */
+      /**
+       * The time up to which the mirror holds every change Monday logged (ISO): the 'complete' mark, else Monday's
+       * watermark, else the read time before the first sync. It never runs ahead of the data, even while the refetch
+       * queue catches up.
+       */
       asOf: string;
       /** When the loader read the database (ISO). Holds are judged against it until the browser's clock takes over. */
       readAt: string;

@@ -246,6 +246,59 @@ export async function upsertUsers(
   );
 }
 
+/**
+ * Puts items in the changes pass's refetch queue (mirror.monday_refetch_queue). An item already there keeps its place.
+ * One call's items share one time, so the pass takes them in id order after any queued before.
+ */
+export async function queueRefetch(db: Db, ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.query(
+    `insert into mirror.monday_refetch_queue (item_id, queued_at)
+     select (jsonb_array_elements_text($1::jsonb))::bigint, statement_timestamp()
+     on conflict (item_id) do nothing`,
+    [json([...new Set(ids)])],
+  );
+}
+
+/** The next `limit` items to refetch: the longest queued first, then by id. */
+export async function nextRefetchChunk(db: Db, limit: number): Promise<number[]> {
+  const rows = await db.query<{ item_id: number }>(
+    "select item_id from mirror.monday_refetch_queue order by queued_at, item_id limit $1",
+    [limit],
+  );
+  return rows.map((r) => r.item_id);
+}
+
+/**
+ * Moves items to the back of the queue: a chunk whose refetch failed, so the next pass takes the others first. The
+ * chunk shares one time, now, and never earlier than just after the latest item queued, so it goes behind every item
+ * already there even when two statements read the same clock tick.
+ */
+export async function requeueRefetch(db: Db, ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.query(
+    `update mirror.monday_refetch_queue
+        set queued_at = greatest(statement_timestamp(), (select max(q.queued_at) from mirror.monday_refetch_queue q) + interval '1 microsecond')
+      where item_id in (select (jsonb_array_elements_text($1::jsonb))::bigint)`,
+    [json([...new Set(ids)])],
+  );
+}
+
+/** Takes items out of the queue. Call only once their refetch is stored. */
+export async function dequeueRefetch(db: Db, ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.query(
+    "delete from mirror.monday_refetch_queue where item_id in (select (jsonb_array_elements_text($1::jsonb))::bigint)",
+    [json(ids)],
+  );
+}
+
+/** How many items wait in the queue. */
+export async function refetchQueueSize(db: Db): Promise<number> {
+  const [row] = await db.query<{ n: number }>("select count(*)::int as n from mirror.monday_refetch_queue");
+  return row?.n ?? 0;
+}
+
 /** Live items on a board: id to Monday's updated_at in milliseconds. */
 export async function itemStamps(db: Db, boardId: number): Promise<Map<number, number>> {
   const rows = await db.query<{ id: number; updated: Date }>(

@@ -6,7 +6,8 @@ import { FileSignature, Home, Info, Palette, PenLine, TriangleAlert } from "luci
 import { aud } from "@/lib/utils";
 import { EASE_OUT } from "@/lib/motion";
 import { Pill } from "@/components/ui/pill";
-import { CATALOGUE, PRE_START, groupByFrontage, modelsForBlock, rangesByLevel, stepIndex } from "../catalogue";
+import { PRE_START, groupByFrontage, modelsForBlock, rangesByLevel, stepIndex } from "../catalogue";
+import { useCatalogue } from "../catalogue-context";
 import { chooseBuilder, chooseColour, chooseElevation, chooseModel, chooseRange, useEstimate } from "../store";
 import { ChoiceCard, ChoiceGrid, GroupLabel, Segmented } from "../parts";
 
@@ -20,8 +21,9 @@ const initial = (s: string) => s.replace(/^[^A-Za-z0-9]+/, "").charAt(0).toUpper
 /** Step 2: the builders with at least one design that suits the block. */
 export function BuilderStep() {
   const { estimate: e, reached } = useEstimate();
+  const { builders: all } = useCatalogue();
   const block = { corner: e.corner, min: e.min, max: e.max };
-  const builders = CATALOGUE.builders
+  const builders = all
     .map((b) => ({ b, count: modelsForBlock(b, block).length }))
     .filter((x) => x.count > 0);
   const downstream = e.builder != null && reached > stepIndex("model");

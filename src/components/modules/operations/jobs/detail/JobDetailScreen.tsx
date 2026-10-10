@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, BookOpen } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpen, type LucideIcon } from "lucide-react";
 import type { Job, Milestone } from "@/data/jobs";
 import { useLaunchpad } from "@/state/launchpad-store";
 import { useJobs, useLiveState } from "@/state/live-data";
@@ -12,6 +12,7 @@ import { LiveDocumentsCard } from "./LiveDocumentsCard";
 import { JobReadOnly } from "./read-only";
 import { cn } from "@/lib/utils";
 import { PageContainer, PageHeader } from "@/components/ui/page";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -32,16 +33,36 @@ import { ConflictDialog, HandoverDialog } from "./JobDialogs";
 /** The Knowledge SOP, deep-linked as a search so the article is the only result. */
 const CONFLICT_GUIDE = `/knowledge?cat=sops&q=${encodeURIComponent("Resolving a sync conflict")}`;
 
-function BackLink() {
+/**
+ * The dashboard tab a job page is shown inside, as Sales Manager's All clients shows a client: the page sits in
+ * that tab under a breadcrumb back to it, so opening a job doesn't leave the dashboard. Without one the page is
+ * Operations' own route, with its "All jobs" link.
+ */
+export interface JobTabHost {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+const OPERATIONS_JOBS = "/operations?tab=jobs";
+
+/** Above the page: the breadcrumb back to the host tab, or Operations' link back to its job list. */
+function JobNav({ host, here }: { host?: JobTabHost; here: string }) {
+  if (host) return <Breadcrumb items={[{ label: host.label, href: host.href, icon: host.icon }, { label: here }]} />;
   return (
-    <Link href="/operations?tab=jobs" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-2 w-fit")}>
+    <Link href={OPERATIONS_JOBS} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-2 w-fit")}>
       <ArrowLeft /> All jobs
     </Link>
   );
 }
 
-/** /operations/jobs/[id] — one job, mirrored from HubSpot and Monday (mockup `h === "detail"`). */
-export function JobDetailScreen({ id }: { id: string }) {
+/** Inside a host tab the tab's own PageContainer already pads the page. */
+function JobPage({ host, children }: { host?: JobTabHost; children: React.ReactNode }) {
+  return host ? <div className="flex min-w-0 flex-col gap-6">{children}</div> : <PageContainer>{children}</PageContainer>;
+}
+
+/** /operations/jobs/[id] — one job, mirrored from HubSpot and Monday (mockup `h === "detail"`). `host` shows it inside another dashboard's tab instead. */
+export function JobDetailScreen({ id, host }: { id: string; host?: JobTabHost }) {
   const router = useRouter();
   const { jobs, live } = useJobs();
   const { jobs: sampleJobs } = useLaunchpad();
@@ -53,8 +74,8 @@ export function JobDetailScreen({ id }: { id: string }) {
 
   if (!job) {
     return (
-      <PageContainer>
-        <BackLink />
+      <JobPage host={host}>
+        <JobNav host={host} here="Job not found" />
         <Card>
           <ErrorState
             title="Job not found"
@@ -70,22 +91,24 @@ export function JobDetailScreen({ id }: { id: string }) {
                 ) : null}
               </>
             }
-            onBack={() => router.push("/operations?tab=jobs")}
+            onBack={() => router.push(host?.href ?? OPERATIONS_JOBS)}
           />
         </Card>
-      </PageContainer>
+      </JobPage>
     );
   }
   // A live job is read only. The page switches its left column off, and its cards say so (JobReadOnly).
   const readOnly = live && liveJob !== undefined;
+  // A sample job, linked from a screen that still runs on sample data, opened while live data shows elsewhere.
+  const sampleWhileLive = live && liveJob === undefined;
   return (
     <JobReadOnly.Provider value={readOnly}>
-      <JobDetail job={job} live={readOnly} />
+      <JobDetail job={job} live={readOnly} sample={sampleWhileLive} host={host} />
     </JobReadOnly.Provider>
   );
 }
 
-function JobDetail({ job, live }: { job: Job; live: boolean }) {
+function JobDetail({ job, live, sample, host }: { job: Job; live: boolean; sample: boolean; host?: JobTabHost }) {
   const { activity, updateJob, logActivity } = useLaunchpad();
   const { syncMilestone, syncDetails, handOver, resolveConflict, fileReview, trailForJob, viewTrail } =
     useOperationsSync();
@@ -166,15 +189,15 @@ function JobDetail({ job, live }: { job: Job; live: boolean }) {
   const title = `${job.jobNo ? `Job ${job.jobNo}` : "New job"} · ${job.client}`;
 
   return (
-    <PageContainer>
+    <JobPage host={host}>
       <div className="flex flex-col gap-3">
-        <BackLink />
+        <JobNav host={host} here={job.client} />
         <PageHeader
           title={title}
           actions={
             <>
-              {live ? <LiveNote readOnly /> : null}
-              <SyncBadge sync={job.sync} className="text-[13px]" />
+              {/* Nothing compares Monday with HubSpot yet, so a live job shows its source, not a sync badge that would only say "in sync". */}
+              {live ? <LiveNote readOnly /> : <SyncBadge sync={job.sync} className="text-[13px]" />}
               {trail ? (
                 <Button variant="link" size="sm" className="h-auto text-xs" onClick={() => viewTrail(trail.id)}>
                   View sync trail
@@ -184,6 +207,8 @@ function JobDetail({ job, live }: { job: Job; live: boolean }) {
           }
         />
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* Nothing else on a sample job's page says it is one, and a live job's looks the same. */}
+          {sample ? <Pill tone="pending">Sample job</Pill> : null}
           <Pill tone="neutral">{job.builder}</Pill>
           {/* A live job's record ID is its real HubSpot deal id, or empty when Monday has none: then there is nothing to say.
               (`live` here is the same flag the page provides as JobReadOnly.) */}
@@ -192,7 +217,8 @@ function JobDetail({ job, live }: { job: Job; live: boolean }) {
               <Pill tone="neutral">
                 Record ID <span className="font-mono text-xs">{job.recordId}</span>
               </Pill>
-              <Pill tone="neutral">HubSpot · {job.hsStage}</Pill>
+              {/* While live the stage is Monday's own (its construction stage, or a default), not HubSpot's. */}
+              <Pill tone="neutral">{live ? <>Stage · {job.hsStage}</> : <>HubSpot · {job.hsStage}</>}</Pill>
             </>
           )}
           <MondayPill job={job} long />
@@ -229,7 +255,11 @@ function JobDetail({ job, live }: { job: Job; live: boolean }) {
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         {/* A live job is Monday's: no editing during the Dash Sync hold, as the note above says. */}
-        <fieldset disabled={live} className="flex min-w-0 flex-col gap-5">
+        <fieldset
+          disabled={live}
+          aria-label={live ? "Job details, read only" : undefined}
+          className="flex min-w-0 flex-col gap-5"
+        >
           <Reveal index={1}>
             <DealDetailsCard job={job} />
           </Reveal>
@@ -273,9 +303,12 @@ function JobDetail({ job, live }: { job: Job; live: boolean }) {
           <Reveal index={3}>
             <AuditLog entries={history} />
           </Reveal>
-          <Reveal index={4}>
-            <OpenInCard job={job} />
-          </Reveal>
+          {/* Real links to the Monday item and the HubSpot deal need ids from configuration, which a live job doesn't have yet. */}
+          {live ? null : (
+            <Reveal index={4}>
+              <OpenInCard job={job} />
+            </Reveal>
+          )}
         </div>
       </div>
 
@@ -299,6 +332,6 @@ function JobDetail({ job, live }: { job: Job; live: boolean }) {
           resolveConflict(job.id, keep);
         }}
       />
-    </PageContainer>
+    </JobPage>
   );
 }

@@ -36,6 +36,12 @@ const sleeps: number[] = [];
 const sleep = async (ms: number) => { sleeps.push(ms); };
 const complexity = (after = 9_000_000) => ({ complexity: { query: 1000, after, reset_in_x_seconds: 30 } });
 
+/**
+ * An invented token about as long as a real one. The client replaces every copy of its token in an error's text, so a
+ * one-letter token would be found inside ordinary words.
+ */
+const TOKEN = "test-token-for-the-mirror";
+
 test("monday client: spots a write in any spelling, but not the word inside a string", () => {
   assert.equal(isWriteOperation("mutation { create_item(board_id: 1, item_name: \"x\") { id } }"), true);
   assert.equal(isWriteOperation("  # a comment\n mutation Rename($id: ID!) { change_item_name(id: $id) { id } }"), true);
@@ -48,7 +54,7 @@ test("monday client: spots a write in any spelling, but not the word inside a st
 test("monday client: refuses a write before touching the network or the budget", async () => {
   const f = fakeFetch([]);
   const l = ledger();
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep });
   await assert.rejects(monday.query("mutation { delete_item(item_id: 1) { id } }"), (e: unknown) =>
     e instanceof MondayError && e.code === "WRITE_REFUSED");
   assert.equal(f.sent.length, 0);
@@ -78,7 +84,7 @@ test("monday client: adds complexity to the operation's own selection", () => {
 
 test("monday client: stops at the day's cap without sending", async () => {
   const f = fakeFetch([]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(false), fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(false), fetch: f.fn, sleep });
   await assert.rejects(monday.query("query { me { id } }"), MondayCapReachedError);
   assert.equal(f.sent.length, 0);
 });
@@ -90,7 +96,7 @@ test("monday client: waits out a rate limit, then succeeds", async () => {
     { status: 429, body: { errors: [{ message: "Budget exhausted", extensions: { code: "COMPLEXITY_BUDGET_EXHAUSTED", retry_in_seconds: 3 } }] } },
     { body: { data: { me: { id: "1" }, ...complexity() } } },
   ]);
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep });
   await monday.query("query { me { id } }");
   assert.deepEqual(sleeps, [3000]);
   assert.equal(l.claims, 2, "a retried request is a second call");
@@ -99,7 +105,7 @@ test("monday client: waits out a rate limit, then succeeds", async () => {
 test("monday client: the daily limit stops cold, no retry, and is recorded for the rest of the day", async () => {
   const f = fakeFetch([{ status: 429, body: { errors: [{ message: "Daily limit exceeded", extensions: { code: "DAILY_LIMIT_EXCEEDED" } }] } }]);
   const l = ledger();
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep });
   await assert.rejects(monday.query("query { me { id } }"), MondayDailyLimitError);
   assert.equal(f.sent.length, 1);
   assert.equal(l.limitHits, 1, "the ledger refuses every call until 00:00 UTC");
@@ -107,7 +113,7 @@ test("monday client: the daily limit stops cold, no retry, and is recorded for t
 
 test("monday client: an ordinary GraphQL error isn't retried", async () => {
   const f = fakeFetch([{ body: { errors: [{ message: "Field 'nope' doesn't exist", extensions: { code: "undefinedField" } }] } }]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep });
   await assert.rejects(monday.query("query { nope }"), (e: unknown) => e instanceof MondayError && /nope/.test(e.message));
   assert.equal(f.sent.length, 1);
 });
@@ -118,7 +124,7 @@ test("monday client: waits for the minute budget when the last answer left it lo
     { body: { data: { a: 1, complexity: { query: 1000, after: 500_000, reset_in_x_seconds: 7 } } } },
     { body: { data: { b: 2, ...complexity() } } },
   ]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep });
   await monday.query("query { a }");
   await monday.query("query { b }");
   assert.deepEqual(sleeps, [7000]);
@@ -234,7 +240,7 @@ test("monday client: refuses the lenient-parser documents before the network or 
   ]) {
     const f = fakeFetch([]);
     const l = ledger();
-    const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep });
+    const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep });
     await assert.rejects(monday.query(document), (e: unknown) => e instanceof MondayError && e.code === "WRITE_REFUSED");
     assert.equal(f.sent.length, 0);
     assert.equal(l.claims, 0);
@@ -254,7 +260,7 @@ test("monday client: refuses a write that hides in a comment or behind a comma, 
   ]) {
     const f = fakeFetch([]);
     const l = ledger();
-    const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep });
+    const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep });
     await assert.rejects(monday.query(document), (e: unknown) => e instanceof MondayError && e.code === "WRITE_REFUSED");
     assert.equal(f.sent.length, 0);
     assert.equal(l.claims, 0);
@@ -306,7 +312,7 @@ test("monday client: counts each call before sending it", async () => {
     events.push("send");
     return new Response(JSON.stringify({ data: { me: { id: "1" }, ...complexity() } }));
   }) as unknown as typeof fetch;
-  const monday = createMondayClient({ token: "t", ledger: counting, fetch: send, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: counting, fetch: send, sleep });
   await monday.query("query { me { id } }");
   assert.deepEqual(events, ["claim", "send"]);
 });
@@ -314,7 +320,7 @@ test("monday client: counts each call before sending it", async () => {
 test("monday client: if the ledger can't count a call, nothing is sent", async () => {
   const f = fakeFetch([]);
   const broken: MondayLedger = { claim: async () => { throw new Error("database unreachable"); }, dailyLimitHit: async () => {} };
-  const monday = createMondayClient({ token: "t", ledger: broken, fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: broken, fetch: f.fn, sleep });
   await assert.rejects(monday.query("query { me { id } }"), /database unreachable/);
   assert.equal(f.sent.length, 0);
 });
@@ -323,7 +329,7 @@ test("monday client: gives up after its retries, with every attempt counted and 
   sleeps.length = 0;
   const l = ledger();
   const f = fakeFetch([{ status: 503, body: {} }, { status: 503, body: {} }, { status: 503, body: {} }]);
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep, maxRetries: 2 });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep, maxRetries: 2 });
   await assert.rejects(monday.query("query { me { id } }"), (e: unknown) => e instanceof MondayError && e.status === 503);
   assert.equal(f.sent.length, 3);
   assert.equal(l.claims, 3);
@@ -335,7 +341,7 @@ test("monday client: retries a dropped connection, then says Monday is unreachab
   const l = ledger();
   let tries = 0;
   const down = (async () => { tries += 1; throw new Error("socket hang up"); }) as unknown as typeof fetch;
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: down, sleep, maxRetries: 1 });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: down, sleep, maxRetries: 1 });
   // The error's own message isn't fetch's, so only its name is repeated (a message could quote a token).
   await assert.rejects(monday.query("query { me { id } }"), (e: unknown) =>
     e instanceof MondayError && e.code === "NETWORK" && e.message === "Monday is unreachable: Error");
@@ -350,7 +356,7 @@ test("monday client: waits for Retry-After when a rate limit comes with no error
     { status: 429, body: {}, headers: { "retry-after": "5" } },
     { body: { data: { me: { id: "1" }, ...complexity() } } },
   ]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep });
   await monday.query("query { me { id } }");
   assert.deepEqual(sleeps, [5000]);
 });
@@ -384,7 +390,7 @@ test("monday client: a request that times out is retried, then succeeds", async 
   sleeps.length = 0;
   const l = ledger();
   const f = scripted([() => { throw timeoutError(); }, answer]);
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep });
   await monday.query("query { me { id } }");
   assert.equal(f.sent.length, 2);
   assert.equal(l.claims, 2, "the retry is a second call");
@@ -395,7 +401,7 @@ test("monday client: a 200 whose body can't be read is retried like a dropped co
   sleeps.length = 0;
   const l = ledger();
   const f = scripted([cutOff, answer]);
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep });
   await monday.query("query { me { id } }");
   assert.equal(f.sent.length, 2);
   assert.equal(l.claims, 2);
@@ -405,7 +411,7 @@ test("monday client: a 200 whose body can't be read is retried like a dropped co
 test("monday client: a body that can't be read on any attempt ends as a network failure", async () => {
   sleeps.length = 0;
   const f = scripted([cutOff, cutOff]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep, maxRetries: 1 });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep, maxRetries: 1 });
   await assert.rejects(monday.query("query { me { id } }"), (e: unknown) =>
     e instanceof MondayError && e.code === "NETWORK" && /terminated/.test(e.message));
   assert.equal(f.sent.length, 2);
@@ -414,7 +420,7 @@ test("monday client: a body that can't be read on any attempt ends as a network 
 
 test("monday client: every request carries its own AbortSignal, so a retry isn't born timed out", async () => {
   const f = scripted([() => { throw timeoutError(); }, answer]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep });
   await monday.query("query { me { id } }");
   const [first, second] = f.sent.map((s) => s.init.signal);
   assert.ok(first instanceof AbortSignal);
@@ -427,8 +433,8 @@ test("monday client: the request timeout is 30 s unless timeoutMs says otherwise
   const real = AbortSignal.timeout.bind(AbortSignal);
   t.mock.method(AbortSignal, "timeout", (ms: number) => { asked.push(ms); return real(ms); });
   const f = scripted([answer, answer]);
-  await createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep }).query("query { me { id } }");
-  await createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep, timeoutMs: 1234 }).query("query { me { id } }");
+  await createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep }).query("query { me { id } }");
+  await createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep, timeoutMs: 1234 }).query("query { me { id } }");
   assert.deepEqual(asked, [30_000, 1234]);
 });
 
@@ -437,7 +443,7 @@ test("monday client: a request that outlives timeoutMs is aborted by its signal,
   const hangs = (init: RequestInit) =>
     new Promise<Response>((_resolve, reject) => init.signal?.addEventListener("abort", () => reject(init.signal?.reason)));
   const f = scripted([hangs, answer]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep, timeoutMs: 20 });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep, timeoutMs: 20 });
   // If the signal never fires, fail in two seconds rather than wait out the 30 s default.
   let giveUp: ReturnType<typeof setTimeout> | undefined;
   const never = new Promise<never>((_resolve, reject) => {
@@ -464,7 +470,7 @@ test("monday client: a network failure says why, and keeps the original error as
   ];
   for (const [what, failure, message] of cases) {
     const f = scripted([() => { throw failure; }]);
-    const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep, maxRetries: 0 });
+    const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep, maxRetries: 0 });
     await assert.rejects(
       monday.query("query { me { id } }"),
       (e: unknown) => e instanceof MondayError && e.code === "NETWORK" && message.test(e.message) && e.cause === failure,
@@ -476,14 +482,14 @@ test("monday client: a network failure says why, and keeps the original error as
 test("monday client: a 2xx answer that isn't JSON is retried, then reported as a network failure", async () => {
   sleeps.length = 0;
   const retried = scripted([() => notJson(), answer]);
-  await createMondayClient({ token: "t", ledger: ledger(), fetch: retried.fn, sleep }).query("query { me { id } }");
+  await createMondayClient({ token: TOKEN, ledger: ledger(), fetch: retried.fn, sleep }).query("query { me { id } }");
   assert.equal(retried.sent.length, 2);
   assert.deepEqual(sleeps, [1000]);
 
   const l = ledger();
   const stuck = scripted([() => notJson(), () => notJson()]);
   await assert.rejects(
-    createMondayClient({ token: "t", ledger: l, fetch: stuck.fn, sleep, maxRetries: 1 }).query("query { me { id } }"),
+    createMondayClient({ token: TOKEN, ledger: l, fetch: stuck.fn, sleep, maxRetries: 1 }).query("query { me { id } }"),
     (e: unknown) => e instanceof MondayError && e.code === "NETWORK" && /wasn't JSON/.test(e.message),
   );
   assert.equal(stuck.sent.length, 2);
@@ -492,7 +498,7 @@ test("monday client: a 2xx answer that isn't JSON is retried, then reported as a
 
 test("monday client: a body that is JSON but not Monday's shape still isn't retried", async () => {
   const f = scripted([() => jsonResponse({ unexpected: true })]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep });
   await assert.rejects(monday.query("query { me { id } }"), (e: unknown) =>
     e instanceof MondayError && e.code === null && e.status === 200 && /HTTP 200/.test(e.message));
   assert.equal(f.sent.length, 1);
@@ -501,13 +507,13 @@ test("monday client: a body that is JSON but not Monday's shape still isn't retr
 test("monday client: a non-JSON answer on an error status is judged by its status", async () => {
   sleeps.length = 0;
   const gateway = scripted([() => notJson(502), answer]);
-  await createMondayClient({ token: "t", ledger: ledger(), fetch: gateway.fn, sleep }).query("query { me { id } }");
+  await createMondayClient({ token: TOKEN, ledger: ledger(), fetch: gateway.fn, sleep }).query("query { me { id } }");
   assert.equal(gateway.sent.length, 2, "a 502 page is retried");
   assert.deepEqual(sleeps, [1000]);
 
   const forbidden = scripted([() => notJson(403)]);
   await assert.rejects(
-    createMondayClient({ token: "t", ledger: ledger(), fetch: forbidden.fn, sleep }).query("query { me { id } }"),
+    createMondayClient({ token: TOKEN, ledger: ledger(), fetch: forbidden.fn, sleep }).query("query { me { id } }"),
     (e: unknown) => e instanceof MondayError && e.status === 403 && e.code === null,
   );
   assert.equal(forbidden.sent.length, 1, "a 403 page is not");
@@ -523,7 +529,7 @@ test("monday client: retry_in_seconds from the error wins over the Retry-After h
     },
     { body: { data: { me: { id: "1" }, ...complexity() } } },
   ]);
-  await createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep }).query("query { me { id } }");
+  await createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep }).query("query { me { id } }");
   assert.deepEqual(sleeps, [2000]);
 });
 
@@ -533,7 +539,7 @@ test("monday client: the wait for the minute budget is capped at 65 s", async ()
     { body: { data: { a: 1, complexity: { query: 1000, after: 500_000, reset_in_x_seconds: 600 } } } },
     { body: { data: { b: 2, ...complexity() } } },
   ]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep });
   await monday.query("query { a }");
   await monday.query("query { b }");
   assert.deepEqual(sleeps, [65_000]);
@@ -546,14 +552,14 @@ test("monday client: a retry wait is capped at 65 s, whether Monday names it in 
     { status: 429, body: {}, headers: { "retry-after": "600" } },
     { body: { data: { me: { id: "1" }, ...complexity() } } },
   ]);
-  await createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep }).query("query { me { id } }");
+  await createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep }).query("query { me { id } }");
   assert.deepEqual(sleeps, [65_000, 65_000]);
 });
 
 test("monday client: the backoff doubles from 1 s and stops growing at 65 s", async () => {
   sleeps.length = 0;
   const f = fakeFetch(Array.from({ length: 9 }, () => ({ status: 503, body: {} })));
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep, maxRetries: 8 });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep, maxRetries: 8 });
   await assert.rejects(monday.query("query { me { id } }"), (e: unknown) => e instanceof MondayError && e.status === 503);
   assert.deepEqual(sleeps, [1000, 2000, 4000, 8000, 16_000, 32_000, 64_000, 65_000]);
 });
@@ -564,12 +570,12 @@ test("monday client: the older error body, { error_code, error_message, retry_in
     { body: { error_code: "ComplexityException", error_message: "Query is too complex", retry_in_seconds: 4 } },
     { body: { data: { me: { id: "1" }, ...complexity() } } },
   ]);
-  await createMondayClient({ token: "t", ledger: ledger(), fetch: retried.fn, sleep }).query("query { me { id } }");
+  await createMondayClient({ token: TOKEN, ledger: ledger(), fetch: retried.fn, sleep }).query("query { me { id } }");
   assert.deepEqual(sleeps, [4000]);
 
   const refused = fakeFetch([{ body: { error_code: "InvalidUserIdException", error_message: "No such user" } }]);
   await assert.rejects(
-    createMondayClient({ token: "t", ledger: ledger(), fetch: refused.fn, sleep }).query("query { me { id } }"),
+    createMondayClient({ token: TOKEN, ledger: ledger(), fetch: refused.fn, sleep }).query("query { me { id } }"),
     (e: unknown) => e instanceof MondayError && e.code === "InvalidUserIdException" && e.message === "No such user",
   );
   assert.equal(refused.sent.length, 1);
@@ -579,7 +585,7 @@ test("monday client: a daily limit is recognised from its message alone, with no
   for (const body of [{ errors: [{ message: "Daily limit exceeded for this account" }] }, { error_message: "Daily limit exceeded" }]) {
     const f = fakeFetch([{ status: 429, body }]);
     const l = ledger();
-    const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep });
+    const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep });
     await assert.rejects(monday.query("query { me { id } }"), MondayDailyLimitError);
     assert.equal(f.sent.length, 1, "no retry");
     assert.equal(l.limitHits, 1, "and it is recorded for the rest of the day");
@@ -603,7 +609,7 @@ test("monday client: a deadline that has passed stops the call before it is clai
     const c = clock(); // 1_000_000: the deadline is already past, and exactly now
     const f = scripted([answer]);
     const l = ledger();
-    const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep: c.sleep, now: c.now, deadline });
+    const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep: c.sleep, now: c.now, deadline });
     await assert.rejects(monday.query("query { me { id } }"), (e: unknown) =>
       e instanceof MondayDeadlineError && e instanceof MondayError && e.code === "DEADLINE");
     assert.equal(f.sent.length, 0, "nothing is sent");
@@ -620,7 +626,7 @@ test("monday client: a rate limit whose wait would end past the deadline is not 
     { status: 429, body: { errors: [{ message: "Slow down", extensions: { code: "RATE_LIMIT_EXCEEDED", retry_in_seconds: 30 } }] } },
     { body: { data: { me: { id: "1" }, ...complexity() } } },
   ]);
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep: c.sleep, now: c.now, deadline: new Date(c.start + 10_000) });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep: c.sleep, now: c.now, deadline: new Date(c.start + 10_000) });
   await assert.rejects(monday.query("query { me { id } }"), MondayDeadlineError);
   assert.deepEqual(sleeps, [], "no sleep");
   assert.equal(f.sent.length, 1);
@@ -635,7 +641,7 @@ test("monday client: a minute budget that resets after the deadline is not waite
     { body: { data: { a: 1, complexity: { query: 1000, after: 500_000, reset_in_x_seconds: 30 } } } },
     { body: { data: { b: 2, ...complexity() } } },
   ]);
-  const monday = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep: c.sleep, now: c.now, deadline: new Date(c.start + 10_000) });
+  const monday = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep: c.sleep, now: c.now, deadline: new Date(c.start + 10_000) });
   await monday.query("query { a }");
   await assert.rejects(monday.query("query { b }"), MondayDeadlineError);
   assert.deepEqual(sleeps, [], "no sleep");
@@ -649,7 +655,7 @@ test("monday client: a backoff that would end at or past the deadline is not wai
   const l = ledger();
   const f = scripted([() => { throw timeoutError(); }, answer]);
   // The first backoff is 1000 ms: it would end exactly at the deadline, when nothing more can be sent.
-  const stopped = createMondayClient({ token: "t", ledger: l, fetch: f.fn, sleep: atTheDeadline.sleep, now: atTheDeadline.now, deadline: new Date(atTheDeadline.start + 1000) });
+  const stopped = createMondayClient({ token: TOKEN, ledger: l, fetch: f.fn, sleep: atTheDeadline.sleep, now: atTheDeadline.now, deadline: new Date(atTheDeadline.start + 1000) });
   await assert.rejects(stopped.query("query { me { id } }"), MondayDeadlineError);
   assert.deepEqual(sleeps, []);
   assert.equal(f.sent.length, 1);
@@ -657,7 +663,7 @@ test("monday client: a backoff that would end at or past the deadline is not wai
 
   const beforeTheDeadline = clock();
   const g = scripted([() => { throw timeoutError(); }, answer]);
-  const carriedOn = createMondayClient({ token: "t", ledger: ledger(), fetch: g.fn, sleep: beforeTheDeadline.sleep, now: beforeTheDeadline.now, deadline: new Date(beforeTheDeadline.start + 1001) });
+  const carriedOn = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: g.fn, sleep: beforeTheDeadline.sleep, now: beforeTheDeadline.now, deadline: new Date(beforeTheDeadline.start + 1001) });
   await carriedOn.query("query { me { id } }");
   assert.deepEqual(sleeps, [1000]);
   assert.equal(g.sent.length, 2);
@@ -678,7 +684,7 @@ test("monday client: each attempt's timeout is capped by the deadline, but never
     const c = clock();
     const f = scripted([answer]);
     const monday = createMondayClient({
-      token: "t",
+      token: TOKEN,
       ledger: ledger(),
       fetch: f.fn,
       sleep: c.sleep,
@@ -702,14 +708,14 @@ test("monday client: a wait that fits before the deadline is taken, and the next
     { status: 429, body: { errors: [{ message: "Slow down", extensions: { code: "RATE_LIMIT_EXCEEDED", retry_in_seconds: 3 } }] } },
     { body: { data: { me: { id: "1" }, ...complexity() } } },
   ]);
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: f.fn, sleep: c.sleep, now: c.now, deadline: new Date(c.start + 12_000) });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep: c.sleep, now: c.now, deadline: new Date(c.start + 12_000) });
   await monday.query("query { me { id } }");
   assert.deepEqual(sleeps, [3000]);
   assert.deepEqual(asked, [12_000, 9000]);
 });
 
 test("monday client: timeoutMs is checked once, when the client is made", () => {
-  const make = (timeoutMs: unknown) => () => createMondayClient({ token: "t", ledger: ledger(), timeoutMs: timeoutMs as number });
+  const make = (timeoutMs: unknown) => () => createMondayClient({ token: TOKEN, ledger: ledger(), timeoutMs: timeoutMs as number });
   // Not whole, not positive, not a number, or more than a timer can hold (above that, Node sets it to 1 ms).
   for (const bad of [1.5, -1, 0, NaN, Infinity, 2 ** 31]) {
     assert.throws(make(bad), (e: unknown) => e instanceof RangeError && /timeoutMs/.test(e.message), `timeoutMs ${bad}`);
@@ -723,7 +729,7 @@ test("monday client: timeoutMs is checked once, when the client is made", () => 
 test("monday client: a deadline that isn't a valid Date is refused when the client is made", () => {
   for (const bad of [new Date(NaN), 1_000_000, "soon"]) {
     assert.throws(
-      () => createMondayClient({ token: "t", ledger: ledger(), deadline: bad as unknown as Date }),
+      () => createMondayClient({ token: TOKEN, ledger: ledger(), deadline: bad as unknown as Date }),
       (e: unknown) => e instanceof TypeError && /deadline/.test(e.message),
       `deadline ${String(bad)}`,
     );
@@ -748,7 +754,7 @@ test("monday client: a token with a line break, a NUL or a space is refused when
 
 /** The error a document is refused with. */
 async function refusalOf(document: string): Promise<MondayError> {
-  const monday = createMondayClient({ token: "t", ledger: ledger(), fetch: scripted([]).fn, sleep });
+  const monday = createMondayClient({ token: TOKEN, ledger: ledger(), fetch: scripted([]).fn, sleep });
   try {
     await monday.query(document);
   } catch (e) {
@@ -756,6 +762,31 @@ async function refusalOf(document: string): Promise<MondayError> {
   }
   throw new Error(`the document was not refused: ${JSON.stringify(document)}`);
 }
+
+// Final review, Minor 5: the client sends the token as checkedToken returns it (trimmed), and no error's text can quote
+// it, as in the HubSpot client.
+
+test("monday client: sends the token trimmed, as it was checked", async () => {
+  const f = fakeFetch([{ body: { data: { me: { id: "1" }, ...complexity() } } }]);
+  await createMondayClient({ token: `  ${TOKEN}\n`, ledger: ledger(), fetch: f.fn, sleep }).query("query { me { id } }");
+  assert.equal((f.sent[0].init.headers as Record<string, string>).Authorization, TOKEN);
+});
+
+test("monday client: an error that would quote the token says [token] instead", async () => {
+  const quoting = (status: number, code: string) =>
+    fakeFetch([{ status, body: { errors: [{ message: `Token ${TOKEN} is not valid for ${TOKEN}`, extensions: { code } }] } }]);
+  const cases: [string, ReturnType<typeof fakeFetch>, (e: unknown) => boolean][] = [
+    ["an ordinary error", quoting(401, "UNAUTHENTICATED"), (e) => e instanceof MondayError && e.status === 401],
+    ["the daily limit", quoting(429, "DAILY_LIMIT_EXCEEDED"), (e) => e instanceof MondayDailyLimitError],
+  ];
+  for (const [what, f, kind] of cases) {
+    await assert.rejects(
+      createMondayClient({ token: TOKEN, ledger: ledger(), fetch: f.fn, sleep }).query("query { me { id } }"),
+      (e: unknown) => kind(e) && (e as Error).message === "Token [token] is not valid for [token]",
+      what,
+    );
+  }
+});
 
 test("monday client: a refusal says a mutation or subscription was found, when one was", async () => {
   const e = await refusalOf("mutation { delete_item(item_id: 1) { id } }");

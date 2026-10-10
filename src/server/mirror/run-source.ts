@@ -1,5 +1,6 @@
 import type { Db } from "../db/types";
 import type { ServerEnv } from "../env";
+import { messageOf } from "../error-message";
 import { supabaseFileStore } from "../storage";
 import { createHubSpotClient } from "./hubspot/client";
 import { runHubSpotPass } from "./hubspot/pass";
@@ -27,18 +28,8 @@ export interface RunSourceOptions {
   log?: (line: string) => void;
 }
 
+/** A failed result says why: messageOf gives the message, or else the code, or else the string form, never blank. */
 const failed = (error: string): PassResult => ({ status: "failed", calls: 0, seen: 0, changed: 0, note: null, error });
-
-/**
- * An error's message, or else its code, or else its string form, so a failed result always says something. (Node's
- * failures to connect to a host with several addresses are AggregateErrors with no message and a code such as
- * ECONNREFUSED: a database outage would otherwise be a blank failure.)
- */
-const messageOf = (e: unknown): string => {
-  if (e instanceof Error && e.message) return e.message;
-  const code = typeof e === "object" && e !== null ? (e as { code?: unknown }).code : undefined;
-  return typeof code === "string" && code ? code : String(e);
-};
 
 /** A message added to an error that may hold one already. */
 const addTo = (error: string | null, message: string): string => (error ? `${error}; ${message}` : message);

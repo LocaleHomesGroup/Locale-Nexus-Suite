@@ -1,4 +1,4 @@
-import { PRE_START, builderByName, ratesFor, type HsAllowanceRule, type HsBuilder, type HsModel, type HsRange } from "./catalogue";
+import { PRE_START, builderIn, ratesFor, type HsAllowanceRule, type HsBuilder, type HsModel, type HsRange } from "./catalogue";
 import type { Estimate } from "./store";
 
 /**
@@ -120,8 +120,8 @@ export interface Pricing {
 const rateOf = (b: HsBuilder | null, list: "bal" | "coastal" | "noise", name: string | null, area: number | null) =>
   b && name ? (ratesFor(b[list], area).find((r) => r.name === name)?.price ?? 0) : 0;
 
-export function price(e: Estimate): Pricing {
-  const builder = builderByName(e.builder);
+export function price(e: Estimate, builders: HsBuilder[]): Pricing {
+  const builder = builderIn(builders, e.builder);
   const model = builder?.models.find((m) => m.name === e.model) ?? null;
   const range = builder?.ranges.find((r) => r.name === e.range) ?? null;
   const modelPrice = model && range ? (model.prices[range.column] ?? 0) : 0;

@@ -171,8 +171,9 @@ test("discover: users come 200 to a page, and one with an unusable id is skipped
     id: String(id),
     name: `Test User ${id}`,
     email: null,
-    enabled: true,
-    is_guest: false,
+    kind: "member",
+    status: "ACTIVE",
+    is_deleted: false,
     ...over,
   });
   const pages: unknown[] = [];
@@ -180,7 +181,7 @@ test("discover: users come 200 to a page, and one with an unusable id is skipped
     assert.equal(document, Q.users);
     pages.push(variables.page);
     if (variables.page === 1) return { users: Array.from({ length: 200 }, (_, i) => user(5000 + i)) };
-    return { users: [user(5200, { name: null, enabled: null, is_guest: null }), user("abc")] };
+    return { users: [user(5200, { name: null, kind: null, status: null, is_deleted: null }), user("abc")] };
   });
 
   assert.equal(await discoverUsers(db, monday), 201);
@@ -189,4 +190,31 @@ test("discover: users come 200 to a page, and one with an unusable id is skipped
   assert.equal(n, 201);
   const [sparse] = await db.query("select name, enabled, is_guest from mirror.monday_users where id = 5200");
   assert.deepEqual(sparse, { name: null, enabled: null, is_guest: null });
+});
+
+test("discover: API 2026-10 users: enabled unless deactivated or deleted, a guest by kind", async () => {
+  // 2026-10 has no `enabled` or `is_guest` on User: Monday rejects them. It has status, is_deleted and kind.
+  const users = [
+    { id: "6001", name: "Test User A", email: null, kind: "member", status: "ACTIVE", is_deleted: false },
+    { id: "6002", name: "Test User B", email: null, kind: "member", status: "INACTIVE", is_deleted: false },
+    { id: "6003", name: "Test User C", email: null, kind: "admin", status: "ACTIVE", is_deleted: true },
+    { id: "6004", name: "Test User D", email: null, kind: "view_only", status: "PENDING", is_deleted: false },
+    { id: "6005", name: "Test User E", email: null, kind: "guest", status: "ACTIVE", is_deleted: false },
+  ];
+  const monday = fakeMonday((document) => {
+    assert.equal(document, Q.users);
+    return { users };
+  });
+  assert.equal(await discoverUsers(db, monday), 5);
+  const rows = await db.query<{ id: number; enabled: boolean; is_guest: boolean }>(
+    "select id, enabled, is_guest from mirror.monday_users where id between 6001 and 6005 order by id",
+  );
+  assert.deepEqual(rows, [
+    { id: 6001, enabled: true, is_guest: false },
+    { id: 6002, enabled: false, is_guest: false },
+    { id: 6003, enabled: false, is_guest: false },
+    { id: 6004, enabled: true, is_guest: false },
+    { id: 6005, enabled: true, is_guest: true },
+  ]);
+  assert.doesNotMatch(Q.users, /\benabled\b|\bis_guest\b/, "the users document asks only for fields 2026-10 has");
 });

@@ -1,12 +1,30 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { ORG_SEED } from "@/components/modules/hr/data";
-import { departmentHeads, seedStaff, staffSeedRows } from "./seed-staff";
+import { EMPLOYEE_RECORDS, ORG_SEED, orgDepartmentOf } from "@/components/modules/hr/data";
+import { departmentHeads, seedStaff, staffSeedRows, type StaffSeedRow } from "./seed-staff";
 import { migratedTestDb } from "./pglite";
 import type { Db } from "./types";
 
+/**
+ * The seed is the real org chart, but no test here names anyone in it (tests use invented data): a seat is picked by
+ * what it holds, and what is checked is how every seat maps, not who sits where.
+ */
 const rows = staffSeedRows();
-const KANE = "jan-kane-reroma";
+
+/** The company's own domain: every work email the seed carries is at it. */
+const COMPANY_DOMAIN = "@localegroup.au";
+
+/**
+ * The seat the tests below edit, picked by its properties: filled, with a manager, and holding none of the values the
+ * edits write, so that each edit changes something.
+ */
+const PICKED = rows.find(
+  (r) => !r.vacant && r.reports_to !== null && r.brand !== "homes" && r.department_id !== "sales" && r.link !== "peer",
+);
+function seat(): StaffSeedRow {
+  assert.ok(PICKED, "the chart has no filled seat with a manager outside Sales and Homes, so these tests can't run");
+  return PICKED;
+}
 
 /** Every field a seed row may carry. A new one (a mobile number, a birthday, a remark) has to be added here on purpose. */
 const WORK_FIELDS = [
@@ -25,12 +43,40 @@ before(async () => {
 });
 after(async () => close());
 
-test("seed: Kane's seat reads as Information Technology, under Jerry", () => {
-  const kane = staffSeedRows().find((r) => r.id === "jan-kane-reroma");
-  assert.ok(kane);
-  assert.equal(kane.department_id, "it");
-  assert.equal(kane.reports_to, "jerry-delos-santos");
-  assert.equal(kane.work_email, "jan@localegroup.au");
+test("seed: each seat takes its department, manager and work email from the chart and its employee record", () => {
+  // The chart's departments by the roster's ids: "AI & Growth" is Information Technology, "Accounts" is Accounting.
+  const rosterId: Record<string, string> = { ai: "it", accounts: "accounting" };
+  for (const p of ORG_SEED) {
+    const row = rows.find((r) => r.id === p.id);
+    const chart = orgDepartmentOf(ORG_SEED, p.id);
+    assert.deepEqual(
+      { department: row?.department_id, manager: row?.reports_to, email: row?.work_email },
+      { department: rosterId[chart] ?? chart, manager: p.managerId, email: EMPLOYEE_RECORDS[p.id]?.workEmail ?? null },
+      `seat ${p.id}`,
+    );
+  }
+  // Positive controls: the renamed departments have seats, and some seats have managers and work emails.
+  assert.ok(rows.some((r) => r.department_id === "it") && rows.some((r) => r.department_id === "accounting"));
+  assert.ok(rows.some((r) => r.reports_to !== null), "no seat has a manager, so the check above proves little");
+  assert.ok(rows.some((r) => r.work_email !== null), "no seat has a work email, so the check above proves little");
+});
+
+test("seed: once stored, staff have work emails at the company domain, every manager is a staff row, and every department has its head", async () => {
+  const stored = await db.query<{ id: string; reports_to: string | null; work_email: string | null }>(
+    "select id, reports_to, work_email from launchpad.staff",
+  );
+  assert.ok(stored.some((s) => s.work_email?.endsWith(COMPANY_DOMAIN)), `no stored seat has a work email at ${COMPANY_DOMAIN}`);
+  const ids = new Set(stored.map((s) => s.id));
+  const managed = stored.filter((s) => s.reports_to !== null);
+  assert.ok(managed.length > 0, "no stored seat has a manager, so this proves nothing");
+  assert.deepEqual(managed.filter((s) => !ids.has(s.reports_to ?? "")).map((s) => s.id), [], "a manager id with no staff row");
+
+  const heads = await db.query<{ id: string; head: string | null }>("select id, head_staff_id as head from launchpad.departments");
+  const headOf = new Map(heads.map((d) => [d.id, d.head]));
+  for (const d of departmentHeads()) {
+    assert.equal(headOf.get(d.id), d.head, `the head of ${d.id} is set, as the chart has it`);
+    assert.ok(ids.has(d.head), `the head of ${d.id} is a staff row`);
+  }
 });
 
 test("seed: every reporting line points at a seat in the same list", () => {
@@ -39,13 +85,13 @@ test("seed: every reporting line points at a seat in the same list", () => {
   assert.deepEqual(rows.filter((r) => r.reports_to && !ids.has(r.reports_to)).map((r) => r.id), []);
 });
 
-test("seed: work fields only, and no email address that isn't @localegroup.au", () => {
+test(`seed: work fields only, and no email address that isn't ${COMPANY_DOMAIN}`, () => {
   const seeded = staffSeedRows();
   const emails = JSON.stringify(seeded).match(/[\w.+-]+@[\w.-]+/g) ?? [];
   assert.ok(emails.length > 0, "found no email addresses at all, so this check would pass on anything");
   // An allow-list, so a personal domain nobody thought to list is caught too. It reports a count, never the addresses.
-  const stray = emails.filter((a) => !a.endsWith("@localegroup.au"));
-  assert.equal(stray.length, 0, `${stray.length} email address(es) in the seed rows are not @localegroup.au`);
+  const stray = emails.filter((a) => !a.endsWith(COMPANY_DOMAIN));
+  assert.equal(stray.length, 0, `${stray.length} email address(es) in the seed rows are not ${COMPANY_DOMAIN}`);
   for (const r of seeded) assert.deepEqual(Object.keys(r).sort(), WORK_FIELDS, `the fields of seat ${r.id}`);
 });
 
@@ -90,30 +136,37 @@ test("seed: an identical re-run writes nothing and leaves updated_at alone", asy
   assert.deepEqual(again, { written: 0, heads: 0 });
 });
 
-// Each edit gives one written column of Kane's seat a value the seed doesn't write for it. `vacant` is left out:
-// a check ties it to `name`, so it can't change on its own, and the `name` edit covers it.
-const EDITS: [column: string, set: string][] = [
-  ["name", "name = name || ' (edited)'"],
-  ["preferred_name", "preferred_name = 'Edited'"],
-  ["role", "role = 'Edited'"],
-  ["brand", "brand = 'homes'"],
-  ["department_id", "department_id = 'sales'"],
-  ["reports_to", "reports_to = 'adam-schaal'"],
-  ["link", "link = 'peer'"],
-  ["team", "team = 'Edited'"],
-  ["note", "note = 'Edited'"],
-  ["work_email", "work_email = 'edited@localegroup.au'"],
-  ["start_date", "start_date = '2000-01-01'"],
-  ["status", "status = 'inactive'"],
-];
+/**
+ * Edits that each give one written column of the seat a value the seed doesn't write for it. `vacant` is left out: a
+ * check ties it to `name`, so it can't change on its own, and the `name` edit covers it.
+ */
+function editsOf(s: StaffSeedRow): [column: string, set: string][] {
+  // Another seat to report to: neither the seat itself nor its manager now. Seat ids are plain slugs (the table checks).
+  const otherManager = rows.find((r) => r.id !== s.id && r.id !== s.reports_to)?.id;
+  assert.ok(otherManager, "no other seat to report to");
+  return [
+    ["name", "name = name || ' (edited)'"],
+    ["preferred_name", "preferred_name = 'Edited'"],
+    ["role", "role = 'Edited'"],
+    ["brand", "brand = 'homes'"],
+    ["department_id", "department_id = 'sales'"],
+    ["reports_to", `reports_to = '${otherManager}'`],
+    ["link", "link = 'peer'"],
+    ["team", "team = 'Edited'"],
+    ["note", "note = 'Edited'"],
+    ["work_email", "work_email = 'edited@example.com'"],
+    ["start_date", "start_date = '2000-01-01'"],
+    ["status", "status = 'inactive'"],
+  ];
+}
 
 test("seed: a seat changed by hand while still org_seed is restored, and only that seat is written", async () => {
-  const kane = rows.find((r) => r.id === KANE);
-  for (const [column, set] of EDITS) {
-    await db.query(`update launchpad.staff set ${set} where id = $1`, [KANE]);
+  const s = seat();
+  for (const [column, set] of editsOf(s)) {
+    await db.query(`update launchpad.staff set ${set} where id = $1`, [s.id]);
     assert.deepEqual(await seedStaff(db, rows), { written: 1, heads: 0 }, `${column}: restored, and only that seat written`);
-    const [stored] = await db.query(`select ${SELECT_WORK_FIELDS} from launchpad.staff where id = $1`, [KANE]);
-    assert.deepEqual(stored, kane, `${column}: the seat is back as the seed writes it`);
+    const [stored] = await db.query(`select ${SELECT_WORK_FIELDS} from launchpad.staff where id = $1`, [s.id]);
+    assert.deepEqual(stored, s, `${column}: the seat is back as the seed writes it`);
   }
 });
 
@@ -139,13 +192,14 @@ test("seed: department heads are fill-only: one set by hand survives a re-seed, 
 });
 
 test("seed: a seat the roster owns is left alone", async () => {
-  await db.query("update launchpad.staff set source = 'roster', role = 'Roster role' where id = $1", [KANE]);
+  const { id } = seat();
+  await db.query("update launchpad.staff set source = 'roster', role = 'Roster role' where id = $1", [id]);
   try {
     assert.deepEqual(await seedStaff(db, rows), { written: 0, heads: 0 });
-    const [kane] = await db.query<{ role: string }>("select role from launchpad.staff where id = $1", [KANE]);
-    assert.equal(kane.role, "Roster role");
+    const [stored] = await db.query<{ role: string }>("select role from launchpad.staff where id = $1", [id]);
+    assert.equal(stored.role, "Roster role");
   } finally {
-    await db.query("update launchpad.staff set source = 'org_seed' where id = $1", [KANE]);
+    await db.query("update launchpad.staff set source = 'org_seed' where id = $1", [id]);
     await seedStaff(db, rows); // puts the seat back as the seed writes it
   }
 });
@@ -153,7 +207,7 @@ test("seed: a seat the roster owns is left alone", async () => {
 test("seed: a bad manager id rolls the whole run back, and the error names the id", async () => {
   const fresh = await migratedTestDb();
   try {
-    const bad = rows.map((r) => (r.id === KANE ? { ...r, reports_to: "no-such-seat" } : r));
+    const bad = rows.map((r) => (r.id === seat().id ? { ...r, reports_to: "no-such-seat" } : r));
     const error = await seedStaff(fresh.db, bad).then(
       () => null,
       (e: unknown) => e as { message: string; detail?: string },

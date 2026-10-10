@@ -72,16 +72,31 @@ export async function discoverBoardsById(db: Db, monday: MondayClient, ids: numb
   return found;
 }
 
+interface MondayUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  /** "admin", "member", "view_only", "guest", ... */
+  kind?: string | null;
+  /** ACTIVE, INACTIVE (deactivated) or PENDING (invited, not yet joined). */
+  status?: string | null;
+  is_deleted?: boolean | null;
+}
+
+/** Enabled unless deactivated or deleted; null when Monday says neither. (API 2026-10 dropped User.enabled.) */
+const enabledOf = (u: MondayUser): boolean | null =>
+  u.status == null && u.is_deleted == null ? null : u.status !== "INACTIVE" && u.is_deleted !== true;
+
+/** A guest is kind "guest"; null when Monday gives no kind. (API 2026-10 dropped User.is_guest.) */
+const guestOf = (u: MondayUser): boolean | null => (u.kind == null ? null : u.kind === "guest");
+
 export async function discoverUsers(db: Db, monday: MondayClient): Promise<number> {
   let total = 0;
   for (let page = 1; page <= 20; page++) {
-    const data = await monday.query<{ users: { id: string; name?: string | null; email?: string | null; enabled?: boolean | null; is_guest?: boolean | null }[] }>(
-      Q.users,
-      { page },
-    );
+    const data = await monday.query<{ users: MondayUser[] }>(Q.users, { page });
     const rows = data.users.flatMap((u) => {
       const id = toId(u.id);
-      return id === null ? [] : [{ id, name: u.name ?? null, email: u.email ?? null, enabled: u.enabled ?? null, is_guest: u.is_guest ?? null }];
+      return id === null ? [] : [{ id, name: u.name ?? null, email: u.email ?? null, enabled: enabledOf(u), is_guest: guestOf(u) }];
     });
     await upsertUsers(db, rows);
     total += rows.length;

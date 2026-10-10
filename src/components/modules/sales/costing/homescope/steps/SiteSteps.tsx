@@ -127,7 +127,7 @@ export function SiteVariationsStep() {
               <SmoothSelect
                 id="hs-area"
                 value={e.floorArea == null ? "" : String(e.floorArea)}
-                onChange={(v) => chooseFloorArea(Number(v))}
+                onChange={(v) => chooseFloorArea(Number(v), b)}
                 placeholder="Select floor area"
                 options={areas.map((a) => ({ value: String(a), label: `${a} m²` }))}
               />

@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { HUBSPOT_CONTACTS, STEPS, builderByName, stepIndex, type HubspotContact } from "./catalogue";
+import { HUBSPOT_CONTACTS, STEPS, stepIndex, type HsBuilder, type HubspotContact } from "./catalogue";
+import { useCatalogue } from "./catalogue-context";
 import { price } from "./pricing";
 
 /**
@@ -249,10 +250,11 @@ export function useHomeScope(): State {
   return React.useSyncExternalStore(subscribe, current, current);
 }
 
-/** The estimate with its figures worked out. */
+/** The estimate with its figures worked out, from the catalogue HomeScope is pricing with. */
 export function useEstimate() {
   const s = useHomeScope();
-  const pricing = React.useMemo(() => price(s.estimate), [s.estimate]);
+  const { builders } = useCatalogue();
+  const pricing = React.useMemo(() => price(s.estimate, builders), [s.estimate, builders]);
   return { ...s, pricing };
 }
 
@@ -368,10 +370,8 @@ export function chooseColour(mode: Estimate["colourMode"], colour: string | null
 }
 
 /** A new floor area band keeps each rate only if the band has one by that name (HomeScope's revalidate). */
-export function chooseFloorArea(area: number) {
+export function chooseFloorArea(area: number, b: HsBuilder) {
   edit((e) => {
-    const b = builderByName(e.builder);
-    if (!b) return e;
     const keep = (list: "bal" | "coastal" | "noise", name: string | null) =>
       name && b[list].some((r) => r.area === area && r.name === name) ? name : null;
     return { ...e, floorArea: area, bal: keep("bal", e.bal), coastal: keep("coastal", e.coastal), noise: keep("noise", e.noise) };

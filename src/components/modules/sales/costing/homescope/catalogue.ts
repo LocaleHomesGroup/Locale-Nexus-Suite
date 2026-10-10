@@ -1,5 +1,6 @@
 import raw from "./catalogue.json";
 import { ORG_SEED, orgDepartmentOf } from "@/components/modules/hr/data";
+import type { HsBuilder, HsModel, HsRange, HsRate } from "@/data/homescope";
 
 /**
  * HomeScope's price boards, as the estimator reads them from Monday: builders,
@@ -7,111 +8,32 @@ import { ORG_SEED, orgDepartmentOf } from "@/components/modules/hr/data";
  * allowance rules, BAL / coastal / noise rates, colour schemes, the variation
  * catalogue and each model's bolt-ons.
  *
- * `catalogue.json` is a read-only snapshot of four builders (Forma, LaVida,
- * New Choice, Move) taken from HomeScope on 6 October 2026. It is a prototype
- * copy, not a price list: the live boards change, so nothing quoted here is
- * binding until it is checked against the builder's current list.
+ * `catalogue.json` is the fallback: a snapshot of four builders (Forma, LaVida,
+ * New Choice, Move) taken from HomeScope on 6 October 2026, used when nothing
+ * has been imported from Monday (see catalogue-context.tsx). The live boards
+ * change, so nothing quoted here is binding until it is checked against the
+ * builder's current list.
  */
 
-export interface HsModel {
-  name: string;
-  /** "To suit block" frontage in metres. */
-  frontage: number | null;
-  houseArea: number | null;
-  totalArea: number | null;
-  beds: number | null;
-  baths: number | null;
-  /** Ticked in Monday as a corner-block design. */
-  corner: boolean;
-  /** Price per spec-range column: { A: 350644, B: 376886, C: 391886 }. */
-  prices: Record<string, number>;
-}
-
-export interface HsRange {
-  name: string;
-  /** "Base", "Level 1"… */
-  level: string;
-  position: number;
-  /** The model price column this range reads: "A" → Specs Range A Price. */
-  column: string;
-}
-
-export interface HsPriced {
-  name: string;
-  price: number;
-}
-
-export interface HsSiteCost extends HsPriced {
-  workType: string;
-}
-
-export interface HsAllowanceRule {
-  /** "More than 6 months", "Up to 3 months", "Between 3-6 months". */
-  due: string;
-  /** How long the builder holds its price before titles are late. */
-  holdMonths: number;
-  /** "Fixed Price", "Percentage of Base Price", "Cumulative Percentage of Base Price". */
-  type: string;
-  value: number;
-  /** Cumulative only: extra percent for each month after the first. */
-  monthlyStep: number;
-  initial: number;
-}
-
-/** A BAL, coastal or noise rate. `area` is set when the builder prices by total floor area. */
-export interface HsRate extends HsPriced {
-  area: number | null;
-}
-
-export interface HsVariation {
-  /** The variation area, "Electrical". */
-  area: string;
-  code: string;
-  description: string;
-  unit: string;
-  /** Per unit when included. */
-  charge: number;
-  /** Per unit when excluded (0 = no credit rate). */
-  credit: number;
-}
-
-export interface HsBoltOn {
-  description: string;
-  charge: number;
-  credit: number;
-}
-
-export interface HsBuilder {
-  name: string;
-  address: string;
-  /** LaVida: the delayed-title allowance sits inside the base build price. */
-  bundleAllowance: boolean;
-  /** New Choice: allowance percentages apply to the preliminary contract, not the base price. */
-  allowanceOnPrelim: boolean;
-  models: HsModel[];
-  ranges: HsRange[];
-  elevations: HsPriced[];
-  siteCosts: HsSiteCost[];
-  allowances: HsAllowanceRule[];
-  bal: HsRate[];
-  coastal: HsRate[];
-  noise: HsRate[];
-  colours: HsPriced[];
-  variations: HsVariation[];
-  /** Bolt-on pricing per model name. */
-  boltOns: Record<string, HsBoltOn[]>;
-}
+export type {
+  HsAllowanceRule,
+  HsBoltOn,
+  HsBuilder,
+  HsColour,
+  HsElevation,
+  HsImage,
+  HsModel,
+  HsPriced,
+  HsRange,
+  HsRate,
+  HsSiteCost,
+  HsVariation,
+} from "@/data/homescope";
 
 export const CATALOGUE = raw as unknown as { snapshot: string; builders: HsBuilder[] };
 
-/** "6 Oct 2026", for the snapshot pill and the PDF footer. */
-export const SNAPSHOT_LABEL = new Date(`${CATALOGUE.snapshot}T00:00:00`).toLocaleDateString("en-AU", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
-export const builderByName = (name: string | null) => CATALOGUE.builders.find((b) => b.name === name) ?? null;
+/** The builder with this name in a catalogue's builders, or null. */
+export const builderIn = (builders: HsBuilder[], name: string | null) => builders.find((b) => b.name === name) ?? null;
 
 /** The colour option that means "choose colours at pre-start" (every builder has one). */
 export const PRE_START = "Pre-Start";

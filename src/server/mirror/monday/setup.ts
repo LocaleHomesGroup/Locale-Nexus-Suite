@@ -178,6 +178,16 @@ export function matchLotColumns(columns: { id: string; title: string; type: stri
  * or two people with one name) matches nobody and is listed as unmatched: a wrong match puts one
  * rep's clients under another, where an unmatched name is listed for a person to alias once.
  */
+/**
+ * Monday's own artifacts in a person's name, cleaned on the Monday side only (a staff name like "McDonald" is never
+ * split): the "(Deactivated User)" or "(Deactivated)" Monday adds to someone who left, and a first name typed onto the
+ * surname with no space ("JayTan"), split once, between the first name and the rest.
+ */
+export function cleanMondayName(raw: string): string {
+  const base = raw.replace(/\s*\(deactivated(?: user)?\)\s*$/i, "").trim();
+  return /\s/.test(base) ? base : base.replace(/^(\p{Lu}?\p{Ll}+)(?=\p{Lu})/u, "$1 ");
+}
+
 export function matchRepAliases(
   names: string[],
   staff: { id: string; name: string | null; preferred_name: string | null }[],
@@ -202,7 +212,7 @@ export function matchRepAliases(
   const unmatched = new Set<string>();
   for (const raw of names) {
     if (!raw.trim()) continue; // blank: there is no name to list
-    const id = index.get(normaliseName(raw));
+    const id = index.get(normaliseName(raw)) ?? index.get(normaliseName(cleanMondayName(raw)));
     if (id) matched.set(raw, id);
     else unmatched.add(raw.trim()); // this includes a name with nothing left once normalised (another script)
   }

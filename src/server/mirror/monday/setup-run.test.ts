@@ -56,7 +56,7 @@ const LAND = [NAME, col("status", "Status", "status"), col("text_e", "Estate"), 
 const mondayFor = () =>
   fakeMonday((document, variables) => {
     if (document === Q.workspaces) return { workspaces: [{ id: "1", name: "Test workspace", kind: "open" }] };
-    if (document === Q.users) return { users: [{ id: "5001", name: "Test User A", email: null, enabled: true, is_guest: false }] };
+    if (document === Q.users) return { users: [{ id: "5001", name: "Test User A", email: null, kind: "member", status: "ACTIVE", is_deleted: false }] };
     if (document === Q.boardsInWorkspaces) {
       return { boards: [board(100, [NAME, col("text4", "Job")]), board(150, [NAME]), board(300, LAND)] };
     }

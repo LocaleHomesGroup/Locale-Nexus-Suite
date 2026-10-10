@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils";
 import { EASE_OUT } from "@/lib/motion";
 import { Card, CardContent, CardDescription, CardHeader, CardMeta, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { notifyReadOnly, useOperationsSync } from "../../sync/OperationsSyncProvider";
 import { DOCUMENT_SLOTS } from "../data";
-import { useJobReadOnly } from "./read-only";
 
 /**
  * Documents — upload slots that rename to the naming convention and file to
@@ -19,6 +19,8 @@ import { useJobReadOnly } from "./read-only";
  */
 export function DocumentsCard({ job }: { job: Job }) {
   const { logActivity } = useLaunchpad();
+  // While the writes are held (live data showing, or the database down), a sample job's Upload can't claim a filing.
+  const { readOnly } = useOperationsSync();
   const reduce = useReducedMotion();
   const [uploaded, setUploaded] = React.useState<Record<string, boolean>>(() =>
     Object.fromEntries(DOCUMENT_SLOTS.map((d) => [d.slug, d.uploaded])),
@@ -29,6 +31,10 @@ export function DocumentsCard({ job }: { job: Job }) {
   const prefix = job.jobNo || job.recordId;
 
   const upload = (label: string, slug: string) => {
+    if (readOnly) {
+      notifyReadOnly();
+      return;
+    }
     const file = `${prefix}_${slug}.pdf`;
     setUploaded((u) => ({ ...u, [slug]: true }));
     setJustUploaded(slug);
@@ -115,8 +121,6 @@ export function DocumentsCard({ job }: { job: Job }) {
 
 /** Open in — jump to the source records. External links are simulated in the prototype. */
 export function OpenInCard({ job }: { job: Job }) {
-  // A live job's record ID is its real HubSpot deal id, or empty when Monday has none: then there is no deal to open.
-  const noHubSpotDeal = useJobReadOnly() && !job.recordId;
   const open = (system: string, what: string) =>
     confirm(`Opening the ${system} ${what}`, `Record ID ${job.recordId} · opens in a new tab in the live app`);
 
@@ -126,11 +130,9 @@ export function OpenInCard({ job }: { job: Job }) {
         <CardTitle>Open in</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-x-5 gap-y-2">
-        {noHubSpotDeal ? null : (
-          <Button variant="link" className="h-auto gap-1.5 px-0 text-[13px] font-semibold" onClick={() => open("HubSpot", "deal")}>
-            HubSpot deal <ExternalLink className="size-3.5" aria-hidden />
-          </Button>
-        )}
+        <Button variant="link" className="h-auto gap-1.5 px-0 text-[13px] font-semibold" onClick={() => open("HubSpot", "deal")}>
+          HubSpot deal <ExternalLink className="size-3.5" aria-hidden />
+        </Button>
         <Button variant="link" className="h-auto gap-1.5 px-0 text-[13px] font-semibold" onClick={() => open("Monday", "item")}>
           Monday item <ExternalLink className="size-3.5" aria-hidden />
         </Button>

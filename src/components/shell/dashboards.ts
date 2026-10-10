@@ -200,6 +200,7 @@ export const DASHBOARDS: Dashboard[] = [
       tab("operations", "audit", "Audit log", History),
       tab("operations", "submissions", "Submission review", ClipboardCheck),
       tab("operations", "pricing", "Pricing", Tags),
+      tab("operations", "homescope", "HomeScope pricing", Home),
       tab("operations", "formatter", "Doc formatter", FileSpreadsheet, [
         { key: "operations:formatter:upload", label: "New job", icon: FilePlus2, params: { tab: "formatter", view: "upload" } },
         { key: "operations:formatter:changes", label: "Price changes", icon: ArrowLeftRight, params: { tab: "formatter", view: "changes" } },

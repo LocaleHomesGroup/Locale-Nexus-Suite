@@ -228,6 +228,11 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
   // The document convention keys on the job number; a job without one files under its record ID.
   const prefix = j.jobNo || j.recordId;
   const title = `${j.jobNo ? `Job ${j.jobNo}` : "New job"} · ${j.client}`;
+  // The builder and the address, leaving out whichever is missing (a live job can have no address).
+  const where = [j.builder, j.address].filter(Boolean).join(" · ");
+  // A live job with no subitems in Monday yet: say so, in place of an empty list and "0 of 0 done".
+  const noPrecon = isLive && j.precon.length === 0;
+  const noBuild = isLive && j.milestones.length === 0;
 
   return (
     <Dialog
@@ -236,7 +241,7 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
       size="xl"
       icon={House}
       title={title}
-      description={`${j.builder} · ${j.address}`}
+      description={where}
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -261,11 +266,13 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
               <Pill tone="neutral">
                 Record ID <span className="font-mono">{j.recordId}</span>
               </Pill>
-              <Pill tone="neutral">HubSpot · {j.hsStage}</Pill>
+              {/* While live the stage is Monday's own (its construction stage, or a default), not HubSpot's. */}
+              <Pill tone="neutral">{isLive ? <>Stage · {j.hsStage}</> : <>HubSpot · {j.hsStage}</>}</Pill>
             </>
           )}
           <MondayPill job={j} long />
-          <SyncBadge sync={j.sync} className="ml-auto" />
+          {/* Nothing compares Monday with HubSpot yet, so a live job shows no sync badge: it would only say "in sync". */}
+          {isLive ? null : <SyncBadge sync={j.sync} className="ml-auto" />}
         </motion.div>
 
         {j.sync === "conflict" && j.conflict ? (
@@ -308,8 +315,8 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
 
           <Box index={3} icon={MapPinned} title="Land and house">
             {isLive && !lot ? (
-              // A live job has no site record in the mirror yet: say so, instead of seven rows of dashes.
-              <p className="py-1.5 text-[13px] text-muted-foreground">Land and house details aren&apos;t in the Monday mirror yet.</p>
+              // A live job has no site record read from Monday yet: say so, instead of seven rows of dashes.
+              <p className="py-1.5 text-[13px] text-muted-foreground">Land and house details aren&apos;t read from Monday yet.</p>
             ) : (
               <dl>
                 {LOT_FIELDS.map((f) => (
@@ -340,9 +347,13 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
             {isLive ? (
               // A live job's real files, as copied from Monday: never the sample document slots.
               files === null ? (
-                <p className="text-xs text-muted-foreground">Loading files…</p>
+                <p role="status" className="text-xs text-muted-foreground">
+                  Loading files…
+                </p>
               ) : files === "failed" ? (
-                <p className="text-xs text-amber-700 dark:text-amber-300">Couldn&apos;t load the files right now. Try again in a moment.</p>
+                <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
+                  Couldn&apos;t load the files right now. Try again in a moment.
+                </p>
               ) : (
                 <FileList files={files} empty="No files on this job in Monday." />
               )
@@ -377,13 +388,21 @@ export function JobViewDialog({ job, open, onClose }: { job: Job | undefined; op
             )}
           </Box>
 
-          <Box index={5} icon={ClipboardList} title="Preconstruction" meta={doneCount(j.precon)}>
-            <MilestoneList items={j.precon} />
+          <Box index={5} icon={ClipboardList} title="Preconstruction" meta={noPrecon ? undefined : doneCount(j.precon)}>
+            {noPrecon ? (
+              <p className="text-xs text-muted-foreground">No milestones in Monday yet.</p>
+            ) : (
+              <MilestoneList items={j.precon} />
+            )}
           </Box>
 
           {construction ? (
-            <Box index={6} icon={HardHat} title="Construction" meta={doneCount(j.milestones)}>
-              <MilestoneList items={j.milestones} />
+            <Box index={6} icon={HardHat} title="Construction" meta={noBuild ? undefined : doneCount(j.milestones)}>
+              {noBuild ? (
+                <p className="text-xs text-muted-foreground">No milestones in Monday yet.</p>
+              ) : (
+                <MilestoneList items={j.milestones} />
+              )}
             </Box>
           ) : null}
 

@@ -1,4 +1,4 @@
-import type { Job } from "@/data/jobs";
+import { jobProgress, type Job } from "@/data/jobs";
 
 /**
  * What narrows the CRM dash sync list: four filters that decide which jobs
@@ -22,10 +22,10 @@ export const isAwaiting = (j: Job) => !j.jobNo.trim();
 
 /**
  * The builder says a milestone is done and no date is on file. Nothing moves in
- * HubSpot or raises an invoice until there is one (job 25501's Slab Down).
+ * HubSpot or raises an invoice until there is one (job 25501's Slab Down). A live
+ * list job carries that as a summary rather than its milestones; jobProgress reads either.
  */
-export const needsBuilderDate = (j: Job) =>
-  [...j.precon, ...j.milestones].some((m) => m.status === "pendingDate" || (m.status === "done" && !m.date));
+export const needsBuilderDate = (j: Job) => jobProgress(j).needsDate;
 
 /** Monday and Launchpad disagree, so the job can't sync until a person settles it. */
 export const needsSync = (j: Job) => j.sync === "conflict";

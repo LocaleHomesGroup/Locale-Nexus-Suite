@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Eye } from "lucide-react";
-import type { Job } from "@/data/jobs";
+import { jobProgress, type Job } from "@/data/jobs";
 import { cn } from "@/lib/utils";
 import { EASE_OUT, rowDelay } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
@@ -21,10 +21,13 @@ export function jobHref(id: number) {
 /** The Monday board a job sits on — "Construction · 5 of 8" or "Sales board". */
 export function MondayPill({ job, long = false }: { job: Job; long?: boolean }) {
   if (job.board === "construction") {
-    const done = job.milestones.filter((m) => m.status === "done").length;
+    // A live list job carries a summary rather than its milestones; jobProgress reads either.
+    const { done, total } = jobProgress(job);
+    // A job with no subitems in Monday yet has nothing to count: "0 of 0 done" would read as a stalled job.
+    if (total === 0) return <Pill tone="tone">{long ? "Monday · Construction" : "Construction"}</Pill>;
     return (
       <Pill tone="tone" className="tabular-nums">
-        {long ? `Monday · Construction, ${done} of ${job.milestones.length} done` : `Construction · ${done} of ${job.milestones.length}`}
+        {long ? `Monday · Construction, ${done} of ${total} done` : `Construction · ${done} of ${total}`}
       </Pill>
     );
   }
@@ -53,18 +56,25 @@ function ViewJob({ job, onView }: { job: Job; onView: (job: Job) => void }) {
  * never navigates by accident. The row entrance replays when `replayKey`
  * changes (a tile or a filter), not while typing a search (HRIS § 14.3).
  * `empty` fills the card when nothing is left to show; `onView` opens a job's
- * quick view.
+ * quick view. `live` is true while live data shows: the stage is Monday's, not HubSpot's,
+ * and nothing compares the two systems, so there is no Sync column and no sync badge.
+ * `rows` is the page being shown, and the table and the phone list draw those same rows;
+ * `footer` closes the card under them (the pager, when the list is more than one page).
  */
 export function JobsTable({
   rows,
   replayKey,
   empty,
   onView,
+  live = false,
+  footer,
 }: {
   rows: Job[];
   replayKey: string;
   empty: React.ReactNode;
   onView: (job: Job) => void;
+  live?: boolean;
+  footer?: React.ReactNode;
 }) {
   const reduce = useReducedMotion();
 
@@ -77,9 +87,9 @@ export function JobsTable({
               <TableHead className="pl-5">Job number</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Builder</TableHead>
-              <TableHead>HubSpot stage</TableHead>
+              <TableHead>{live ? "Stage" : "HubSpot stage"}</TableHead>
               <TableHead>Monday</TableHead>
-              <TableHead>Sync</TableHead>
+              {live ? null : <TableHead>Sync</TableHead>}
               <TableHead className="pr-5 text-right">Action</TableHead>
             </tr>
           </TableHeader>
@@ -106,9 +116,11 @@ export function JobsTable({
                 <TableCell className="py-3">
                   <MondayPill job={j} />
                 </TableCell>
-                <TableCell className="py-3">
-                  <SyncBadge sync={j.sync} />
-                </TableCell>
+                {live ? null : (
+                  <TableCell className="py-3">
+                    <SyncBadge sync={j.sync} />
+                  </TableCell>
+                )}
                 <TableCell className="py-3 pr-5 text-right">
                   <ViewJob job={j} onView={onView} />
                 </TableCell>
@@ -138,10 +150,18 @@ export function JobsTable({
                   {j.jobNo || "Awaiting"}
                 </span>
                 <span className="min-w-0 truncate text-[13px] font-medium">{j.client}</span>
-                <SyncBadge sync={j.sync} className="ml-auto shrink-0" />
+                {live ? null : <SyncBadge sync={j.sync} className="ml-auto shrink-0" />}
               </span>
               <span className="text-xs text-muted-foreground">
-                {j.builder} · {j.hsStage}
+                {live ? (
+                  <>
+                    {j.builder} · Stage: {j.hsStage}
+                  </>
+                ) : (
+                  <>
+                    {j.builder} · {j.hsStage}
+                  </>
+                )}
               </span>
               <span className="flex items-center justify-between gap-2">
                 <MondayPill job={j} />
@@ -153,6 +173,7 @@ export function JobsTable({
       </ul>
 
       {rows.length === 0 ? empty : null}
+      {footer}
     </Card>
   );
 }

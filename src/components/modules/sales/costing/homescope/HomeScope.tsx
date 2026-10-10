@@ -15,7 +15,10 @@ import { SearchInput } from "@/components/ui/input";
 import { NoMatches } from "@/components/ui/states";
 import { TabPanels } from "@/components/ui/sliding-tabs";
 import { TweenNumber } from "../tween-number";
-import { CATALOGUE, SNAPSHOT_LABEL, STEPS, modelsForBlock, stepIndex, type StepId } from "./catalogue";
+import { STEPS, modelsForBlock, stepIndex, type HsBuilder, type StepId } from "./catalogue";
+import { CatalogueProvider, useCatalogue, useLiveCatalogue } from "./catalogue-context";
+import { catalogueLabel } from "./catalogue-state";
+import { ScreenSkeleton } from "@/components/ui/screen-skeleton";
 import { price, type Pricing } from "./pricing";
 import {
   clientName,
@@ -51,7 +54,7 @@ import { PdfStep, SummaryStep } from "./steps/OutputSteps";
  * any step already reached can be reopened from the strip. The price follows
  * every choice in the card beside the steps.
  *
- * Prices come from a snapshot of HomeScope's Monday boards (catalogue.json).
+ * Prices come from the catalogue last imported from HomeScope's Monday boards, or catalogue.json (the 6 October snapshot) when there's none.
  * Saving keeps the quote in Launchpad; nothing is written to Monday.
  */
 
@@ -86,8 +89,10 @@ function intro(id: StepId, p: Pricing): { title: string; body: string } {
   }
 }
 
+const gone = (what: string) => `That ${what} is no longer in the catalogue. Pick it again`;
+
 /** What stops a step's Continue, in words. Null when it's ready. */
-function blocker(id: StepId, e: Estimate): string | null {
+function blocker(id: StepId, e: Estimate, builders: HsBuilder[]): string | null {
   switch (id) {
     case "client": {
       if (e.contacts.some((c) => !contactValid(c))) return "Add the client's first name, last name and email";
@@ -96,17 +101,29 @@ function blocker(id: StepId, e: Estimate): string | null {
       if (!e.corner && e.min == null && e.max == null) return "Set a frontage, or tick Corner block";
       if (!e.corner && e.min != null && e.max != null && e.min > e.max) return "The minimum frontage is over the maximum";
       const block = { corner: e.corner, min: e.min, max: e.max };
-      if (!CATALOGUE.builders.some((b) => modelsForBlock(b, block).length)) return "No design suits this block";
+      if (!builders.some((b) => modelsForBlock(b, block).length)) return "No design suits this block";
       return null;
     }
     case "builder":
-      return e.builder ? null : "Pick a builder";
-    case "model":
-      return e.model ? null : "Pick a model";
-    case "range":
-      return e.range ? null : "Pick a spec range";
-    case "elevation":
-      return e.elevation ? null : "Pick a front elevation";
+      if (!e.builder) return "Pick a builder";
+      return builders.some((b) => b.name === e.builder) ? null : gone("builder");
+    case "model": {
+      if (!e.model) return "Pick a model";
+      const b = builders.find((x) => x.name === e.builder);
+      return b?.models.some((m) => m.name === e.model) ? null : gone("model");
+    }
+    case "range": {
+      if (!e.range) return "Pick a spec range";
+      const b = builders.find((x) => x.name === e.builder);
+      const range = b?.ranges.find((r) => r.name === e.range);
+      const model = b?.models.find((m) => m.name === e.model);
+      return range && model && model.prices[range.column] != null ? null : gone("spec range");
+    }
+    case "elevation": {
+      if (!e.elevation) return "Pick a front elevation";
+      const b = builders.find((x) => x.name === e.builder);
+      return b?.elevations.some((x) => x.name === e.elevation) ? null : gone("front elevation");
+    }
     case "colour":
       return e.colourMode === "choose" && !e.colour ? "Pick a scheme, or leave it to pre-start" : null;
     default:
@@ -143,7 +160,8 @@ function StepBody({ id }: { id: StepId }) {
   }
 }
 
-export default function HomeScope() {
+function HomeScopeScreen({ note }: { note: string | null }) {
+  const catalogue = useCatalogue();
   const { estimate: e, step, reached, quoteNo, dirty, pricing: p } = useEstimate();
   const reduce = useReducedMotion();
   const [loading, setLoading] = React.useState(false);
@@ -166,9 +184,9 @@ export default function HomeScope() {
   }, [step, reduce]);
 
   const summary = stepIndex("summary");
-  const hint = blocker(current.id, e);
+  const hint = blocker(current.id, e, catalogue.builders);
   // Saving checks every step before it, in case one was reopened and emptied.
-  const unready = current.id === "summary" ? STEPS.slice(0, summary).find((s) => blocker(s.id, e)) : undefined;
+  const unready = current.id === "summary" ? STEPS.slice(0, summary).find((s) => blocker(s.id, e, catalogue.builders)) : undefined;
 
   const onContinue = () => {
     if (current.id === "client") for (const c of e.contacts) if (c.editing && contactValid(c)) saveContact(c.id);
@@ -193,8 +211,12 @@ export default function HomeScope() {
         description="Build a client's estimate step by step: the block, builder, design, site costs, colour and variations. The price follows every choice, and the last step prints the Locale Homes quote."
         actions={
           <>
-            <Pill tone="neutral" icon={Database} title="Prices are a snapshot of HomeScope's Monday boards">
-              Price snapshot · {SNAPSHOT_LABEL}
+            <Pill
+              tone="neutral"
+              icon={Database}
+              title={catalogue.source === "monday" ? "Prices imported from HomeScope's Monday boards" : "Prices are a snapshot of HomeScope's Monday boards"}
+            >
+              {catalogueLabel(catalogue)}
             </Pill>
             {quoteNo ? (
               <Pill tone={dirty ? "pending" : "tone"} icon={FileDown}>
@@ -213,6 +235,7 @@ export default function HomeScope() {
           </>
         }
       />
+      {note ? <p role="status" className="-mt-3 text-xs text-muted-foreground">{note}</p> : null}
 
       <StepStrip step={step} reached={reached} />
 
@@ -239,7 +262,7 @@ export default function HomeScope() {
             <div className="flex min-w-0 items-center gap-3">
               {hint || unready ? (
                 <span className="hidden truncate text-xs text-subtle-foreground sm:block" role="status">
-                  {hint ?? `${unready!.label}: ${blocker(unready!.id, e)}`}
+                  {hint ?? `${unready!.label}: ${blocker(unready!.id, e, catalogue.builders)}`}
                 </span>
               ) : null}
               <span className="hidden shrink-0 font-mono text-xs text-subtle-foreground md:block">
@@ -483,11 +506,12 @@ function EstimateCard() {
 /** HomeScope's Load Existing Quote: search the quotes saved here and reopen one at its summary. */
 function LoadQuoteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { saved, quoteNo, dirty } = useHomeScope();
+  const { builders } = useCatalogue();
   const [q, setQ] = React.useState("");
   const rows = React.useMemo(
     () =>
       saved.map((s) => {
-        const p = price(s.estimate);
+        const p = price(s.estimate, builders);
         return {
           no: s.no,
           client: clientName(s.estimate),
@@ -498,7 +522,7 @@ function LoadQuoteDialog({ open, onClose }: { open: boolean; onClose: () => void
           by: s.by,
         };
       }),
-    [saved],
+    [saved, builders],
   );
   const term = q.trim().toLowerCase();
   const shown = term ? rows.filter((r) => `${r.no} ${r.client} ${r.emails}`.toLowerCase().includes(term)) : rows;
@@ -555,5 +579,16 @@ function LoadQuoteDialog({ open, onClose }: { open: boolean; onClose: () => void
       </ul>
       {!shown.length ? <NoMatches query={q} onClear={() => setQ("")} className="py-8" /> : null}
     </Dialog>
+  );
+}
+
+/** Reads the catalogue first: the last import from Monday when there is one, else the 6 October snapshot. */
+export default function HomeScope() {
+  const live = useLiveCatalogue();
+  if (live.status === "loading") return <ScreenSkeleton />;
+  return (
+    <CatalogueProvider value={live.catalogue}>
+      <HomeScopeScreen note={live.note} />
+    </CatalogueProvider>
   );
 }

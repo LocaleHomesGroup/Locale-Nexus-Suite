@@ -1,8 +1,11 @@
 /**
  * The one database interface the server code uses. The app runs it on
- * postgres.js over Supabase's pooler; tests run it on PGlite in memory. Keep
+ * node-postgres over Supabase's pooler; tests run it on PGlite in memory. Keep
  * SQL to what both accept: positional $1 parameters, JSON passed as text and
- * cast (`$1::jsonb`), `date` columns read back as text (`col::text`).
+ * cast (`$1::jsonb`), `date` columns read back as text (`col::text`), Dates
+ * passed as `toISOString()`, lists passed as JSON text rather than JS arrays,
+ * and no interval or numeric[] in results. The two differ there, so code that
+ * passes on PGlite could fail on Supabase.
  */
 export interface Db {
   query<T = Record<string, unknown>>(text: string, params?: readonly unknown[]): Promise<T[]>;

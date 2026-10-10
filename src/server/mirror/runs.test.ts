@@ -2,7 +2,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { migratedTestDb } from "../db/pglite";
 import type { Db } from "../db/types";
-import { beginRun, endRun, getWatermark, markState, setWatermark, type RunOutcome } from "./runs";
+import { beginRun, endRun, getWatermark, markState, renewRun, setWatermark, type RunOutcome } from "./runs";
 
 let db: Db;
 let close: () => Promise<void>;
@@ -163,6 +163,51 @@ test("runs: watermarks are kept per source and scope, and milestones leave them 
     { scope: "board:10", watermark: true, backfilled: false, swept: true },
   ]);
   assert.equal((await getWatermark(db, "monday", "account"))?.toISOString(), "2026-10-08T00:00:00.000Z", "a milestone doesn't move the watermark");
+});
+
+test("runs: when a sweep started a board is a milestone of its own, beside when it finished one", async () => {
+  await markState(db, "monday", "board:20", "sweep_attempted_at");
+  const [row] = await db.query<{ attempted: boolean; swept: boolean; watermark: boolean }>(
+    `select sweep_attempted_at is not null as attempted, swept_at is not null as swept, watermark is not null as watermark
+       from mirror.sync_state where source = 'monday' and scope = 'board:20'`,
+  );
+  assert.deepEqual(row, { attempted: true, swept: false, watermark: false });
+});
+
+test("runs: renewing a run extends its lease, even one that lapsed, and fails once another owner holds it", async () => {
+  const run = await beginRun(db, "hubspot", "changes", "cron", 60);
+  assert.ok(run);
+  /** Seconds from now until the lease ends. */
+  const left = async () =>
+    (await db.query<{ s: number }>(
+      "select extract(epoch from locked_until - clock_timestamp())::float8 as s from mirror.sync_locks where source = 'hubspot'",
+    ))[0]?.s;
+  try {
+    assert.ok((await left()) <= 60);
+    assert.equal(await renewRun(db, run, 3600), true);
+    assert.ok((await left()) > 3500, "extended to an hour from now");
+
+    // It lapses, and nobody has taken it: the run's own renewal takes it back.
+    await db.query("update mirror.sync_locks set locked_until = clock_timestamp() - interval '1 second' where source = 'hubspot'");
+    assert.equal(await renewRun(db, run, 60), true);
+    assert.ok((await left()) > 50);
+
+    // It lapses again, and another pass takes it: the renewal fails, and the other pass keeps it.
+    await db.query("update mirror.sync_locks set locked_until = clock_timestamp() - interval '1 second' where source = 'hubspot'");
+    const other = await beginRun(db, "hubspot", "changes", "cron", 60);
+    assert.ok(other, "the other pass took the lapsed lease");
+    assert.equal(await renewRun(db, run, 60), false);
+    assert.deepEqual(await db.query("select owner from mirror.sync_locks where source = 'hubspot'"), [{ owner: other.owner }]);
+
+    // The other pass finishes and lets the lease go. The first run's renewal still fails: its lease was taken in between,
+    // and whatever it has in hand may be older than what the other pass wrote. (try_lock would take the lease back.)
+    await endRun(db, other, outcome());
+    assert.equal(await renewRun(db, run, 60), false);
+    assert.deepEqual(await leases(), [], "and the renewal took nothing");
+    await endRun(db, run, outcome()); // its unlock frees nothing: the lease is gone already
+  } finally {
+    await db.query("delete from mirror.sync_locks where source = 'hubspot'"); // a stranded lease would turn the later tests into skips
+  }
 });
 
 test("runs: a run that can't be recorded as finished still frees its lease (a check violation)", async () => {

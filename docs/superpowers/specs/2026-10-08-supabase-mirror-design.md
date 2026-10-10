@@ -230,9 +230,15 @@ What keeps it correct and cheap:
 - **Activity logs are a hint.** Monday doesn't document the keys inside an entry's `data`. The parser
   reads `pulse_id` (and `parent_item_id` for subitems) where present, and skips entries it can't
   place. `safety` and `sweep` catch whatever it misses.
-- **The watermark moves only after a pass finishes.** Every write is an upsert on Monday's ids, so a
+- **The watermark moves once the log is read.** Every write is an upsert on Monday's ids, so a
   repeated pass does no harm. If the activity log is still full after the page cap, the pass also runs
   the safety check on those boards, and the run is logged as partial.
+  > **Changed in review (2026-10-09).** `changes` puts the item ids the log names into
+  > `mirror.monday_refetch_queue`, runs any full-log safety check, and only then moves the watermark.
+  > It then drains the queue. A run cut short by its time limit leaves the rest queued for the next
+  > run, so a big window can't make cron repeat itself forever. Previously the watermark moved only after
+  > every refetch, and a window too big for one cron run was re-read on every run. `sweep` takes the
+  > board it least recently started first, so one oversized board can't block the rest.
 - **Subitems boards are read too,** because Monday may not log subitem edits on the parent board.
 - **Timezones.** `__last_updated__` TODAY follows the token user's timezone; TODAY and YESTERDAY
   together always cover the last 24 hours.

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchRepAliases, normaliseName, planFromJerryConfig, regionOf } from "./setup";
+import { cleanMondayName, matchRepAliases, normaliseName, planFromJerryConfig, regionOf } from "./setup";
 
 /** The pure rules in setup.ts that setup.test.ts doesn't pin. The people here are invented. */
 
@@ -49,6 +49,29 @@ test("rep names: one person claiming a key twice is still one person", () => {
   const result = matchRepAliases(["Sam Testlee"], staff);
   assert.deepEqual(result.matched, [{ rep: "Sam Testlee", staffId: "test-sam-testlee" }]);
   assert.deepEqual(result.unmatched, []);
+});
+
+test("rep names: Monday's own artifacts are cleaned on the Monday side only", () => {
+  assert.equal(cleanMondayName("Test Rep (Deactivated User)"), "Test Rep", "a person who left");
+  assert.equal(cleanMondayName("Test Rep (deactivated)"), "Test Rep");
+  assert.equal(cleanMondayName("TestRep"), "Test Rep", "first and last typed together");
+  assert.equal(cleanMondayName("TestLloyd-Rep"), "Test Lloyd-Rep");
+  assert.equal(cleanMondayName("Test McRep"), "Test McRep", "a name with a space is never split");
+  assert.equal(cleanMondayName("TestMcRep"), "Test McRep", "only between the first name and the rest");
+
+  const staff = [person("test-rep-a", "Test Repa"), person("test-rep-b", "Jo Lloyd-Testb"), person("test-rep-c", "Test McRepc")];
+  const result = matchRepAliases(["Test Repa (Deactivated User)", "JoLloyd-Testb", "Test McRepc", "TestMcRepc"], staff);
+  assert.deepEqual(result.matched, [
+    { rep: "Test Repa (Deactivated User)", staffId: "test-rep-a" },
+    { rep: "JoLloyd-Testb", staffId: "test-rep-b" },
+    { rep: "Test McRepc", staffId: "test-rep-c" },
+    { rep: "TestMcRepc", staffId: "test-rep-c" },
+  ]);
+  assert.deepEqual(result.unmatched, []);
+
+  // A cleaned name two people could be is still nobody's.
+  const twins = [person("test-twin-1", "Test Twin"), person("test-twin-2", "Test Twin")];
+  assert.deepEqual(matchRepAliases(["TestTwin"], twins), { matched: [], unmatched: ["TestTwin"] });
 });
 
 test("rep names: accents are folded, so Peña and Pena are one name", () => {

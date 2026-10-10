@@ -13,7 +13,7 @@ import { useLaunchpad } from "./launchpad-store";
  * layout beside the sample stores; every other module keeps reading those.
  */
 interface LiveValue {
-  /** Monday's last full sync (ISO), or the read time before the first one. For "as of" text, not for judging holds. */
+  /** The time up to which the mirror holds every change Monday logged (ISO; see LiveData). For "as of" text, not for judging holds. */
   asOf: string;
   /** When the loader read the database (ISO). Holds are judged against it until the browser's clock takes over. */
   readAt: string;

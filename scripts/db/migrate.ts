@@ -8,9 +8,9 @@
  * that login and our schemas) and refuses any other role before it writes anything. Status
  * does no DDL at all. Refuses to run when a file that was already applied has changed since.
  */
-import postgres from "postgres";
+import pg from "pg";
 import { META_SQL, planMigrations, readMigrations, type MigrationFile } from "../../src/server/db/migrations";
-import { POOL_OPTIONS } from "../../src/server/db/postgres";
+import { checkDbUrl, POOL_OPTIONS } from "../../src/server/db/postgres";
 
 /** What a failed migration prints: the file, the server's message, then its detail, hint and position when it gave them. */
 function failure(f: MigrationFile, e: unknown): Error {
@@ -30,12 +30,23 @@ async function main() {
   }
   const statusOnly = process.argv.includes("--status");
   const files = readMigrations(); // local only: a bad folder is refused before any connection
-  const sql = postgres(url, { ...POOL_OPTIONS, max: 1 });
+  // One connection for the whole run. No client-side query timeout: DDL may run long; the server's own
+  // statement_timeout still applies. Every migration's SQL goes as one simple query (no parameters).
+  const { query_timeout: _none, ...clientOptions } = POOL_OPTIONS;
+  checkDbUrl(url); // a clean message for a malformed URL, and no ?sslmode= overriding our TLS
+  const sql = new pg.Client({ ...clientOptions, connectionString: url });
+  // A connection that drops mid-run fails the statement in flight, which failure() reports; without a
+  // listener the client's own error event would also end the process with a bare stack trace.
+  sql.on("error", () => {});
+  await sql.connect();
   try {
     // Both must be launchpad_app: a session logged in as someone else with `role` set to launchpad_app
     // passes on current_user alone, and a migration's own SQL could `reset role` back to that login.
-    const [{ role_name, login_name }] = await sql<{ role_name: string; login_name: string }[]>`
-      select current_user as role_name, session_user as login_name`;
+    const {
+      rows: [{ role_name, login_name }],
+    } = await sql.query<{ role_name: string; login_name: string }>(
+      "select current_user as role_name, session_user as login_name",
+    );
     console.log(`connected as ${role_name} (login ${login_name})`);
     if (role_name !== "launchpad_app" || login_name !== "launchpad_app") {
       console.error(
@@ -46,12 +57,13 @@ async function main() {
     }
 
     // Status changes nothing, not even the history table: without one, nothing has been applied.
-    if (!statusOnly) await sql.unsafe(META_SQL).simple();
-    const [{ present }] = await sql<{ present: boolean }[]>`
-      select to_regclass('launchpad_meta.migrations') is not null as present`;
+    if (!statusOnly) await sql.query(META_SQL);
+    const {
+      rows: [{ present }],
+    } = await sql.query<{ present: boolean }>("select to_regclass('launchpad_meta.migrations') is not null as present");
     const applied = present
-      ? await sql<{ version: string; checksum: string }[]>`
-          select version, checksum from launchpad_meta.migrations order by version`
+      ? (await sql.query<{ version: string; checksum: string }>("select version, checksum from launchpad_meta.migrations order by version"))
+          .rows
       : [];
     const plan = planMigrations(files, applied);
 
@@ -74,18 +86,22 @@ async function main() {
     }
     for (const f of plan.pending) {
       try {
-        await sql.begin(async (tx) => {
-          await tx.unsafe(f.sql).simple();
-          await tx`insert into launchpad_meta.migrations (version, name, checksum)
-                   values (${f.version}, ${f.name}, ${f.checksum})`;
-        });
+        await sql.query("begin");
+        await sql.query(f.sql); // no parameters, so one simple query: a file may hold many statements
+        await sql.query("insert into launchpad_meta.migrations (version, name, checksum) values ($1, $2, $3)", [
+          f.version,
+          f.name,
+          f.checksum,
+        ]);
+        await sql.query("commit");
       } catch (e) {
+        await sql.query("rollback").catch(() => {});
         throw failure(f, e);
       }
       console.log(`done     ${f.version}_${f.name}`);
     }
   } finally {
-    await sql.end({ timeout: 5 });
+    await sql.end();
   }
 }
 

@@ -14,23 +14,27 @@ import { DIMENSIONS, DIMENSION_ALL, DIMENSION_LABEL, type Dimension, type Filter
  * A value that survived in the URL but is not on offer stays selected, marked,
  * so the control shows what the page is actually doing rather than snapping
  * back to "all" and contradicting the table underneath it.
+ *
+ * `dimensions` is which of the four to offer: all of them, unless the caller has a reason to leave one out.
  */
 export function FilterBar({
   value,
   options,
   onChange,
   onClear,
+  dimensions = DIMENSIONS,
 }: {
   value: JobFilters;
   options: Record<Dimension, FilterOption[]>;
   onChange: (d: Dimension, v: string) => void;
   onClear: () => void;
+  dimensions?: readonly Dimension[];
 }) {
-  const active = DIMENSIONS.some((d) => value[d]);
+  const active = dimensions.some((d) => value[d]);
 
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter jobs">
-      {DIMENSIONS.map((d) => {
+      {dimensions.map((d) => {
         const list = options[d];
         const unknown = value[d] && !list.some((o) => o.value === value[d]);
         return (

@@ -13,10 +13,11 @@ import {
 } from "@/data/jobs";
 import type { MilestoneState, ReviewItem } from "@/data/seed";
 import { confirm, useLaunchpad } from "@/state/launchpad-store";
-import { useJobs } from "@/state/live-data";
+import { useJobs, useLiveState } from "@/state/live-data";
 import { clockStamp } from "@/lib/utils";
 import { useNavBadge } from "@/components/shell/nav-state";
 import { isStale, jobRef, liveMilestone, reviewSummary } from "../review/review";
+import { writesHeld } from "./read-only-guard";
 import { SyncTrailDialog } from "./SyncTrailDialog";
 import {
   movesStageForward,
@@ -68,10 +69,23 @@ interface OperationsSync {
   viewTrail: (trailId: string) => void;
   /** True while any run still has a step in flight. */
   syncing: boolean;
+  /**
+   * True while the writes above are held (see writesHeld): each one only says "Read only for now" and changes nothing.
+   * A screen that offers one of them can disable the control, rather than let it report a success that never happened.
+   */
+  readOnly: boolean;
 }
 
-/** The writes: everything on OperationsSync but these three reads. Live data switches every one of them off. */
-type WriteKey = Exclude<keyof OperationsSync, "trailForJob" | "viewTrail" | "syncing">;
+/** The writes: everything on OperationsSync but these four reads. Holding the writes switches every one of them off. */
+type WriteKey = Exclude<keyof OperationsSync, "trailForJob" | "viewTrail" | "syncing" | "readOnly">;
+
+/** What every held write does: one toast, with one id so a repeat updates it instead of stacking another. */
+export function notifyReadOnly(): void {
+  toast.info("Read only for now", {
+    id: "ops-read-only",
+    description: "Nothing is written back to Monday or HubSpot while the Dash Sync go-live is on hold.",
+  });
+}
 
 /** One hop after the Launchpad save: in flight for `ms`, then landed. */
 interface Leg {
@@ -114,8 +128,10 @@ function systemsList(systems: string[]): string {
 export function OperationsSyncProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { updateJob, logActivity, reviewItems, setReviewItems, later } = useLaunchpad();
-  // Live jobs are Monday's own: nothing writes back while the Dash Sync go-live is held (Meeting3).
-  const { jobs, live } = useJobs();
+  const { jobs } = useJobs();
+  // Live jobs are Monday's own: nothing writes back while the Dash Sync go-live is held (Meeting3). Held whenever a
+  // database is configured, not only while its data shows: see writesHeld.
+  const guarded = writesHeld(useLiveState().kind);
   const [trails, setTrails] = React.useState<SyncTrail[]>([]);
   const [viewing, setViewing] = React.useState<string | null>(null);
 
@@ -591,25 +607,20 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
       trailForJob,
       viewTrail,
       syncing,
+      readOnly: false,
     };
-    if (!live) return api;
-    const readOnly = () =>
-      toast.info("Read only for now", {
-        // One id, so a repeat updates this toast instead of stacking another.
-        id: "ops-read-only",
-        description: "Nothing is written back to Monday or HubSpot while the Dash Sync go-live is on hold.",
-      });
+    if (!guarded) return api;
     // Typed over every write key: a write added to OperationsSync is a compile error until it is guarded here.
     const writes: Record<WriteKey, () => void> = {
-      syncMilestone: readOnly,
-      syncDetails: readOnly,
-      handOver: readOnly,
-      resolveConflict: readOnly,
-      fileReview: readOnly,
-      releaseReview: readOnly,
-      dismissReview: readOnly,
+      syncMilestone: notifyReadOnly,
+      syncDetails: notifyReadOnly,
+      handOver: notifyReadOnly,
+      resolveConflict: notifyReadOnly,
+      fileReview: notifyReadOnly,
+      releaseReview: notifyReadOnly,
+      dismissReview: notifyReadOnly,
     };
-    return { ...api, ...writes };
+    return { ...api, ...writes, readOnly: true };
   }, [
     syncMilestone,
     syncDetails,
@@ -621,7 +632,7 @@ export function OperationsSyncProvider({ children }: { children: React.ReactNode
     trailForJob,
     viewTrail,
     syncing,
-    live,
+    guarded,
   ]);
 
   return (

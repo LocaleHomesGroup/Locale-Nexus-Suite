@@ -41,7 +41,10 @@ test("live data: jobs, lots and reps from the database", async () => {
   assert.equal(data.asOf, "2026-10-08T00:00:00.000Z");
   assert.equal(data.readAt, "2026-10-08T00:00:00.000Z");
   assert.deepEqual(data.jobs.map((j) => [j.id, j.jobNo, j.rep]), [[1001, "12345", "Test Rep A"]], "handed-over jobs stay out");
-  assert.deepEqual(data.jobs[0].precon.map((m) => [m.name, m.status]), [["Builder Acceptance", "pendingDate"]]);
+  // The list carries a summary in place of the milestones (the job's own screen fetches them): here the one
+  // preconstruction milestone is done with no date, so the job needs one and has no construction milestones.
+  assert.deepEqual([data.jobs[0].precon, data.jobs[0].milestones], [[], []]);
+  assert.deepEqual(data.jobs[0].progress, { done: 0, total: 0, needsDate: true });
   assert.equal(data.lots.length, 1);
   assert.equal(data.lots[0].landPrice, 364000);
   assert.deepEqual(data.lots[0].holds.map((h) => [h.staffId, h.client]), [["test-rep-a", "Test Client A"]]);
@@ -204,9 +207,129 @@ test("live data: as of is Monday's last sync, not the time the page read it", as
   assert.equal(data.readAt, "2026-10-08T00:00:00.000Z", "holds are still judged against the read time");
 });
 
+test("live data: as of is when the mirror last held every change, which can be behind the account watermark", async () => {
+  // The watermark moves once the activity log is read, and the items it named are refetched after: until the refetch
+  // queue is empty, the data is only complete up to the earlier mark.
+  await setWatermark(db, "monday", "account", new Date("2026-10-08T00:05:00Z"));
+  await setWatermark(db, "monday", "complete", new Date("2026-10-07T23:55:00Z"));
+  const data = await loadLiveData(db, () => new Date("2026-10-08T00:10:00Z"));
+  assert.ok(data && data.status === "ok");
+  assert.equal(data.asOf, "2026-10-07T23:55:00.000Z");
+});
+
 test("files: a copied file has a path, a waiting one doesn't, an unknown one isn't found", async () => {
   assert.deepEqual(await loadAssetPath(db, "9001"), { path: "10/2001/9001/plan.pdf", copyError: null });
   assert.deepEqual(await loadAssetPath(db, "9002"), { path: null, copyError: null });
   assert.equal(await loadAssetPath(db, "4242"), null);
   assert.equal(await loadAssetPath(db, "../9001"), null);
+});
+
+test("live data: a read that times out is tried once more, and a second timeout falls back to sample data", async () => {
+  const timeout = () => new Error("Query read timeout");
+  const original = { warn: console.warn, error: console.error };
+  console.warn = () => {};
+  console.error = () => {};
+  try {
+    let timedOut = 0;
+    const flakyOnce: Db = {
+      query: async (text, params) => {
+        if (timedOut === 0 && /launchpad\.monday_jobs/.test(text)) {
+          timedOut++;
+          throw timeout();
+        }
+        return db.query(text, params);
+      },
+      transaction: (fn) => db.transaction(fn),
+    };
+    const recovered = await loadLiveData(flakyOnce, () => new Date("2026-10-08T00:00:00Z"));
+    assert.ok(recovered && recovered.status === "ok", "the second try reads it");
+    assert.equal(timedOut, 1);
+
+    const alwaysTimesOut: Db = { query: async () => { throw timeout(); }, transaction: async () => { throw timeout(); } };
+    const fellBack = await loadLiveData(alwaysTimesOut);
+    assert.ok(fellBack && fellBack.status === "error", "two timeouts: sample data with the note, never a hang");
+
+    let calls = 0;
+    const refused: Db = { query: async () => { calls++; throw new Error("permission denied"); }, transaction: async () => { throw new Error("x"); } };
+    await loadLiveData(refused);
+    assert.ok(calls <= 5, "an error that isn't a timeout isn't retried");
+  } finally {
+    console.warn = original.warn;
+    console.error = original.error;
+  }
+});
+
+test("live data: a load over three seconds logs how long it took, once, with no data in the line", async () => {
+  const original = { warn: console.warn, error: console.error };
+  const warned: string[] = [];
+  console.warn = (...args: unknown[]) => {
+    warned.push(args.map(String).join(" "));
+  };
+  console.error = () => {};
+  try {
+    // A quick load, the clock standing still: nothing is logged.
+    const quick = await loadLiveData(db, () => new Date("2026-10-08T00:00:00Z"));
+    assert.ok(quick && quick.status === "ok");
+    assert.equal(warned.length, 0);
+
+    // A clock that is 4 s later at every look. A good load looks at it three times (start, read time, end), so it took 8 s.
+    let t = Date.parse("2026-10-08T00:00:00Z");
+    const slowClock = () => new Date((t += 4_000));
+    const slow = await loadLiveData(db, slowClock);
+    assert.ok(slow && slow.status === "ok");
+    assert.equal(warned.length, 1, "one line");
+    assert.match(warned[0], /\[live-data\] a load took 8000 ms$/);
+    assert.ok(!/Test Client|Test Rep|12345|Test Street/.test(warned[0]), "no job, rep or lot in it");
+
+    // A load that fails is logged the same way, so a slow failure is no quieter than a slow success.
+    warned.length = 0;
+    const broken: Db = {
+      query: async () => {
+        throw new Error("connect ECONNREFUSED");
+      },
+      transaction: async () => {
+        throw new Error("connect ECONNREFUSED");
+      },
+    };
+    const failed = await loadLiveData(broken, slowClock);
+    assert.ok(failed && failed.status === "error");
+    assert.deepEqual(warned.filter((w) => w.includes("took")).length, 1);
+  } finally {
+    console.warn = original.warn;
+    console.error = original.error;
+  }
+});
+
+test("live data: the time logged covers the whole call, so a retried load shows what the two tries cost", async () => {
+  const original = { warn: console.warn, error: console.error };
+  const warned: string[] = [];
+  console.warn = (...args: unknown[]) => {
+    warned.push(args.map(String).join(" "));
+  };
+  console.error = () => {};
+  try {
+    let t = Date.parse("2026-10-08T00:00:00Z");
+    let timedOut = false;
+    // The first read waits 15 s and times out; the second is quick.
+    const flakyOnce: Db = {
+      query: async (text, params) => {
+        if (!timedOut && /launchpad\.monday_jobs/.test(text)) {
+          timedOut = true;
+          t += 15_000;
+          throw new Error("Query read timeout");
+        }
+        return db.query(text, params);
+      },
+      transaction: (fn) => db.transaction(fn),
+    };
+    const data = await loadLiveData(flakyOnce, () => new Date(t));
+    assert.ok(data && data.status === "ok", "the second try reads it");
+    const slow = warned.filter((w) => w.includes("took"));
+    assert.equal(slow.length, 1, "one slow-load line, besides the retry's own note");
+    assert.match(slow[0], /a load took 15000 ms$/);
+    assert.equal(warned.length, 2, "the retry note and the slow-load line");
+  } finally {
+    console.warn = original.warn;
+    console.error = original.error;
+  }
 });

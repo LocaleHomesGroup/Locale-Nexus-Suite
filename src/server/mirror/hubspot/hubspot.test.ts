@@ -4,7 +4,7 @@ import { migratedTestDb } from "../../db/pglite";
 import type { Db } from "../../db/types";
 import { RunDeadlineError } from "../limits";
 import { getWatermark, setWatermark } from "../runs";
-import { HubSpotError, createHubSpotClient, isAllowedHubSpotRequest } from "./client";
+import { HubSpotError, createHubSpotClient, isAllowedHubSpotRequest, type HubSpotClient } from "./client";
 import { runHubSpotPass } from "./pass";
 import { MODIFIED, type HubSpotObject } from "./properties";
 
@@ -578,6 +578,94 @@ test("hubspot: an association answer with no results list changes no deal's cont
     "select associations -> 'contacts' as contacts from mirror.hubspot_objects where object_type = 'deals' and id = 800003",
   );
   assert.deepEqual(row.contacts, [3], "an answer without a results list says nothing about the deal's contacts");
+});
+
+test("hubspot: a property added later reaches a stored row the next time it is read, though its modified time hasn't moved", async () => {
+  const modified = "2026-10-08T01:00:00.000Z";
+  /** HubSpot with one deal, modified at the same moment on every read, carrying these properties beside its own. */
+  const oneDeal = (extra: Record<string, string>) =>
+    pagingHubSpot({}, (path) =>
+      path === "/crm/v3/objects/deals/search"
+        ? json({ results: [{ id: "820001", properties: { dealname: "Test deal 820001", hs_lastmodifieddate: modified, ...extra }, updatedAt: modified }] })
+        : undefined);
+  const read = async (extra: Record<string, string>) => {
+    await resetHubSpotState(); // every deal is read again, as after a watermark reset
+    const r = await runHubSpotPass(db, createHubSpotClient({ token: TOKEN, fetch: oneDeal(extra).fn, sleep: noSleep }), "1234", { trigger: "cli" });
+    assert.equal(r.status, "ok", r.error ?? "");
+    return r.changed;
+  };
+  const stored = async () =>
+    (await db.query<{ value: string | null }>(
+      "select properties ->> 'test_property' as value from mirror.hubspot_objects where object_type = 'deals' and id = 820001",
+    ))[0].value;
+
+  assert.equal(await read({}), 1);
+  // A property is added to PROPERTIES: the same deal, at the same modified time, now carries it.
+  assert.equal(await read({ test_property: "Test value" }), 1, "the row is rewritten");
+  assert.equal(await stored(), "Test value");
+  assert.equal(await read({ test_property: "Test value" }), 0, "read again unchanged, nothing is rewritten");
+});
+
+test("hubspot: a run that can't be recorded still returns what the pass did, keeps the pass's own error first, and frees the lease", async () => {
+  /** The test database, with every attempt to record a run's end failing. */
+  const unrecorded: Db = {
+    query: async <T>(text: string, params?: readonly unknown[]) => {
+      if (text.includes("update mirror.sync_runs")) throw new Error("connection reset");
+      return db.query<T>(text, params);
+    },
+    transaction: (fn) => db.transaction(fn),
+  };
+  const leases = () => db.query("select source from mirror.sync_locks where source = 'hubspot'");
+
+  await resetHubSpotState();
+  const f = pagingHubSpot({ notes: series(1, "2026-10-08T02:00:00Z", 830_000) });
+  const r = await runHubSpotPass(unrecorded, createHubSpotClient({ token: TOKEN, fetch: f.fn, sleep: noSleep }), "1234", { trigger: "cli" });
+  assert.equal(r.status, "ok", "the pass's own status, not the bookkeeping's");
+  assert.equal(r.seen, 1, "and its own counts");
+  assert.equal(r.error, "the run couldn't be recorded: connection reset");
+  assert.deepEqual(await leases(), [], "the lease was freed");
+
+  // A pass that failed keeps its own error, with the bookkeeping's after it.
+  const wrongPortal = fakeHubSpot(9999);
+  const failed = await runHubSpotPass(unrecorded, createHubSpotClient({ token: TOKEN, fetch: wrongPortal.fn, sleep: noSleep }), "1234", { trigger: "cli" });
+  assert.equal(failed.status, "failed");
+  assert.equal(
+    failed.error,
+    "HUBSPOT_TOKEN reaches portal 9999, not HUBSPOT_PORTAL_ID 1234. Nothing was read.; the run couldn't be recorded: connection reset",
+  );
+  assert.deepEqual(await leases(), []);
+});
+
+test("hubspot: a pass whose lease another pass took over stops partial before the next object, and leaves the lease alone", async () => {
+  await resetHubSpotState();
+  const f = pagingHubSpot({ deals: series(1, "2026-10-08T03:00:00Z", 840_000), contacts: series(1, "2026-10-08T03:00:00Z", 850_000) });
+  const client = createHubSpotClient({ token: TOKEN, fetch: f.fn, sleep: noSleep });
+  let tookOver = false;
+  /** The client, with the run outliving its lease while the deals are read, and another pass taking the lease over. */
+  const outlived: HubSpotClient = {
+    stats: client.stats,
+    get: (path, params) => client.get(path, params),
+    post: async <T>(path: string, body: unknown): Promise<T> => {
+      const out = await client.post<T>(path, body);
+      if (path === "/crm/v3/objects/deals/search" && !tookOver) {
+        tookOver = true;
+        await db.query("update mirror.sync_locks set locked_until = clock_timestamp() - interval '1 second' where source = 'hubspot'");
+        await db.query("select mirror.try_lock('hubspot', 'changes:another-pass', 900)");
+      }
+      return out;
+    },
+  };
+  try {
+    const r = await runHubSpotPass(db, outlived, "1234", { trigger: "cli" });
+    assert.equal(r.status, "partial");
+    assert.equal(r.note, "another pass took over the lease");
+    assert.equal(r.error, null);
+    assert.equal(f.searches("contacts").length, 0, "no object after the deals was read");
+    assert.equal(await watermarkOf("contacts"), null);
+    assert.deepEqual(await db.query("select owner from mirror.sync_locks where source = 'hubspot'"), [{ owner: "changes:another-pass" }]);
+  } finally {
+    await db.query("delete from mirror.sync_locks where source = 'hubspot'");
+  }
 });
 
 test("hubspot: a modified time that can't be read falls back to updatedAt for the checkpoint", async () => {
